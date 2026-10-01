@@ -5,7 +5,7 @@ import SwiftUI
 /// effect under it are Liquid Glass on macOS 26. Content stays solid.
 struct AppWindow: View {
     @State private var columns = NavigationSplitViewVisibility.all   // always .all: there is no toggle
-    static let size = CGSize(width: 900, height: 660)
+    static let size = CGSize(width: 1170, height: 858)   // 30% larger than the first 900 × 660
     @EnvironmentObject var m: AppModel
 
     var body: some View {
@@ -33,7 +33,7 @@ struct AppWindow: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) { page }
                     .padding(.horizontal, 28).padding(.top, 8).padding(.bottom, 28)
-                    .frame(maxWidth: 900).frame(maxWidth: .infinity)
+                    .frame(maxWidth: 1100).frame(maxWidth: .infinity)
                     .id(m.page)
                     .transition(Motion.reduced ? .opacity : .opacity.combined(with: .offset(y: 8)))
             }
