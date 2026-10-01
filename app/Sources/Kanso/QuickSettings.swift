@@ -20,7 +20,7 @@ struct QuickSettings: View {
         .padding(14)
         .frame(width: 340)
         .fixedSize(horizontal: false, vertical: true)
-        .background { if !Glass26.on { K.glass } }   // NSPopover is Liquid Glass on macOS 26: no second layer (never glass on glass)
+        .background(K.sidebar)   // the same shade as the App window's sidebar, solid over the popover's own material
         .focusEffectDisabled()   // our own mint focus ring is drawn instead of the square system one
         .animation(Motion.spring(), value: menuOpen)
     }
