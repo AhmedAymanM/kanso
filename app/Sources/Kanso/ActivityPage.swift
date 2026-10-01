@@ -108,7 +108,6 @@ struct ActivityPage: View {
                 emptyState
             }
         }
-        .searchable(text: $query, placement: .toolbar, prompt: "Search files and shelves")
         .background { KeyCatcher(up: { move(-1, list, selected?.id) }, down: { move(1, list, selected?.id) }) }
     }
 
@@ -152,27 +151,24 @@ struct ActivityPage: View {
                         .padding(.horizontal, 8).frame(height: 22).background(Capsule().fill(Tint.accent.bg))
                     Text(m.needs.isEmpty ? "nothing needs you" : "\(m.needs.count) need you").font(.system(size: TS.small)).foregroundStyle(K.text2)
                 }
-                do {
-                    glassGroup {
-                        FlowLayout(spacing: 3) {
-                            ForEach(Filter.allCases, id: \.self) { f in
-                                Button { withAnimation(Motion.spring(0.3)) { filter = f } } label: {
-                                    HStack(spacing: 4) {
-                                        Image(systemName: f.icon).font(.system(size: TS.micro, weight: .semibold))
-                                        if filter == f { Text(f.rawValue).font(.system(size: TS.small, weight: .medium)) }
-                                        if f == .needs && !m.needs.isEmpty { Text("\(m.needs.count)").font(.system(size: TS.micro, weight: .bold)) }
-                                    }
-                                    .foregroundStyle(filter == f ? Tint.accent.fg : K.text2)
-                                    .padding(.horizontal, 7).frame(height: 26).contentShape(Capsule())
-                                    .liquid(Capsule(), tint: filter == f ? Tint.accent.bg : nil, fallback: filter == f ? Tint.accent.bg : K.fill)
-                                    .overlay(Capsule().strokeBorder(filter == f ? Tint.accent.stroke : .clear, lineWidth: 0.75))
-                                }
-                                .buttonStyle(PlainRowStyle()).help(f.rawValue).accessibilityLabel(f.rawValue).accessibilityAddTraits(filter == f ? .isSelected : [])
-                            }
-                        }
-                        .padding(.vertical, 2)
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass").font(.system(size: TS.small)).foregroundStyle(K.text2)
+                    TextField("Search files and shelves", text: $query).textFieldStyle(.plain).font(.system(size: TS.body))
+                    if !query.isEmpty { Button { query = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(K.text3) }.buttonStyle(.plain).accessibilityLabel("Clear search") }
+                }
+                .padding(.horizontal, 12).frame(height: 32).liquid(Capsule(), tint: nil, fallback: K.fill, interactive: false)
+                Picker("Filter", selection: $filter.animation(Motion.spring(0.3))) {
+                    ForEach(Filter.allCases, id: \.self) { f in
+                        Label(f.rawValue, systemImage: f.icon).labelStyle(.iconOnly).help(f.rawValue).tag(f)
                     }
                 }
+                .pickerStyle(.segmented).labelsHidden().controlSize(.large)
+                .accessibilityLabel("Filter activity")
+                HStack {
+                    Text(filter.rawValue).font(.system(size: TS.small, weight: .medium)).foregroundStyle(K.text2)
+                    if filter == .needs, !m.needs.isEmpty { Text("\(m.needs.count)").font(.system(size: TS.small)).foregroundStyle(K.text3) }
+                }
+                .padding(.horizontal, 4)
                 LazyVStack(alignment: .leading, spacing: 4) {
                     let groups = group(list)
                     ForEach(groups, id: \.0) { g in
