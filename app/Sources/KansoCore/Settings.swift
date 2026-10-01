@@ -79,6 +79,8 @@ public struct Settings: Codable, Equatable, Sendable {
     public var settleSeconds = 10
     public var graceMinutes = 0        // "Leave new files alone for"
     public var smartEject = true
+    public var smartEjectNotice = true       // show the island notice with Put Back
+    public var smartEjectOnlyEject = false   // eject the disk image but leave the installer where it is
     public var approach = Approach.kind
     public var recents = RecentsMode.links
     public var recentDays = 7
@@ -162,7 +164,7 @@ public struct Settings: Codable, Equatable, Sendable {
         d(.autoSort, &autoSort); d(.settleSeconds, &settleSeconds); d(.graceMinutes, &graceMinutes)
         sortingOffUntil = try? c.decode(Date.self, forKey: .sortingOffUntil)
         sortingOffSince = try? c.decode(Date.self, forKey: .sortingOffSince)
-        d(.offReminderShown, &offReminderShown); d(.smartEject, &smartEject)
+        d(.offReminderShown, &offReminderShown); d(.smartEject, &smartEject); d(.smartEjectNotice, &smartEjectNotice); d(.smartEjectOnlyEject, &smartEjectOnlyEject)
         d(.approach, &approach); d(.recents, &recents); d(.recentDays, &recentDays); d(.folderIcons, &folderIcons)
         d(.sortFolders, &sortFolders); d(.keepTag, &keepTag); d(.learnCorrections, &learnCorrections)
         d(.unknownFiles, &unknownFiles); d(.suggestTypes, &suggestTypes); d(.appleIntelligence, &appleIntelligence)
