@@ -126,6 +126,8 @@ final class Island: ObservableObject {
     @Published var expanded = false
     @Published var overview = false
     @Published var selection = 0
+    @Published var confirmation: (text: String, undo: UUID?)?   // overview: one line for 3 s after acting on a card
+    @Published var handled = 0         // cards handled since the overview opened
     @Published var card = 0            // overview: which needs-you card is showing (one at a time)
     @Published var askText = ""
     @Published var askState = AskState.idle
@@ -244,6 +246,8 @@ final class Island: ObservableObject {
             self.fanned = false
             self.index = 0
             self.card = 0
+            self.handled = 0
+            self.confirmation = nil
         }
         if wasNeeds && !overview {   // ignored needs-you notices wait in the overview; the menu bar gets a dot
             AppModel.shared.collected += 1
@@ -396,6 +400,14 @@ final class Island: ObservableObject {
 
     private func run(key: String, _ acts: [IslandAction]) { acts.first { $0.key == key }?.run() }
 
+    /// A one-line confirmation replaces the head for 3 s; the next card slides in.
+    func confirm(_ text: String, undo: UUID?) {
+        handled += 1
+        withAnimation(Motion.spring()) { confirmation = (text, undo) }
+        selection = 0
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) { withAnimation(Motion.spring()) { self.confirmation = nil } }
+    }
+
     func stepCard(_ d: Int) {
         let n = AppModel.shared.needs.count
         guard n > 1 else { return }
@@ -436,11 +448,11 @@ final class Island: ObservableObject {
                 let later = IslandAction(label: "Later", key: "", icon: "arrow.right") { self.stepCard(1) }
                 switch m.needs[min(card, m.needs.count - 1)] {
                 case .duplicate(let a):
-                    needs = [IslandAction(label: "Move copy to Trash", key: "⌘⌫", icon: "trash") { m.trash(a.id) },
-                             IslandAction(label: "Keep both", key: "", icon: "doc.on.doc") { m.keepBoth(a.id) }, later]
+                    needs = [IslandAction(label: "Move copy to Trash", key: "⌘⌫", icon: "trash") { m.trash(a.id); self.confirm("Moved \(a.name) to Trash", undo: a.id) },
+                             IslandAction(label: "Keep both", key: "", icon: "doc.on.doc") { m.keepBoth(a.id); self.confirm("Kept both copies of \(a.name)", undo: nil) }, later]
                 case .renames(let p, _): needs = [IslandAction(label: "Review names", key: "↩", icon: "checklist") { self.hide(); Windows.shared.showReview(tab: .renames) },
-                                                  IslandAction(label: "Rename all", key: "⌘↩", icon: "wand.and.sparkles") { m.applyRenames(p) }, later]
-                case .rule(let r): needs = [IslandAction(label: "Create rule", key: "↩", icon: "wand.and.stars") { m.acceptSuggestion(r.id) }, later]
+                                                  IslandAction(label: "Rename all", key: "⌘↩", icon: "wand.and.sparkles") { m.applyRenames(p); self.confirm("Renamed \(p.count) files", undo: nil) }, later]
+                case .rule(let r): needs = [IslandAction(label: "Create rule", key: "↩", icon: "wand.and.stars") { m.acceptSuggestion(r.id); self.confirm("Rule created for \(r.shelf)", undo: nil) }, later]
                 }
             }
             let recent = m.done.prefix(3).map { a in IslandAction(label: "Show \(a.name)", key: "↩") { m.reveal(a.dst) } }

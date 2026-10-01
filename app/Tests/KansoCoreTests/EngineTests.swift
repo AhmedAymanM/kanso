@@ -460,4 +460,14 @@ final class EngineTests: XCTestCase {
         XCTAssertEqual(Engine.parseSize("500mb"), 500_000_000)
         XCTAssertNil(Engine.parseSize("big"))
     }
+
+    /// Settings written before the Smart Eject options existed still load, with the old behaviour.
+    func testOldSettingsGetSmartEjectDefaults() throws {
+        let old = try JSONDecoder().decode(Settings.self, from: Data(#"{"smartEject": true, "tagging": true}"#.utf8))
+        XCTAssertTrue(old.smartEjectNotice)
+        XCTAssertFalse(old.smartEjectOnlyEject)
+        XCTAssertTrue(old.tagging)
+        let round = try JSONDecoder().decode(Settings.self, from: JSONEncoder().encode(old))
+        XCTAssertEqual(round.smartEjectNotice, true)
+    }
 }
