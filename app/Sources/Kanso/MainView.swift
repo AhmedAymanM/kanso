@@ -83,9 +83,24 @@ struct Sidebar: View {
             ForEach(Array(Page.groups.enumerated()), id: \.offset) { _, g in
                 Section {
                     ForEach(g) { p in
-                        Label { Text(p.title).font(.system(size: TS.body)) } icon: { Image(systemName: p.icon).font(.system(size: TS.small)).foregroundStyle(m.page == p ? K.text : K.text2) }
-                            .badge(p == .activity ? m.needs.count : 0)
-                            .tag(p)
+                        HStack(spacing: 0) {
+                            Label { Text(p.title).font(.system(size: TS.body)) } icon: { Image(systemName: p.icon).font(.system(size: TS.small)).foregroundStyle(m.page == p ? K.text : K.text2) }
+                            Spacer(minLength: 4)
+                            if p == .activity && !m.needs.isEmpty {
+                                Text("\(m.needs.count)").font(.system(size: TS.meta, weight: .semibold)).monospacedDigit().foregroundStyle(.white)
+                                    .padding(.horizontal, 6).frame(minWidth: 20, minHeight: 20).background(Capsule().fill(Color(red: 1, green: 0.23, blue: 0.19)))   // system red: a count that needs you
+                                    .accessibilityHidden(true)
+                            }
+                            if p == .sorting && !m.inaccessibleRoots.isEmpty {
+                                Image(systemName: "exclamationmark.triangle.fill").font(.system(size: TS.meta, weight: .bold)).foregroundStyle(.white)
+                                    .frame(width: 20, height: 20).background(Circle().fill(Color(red: 1, green: 0.62, blue: 0.04)))
+                                    .accessibilityHidden(true)
+                            }
+                        }
+                        .help(p == .sorting && !m.inaccessibleRoots.isEmpty ? "A watched folder needs access" : "")
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel(p == .activity && !m.needs.isEmpty ? "Activity, \(m.needs.count) need you" : p == .sorting && !m.inaccessibleRoots.isEmpty ? "Sorting, a watched folder needs access" : p.title)
+                        .tag(p)
                     }
                 }
             }
