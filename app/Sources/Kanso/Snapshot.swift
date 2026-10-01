@@ -13,7 +13,22 @@ enum Snapshot {
         let m = AppModel.shared
         m.engine.detectCorrections()
         m.refresh()
-        if let k = ProcessInfo.processInfo.environment["KANSO_SELECT"], let a = m.actions.first(where: { $0.kind.rawValue == k }) { m.selectedActivity = a.id.uuidString }   // pick an Activity entry by kind
+        // KANSO_SELECT opens one Activity entry: renamed, sorted, batch, rename-review, rule, duplicate, installer, waiting, undone
+        // (or an action kind). KANSO_EXPAND=1 / KANSO_INDEX=n open the file-by-file view of a batch or rename review.
+        if let k = ProcessInfo.processInfo.environment["KANSO_SELECT"] {
+            m.waiting = [Waiting(url: URL(fileURLWithPath: "/tmp/keynote-recording.mov.crdownload"), root: URL(fileURLWithPath: "/tmp"), size: 48_000_000, partial: true, since: Date().addingTimeInterval(-3600), shelf: "Videos")]
+            switch k {
+            case "rename-review": m.selectedActivity = "renames"
+            case "rule": m.selectedActivity = m.pending.suggestions.first?.id.uuidString
+            case "batch": m.selectedActivity = m.actions.first { $0.run == "b1" }.map { "run-" + $0.run }
+            case "waiting": m.selectedActivity = m.waiting.first.map { "wait-" + $0.id }
+            case "duplicate": m.selectedActivity = m.actions.last { $0.kind == .duplicate && $0.pending }?.id.uuidString
+            case "installer": m.selectedActivity = m.actions.last { $0.details["installer"] != nil }?.id.uuidString
+            case "undone": m.selectedActivity = m.actions.last { $0.undone }?.id.uuidString
+            case "sorted": m.selectedActivity = m.actions.last { $0.kind == .sorted && $0.why == "screenshot" }?.id.uuidString
+            default: m.selectedActivity = m.actions.last { $0.kind.rawValue == k }?.id.uuidString
+            }
+        }
         let only = ProcessInfo.processInfo.environment["KANSO_SNAPSHOT_ONLY"]?.split(separator: ",").map(String.init)
         for mode in ["light", "dark"] {
             let ap = NSAppearance(named: mode == "dark" ? .darkAqua : .aqua)!
@@ -28,6 +43,10 @@ enum Snapshot {
             shot("rule-editor", CGSize(width: 860, height: 420), RowGroup {
                 RuleRow(rule: Rule([Condition(.name, "*lecture*"), Condition(.from, "canvas.uni.se")], dest: "Documents"), open: true, count: 14, toggle: {}, close: {})
             }.padding(24).background(K.window))
+            let demo: [String: Int] = ["Utilities": 8, "Utility bills": 3]
+            shot("tag-picker-search", CGSize(width: 260, height: 170), TagPicker(counts: demo, existing: ["Invoice"], text: "Util") { _, _ in }.background(K.window))
+            shot("tag-picker-color", CGSize(width: 260, height: 130), TagPicker(counts: demo, existing: [], text: "Util", stage: .color("Util")) { _, _ in }.background(K.window))
+            shot("name-popover", CGSize(width: 300, height: 120), NamePopover(title: "Rename Invoice-Vattenfall-2026-03.pdf", initial: "Invoice-Vattenfall-2026-03.pdf", commit: { _ in true }, close: {}).background(K.window))
             shot("quick-settings", CGSize(width: 340, height: 560), QuickSettings())
             shot("review-renames", CGSize(width: 1000, height: 720), ReviewView(tab: .renames))
             for (i, st) in [OnboardingView.Step.folders, .island, .ai, .files, .declined].enumerated() { shot("onboarding-\(i)", CGSize(width: 640, height: 560), OnboardingView(step: st)) }

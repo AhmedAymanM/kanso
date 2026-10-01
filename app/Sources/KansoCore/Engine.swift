@@ -45,6 +45,9 @@ public struct Waiting: Identifiable, Sendable, Hashable {
     public var partial: Bool
     public var since: Date
     public var shelf: String?
+    public init(url: URL, root: URL, size: Int64, partial: Bool, since: Date, shelf: String?) {
+        self.url = url; self.root = root; self.size = size; self.partial = partial; self.since = since; self.shelf = shelf
+    }
 }
 
 public struct Plan: Sendable {
@@ -294,19 +297,22 @@ public final class Engine: @unchecked Sendable {
     }
 
     /// Tag names already in use on the user's files, reused before any new tag is made.
-    public func existingTags() -> [String] {
-        var tags = Set<String>()
+    public func existingTags() -> [String] { tagCounts().keys.sorted() }
+
+    /// Tag name → how many files carry it (most used first when sorted by count); for the tag picker.
+    public func tagCounts() -> [String: Int] {
+        var tags: [String: Int] = [:]
         for root in s.activeRoots {
             let e = fm.enumerator(at: root, includingPropertiesForKeys: [.tagNamesKey], options: [.skipsHiddenFiles, .skipsPackageDescendants])
             var n = 0
             while let u = e?.nextObject() as? URL, n < 5000 {  // ponytail: bounded walk; read Finder's tag list if this misses tags
                 n += 1
                 if e!.level > 3 { e!.skipDescendants() }
-                tags.formUnion(Tags.read(u))
+                for t in Tags.read(u) { tags[t, default: 0] += 1 }
             }
         }
-        tags.remove(s.keepTag)
-        return tags.sorted()
+        tags[s.keepTag] = nil
+        return tags
     }
 
     // MARK: Acting
@@ -450,6 +456,24 @@ public final class Engine: @unchecked Sendable {
 
     public func dismissRenames(_ ids: Set<UUID>? = nil) {
         store.updatePending { p in if let ids { p.renames.removeAll { ids.contains($0.id) } } else { p.renames = [] } }
+    }
+
+    /// "Rename…": renames one file in place. Journaled as a rename, so Undo restores the old name.
+    @discardableResult
+    public func renameFile(_ id: UUID, to newName: String) -> Action? {
+        let name = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let a = store.actions.first(where: { $0.id == id }), fm.fileExists(atPath: a.dst),
+              !name.isEmpty, !name.contains("/"), !name.hasPrefix("."), name != a.name else { return nil }
+        let src = URL(fileURLWithPath: a.dst)
+        let dst = Engine.unique(src.deletingLastPathComponent().appendingPathComponent(name))
+        guard (try? fm.moveItem(at: src, to: dst)) != nil else { return nil }
+        if s.keepOriginalSearchable { Renamer.keepOriginal(dst, a.oldName ?? src.lastPathComponent) }
+        var r = Action(run: String(UUID().uuidString.prefix(8)).lowercased(), kind: .renamed, src: src.path, dst: dst.path, root: a.root, shelf: a.shelf, why: "renamed by you", source: "you")
+        r.oldName = src.lastPathComponent
+        r.trigger = "menu"
+        r.tags = a.tags
+        store.append(r)
+        return r
     }
 
     func rootFor(_ url: URL) -> URL? { s.activeRoots.first { url.path.hasPrefix($0.path + "/") } }

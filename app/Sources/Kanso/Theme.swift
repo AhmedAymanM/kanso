@@ -66,6 +66,7 @@ enum K {
     static let text3 = Color.dyn(0x8A8A8E, 0x8E8E93)
     static let separator = Color.dyn(0x000000, 0xFFFFFF, 0.10, 0.12)
     static let fill = Color.dyn(0x000000, 0xFFFFFF, 0.04, 0.07)
+    static let segThumb = Color.dyn(0xFFFFFF, 0x4A4A4C)   // raised pill in the Activity filter
     static let fillStrong = Color.dyn(0x000000, 0xFFFFFF, 0.06, 0.10)
     static let neutralBg = Tint.neutral.bg
     static let off = Color.dyn(0x000000, 0xFFFFFF, 0.12, 0.16)   // k2-switch-off

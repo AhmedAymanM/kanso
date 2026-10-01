@@ -56,9 +56,10 @@ public enum Tags {
         (try? url.resourceValues(forKeys: [.tagNamesKey]).tagNames) ?? []
     }
 
-    public static func add(_ url: URL, _ tags: [String]) {
+    /// `color` is a Finder label index (1 gray, 2 green, 3 purple, 4 blue, 5 yellow, 6 red, 7 orange), stored as "name\nindex".
+    public static func add(_ url: URL, _ tags: [String], color: Int? = nil) {
         let old = read(url)
-        let new = old + tags.filter { t in !t.isEmpty && !old.contains { $0.caseInsensitiveCompare(t) == .orderedSame } }
+        let new = old + tags.map { t in color.map { "\(t)\n\($0)" } ?? t }.filter { t in !t.isEmpty && !old.contains { $0.caseInsensitiveCompare(t.components(separatedBy: "\n")[0]) == .orderedSame } }
         if new != old { try? (url as NSURL).setResourceValue(new, forKey: .tagNamesKey) }
     }
 
