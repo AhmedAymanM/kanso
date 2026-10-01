@@ -108,7 +108,7 @@ final class AppModel: ObservableObject {
     @Published private(set) var inaccessibleRoots: [String] = []
     @Published private(set) var actions: [Action] = []
     @Published private(set) var pending = Pending()
-    @Published private(set) var waiting: [Waiting] = []
+    @Published var waiting: [Waiting] = []   // set by the sort run; snapshots set it too
     @Published private(set) var busy = false
     @Published private(set) var duplicatesBytes: Int64 = 0
     @Published var page: Page = .overview
@@ -306,13 +306,40 @@ final class AppModel: ObservableObject {
     func dismissRenames() { engine.dismissRenames(); refresh() }
     func acceptSuggestion(_ id: UUID) { engine.acceptSuggestion(id); refresh() }
     func dismissSuggestion(_ id: UUID) { engine.dismissSuggestion(id); refresh() }
-    /// "+ Add tag" on a renamed file: a Finder tag on the file, remembered on the action.
-    func addTag(_ id: UUID, _ name: String) {
+    /// "+ Add tag" on a sorted or renamed file: a Finder tag (with a Finder colour label) on the file, remembered on the action.
+    func addTag(_ id: UUID, _ name: String, color: Int? = nil) {
         guard let a = actions.first(where: { $0.id == id }), !name.isEmpty, !a.tags.contains(name) else { return }
-        Tags.add(URL(fileURLWithPath: a.dst), [name])
-        store.modify([id]) { $0.tags.append(name) }
+        Tags.add(URL(fileURLWithPath: a.dst), [name], color: color)
+        store.modify([id]) { $0.tags.append(name); if let color { $0.details["tagcolor:" + name] = String(color) } }
         refresh()
     }
+
+    func removeTag(_ id: UUID, _ name: String) {
+        guard let a = actions.first(where: { $0.id == id }) else { return }
+        Tags.remove(URL(fileURLWithPath: a.dst), [name])
+        store.modify([id]) { $0.tags.removeAll { $0 == name }; $0.details["tagcolor:" + name] = nil }
+        refresh()
+    }
+
+    /// "Rename…": journaled as a rename, so Undo restores the old name. False when the name is refused.
+    @discardableResult
+    func renameFile(_ id: UUID, to name: String) -> Bool {
+        let r = engine.renameFile(id, to: name)
+        refresh()
+        if let r { selectedActivity = r.id.uuidString }
+        return r != nil
+    }
+
+    /// "Edit name…" on a rename proposal: the review keeps the edited name.
+    func editProposal(_ id: UUID, name: String) {
+        let n = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !n.isEmpty, !n.contains("/") else { return }
+        store.updatePending { p in if let i = p.renames.firstIndex(where: { $0.id == id }) { p.renames[i].newName = n } }
+        refresh()
+    }
+
+    /// Tag name → files carrying it, for the tag picker.
+    nonisolated func tagCounts() async -> [String: Int] { engine.tagCounts() }
 
     func move(_ id: UUID, to shelf: String) { engine.move(id, to: shelf); refresh() }
 

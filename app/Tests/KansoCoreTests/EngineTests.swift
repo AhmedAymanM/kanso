@@ -455,6 +455,27 @@ final class EngineTests: XCTestCase {
         XCTAssertTrue(try JSONDecoder().decode(Rule.self, from: Data(old.utf8)).builtIn, "older settings files are migrated")
     }
 
+    func testRenameFileIsJournaledAndUndoRestores() async {
+        make(pick: nil)
+        let u = file("report.txt")
+        let a = await run().first!
+        let r = engine.renameFile(a.id, to: "Q3 report.txt")
+        XCTAssertEqual(r?.kind, .renamed)
+        XCTAssertEqual(r?.oldName, "report.txt")
+        XCTAssertTrue(exists(shelf("Documents").appendingPathComponent("Q3 report.txt")))
+        XCTAssertNil(engine.renameFile(a.id, to: "../evil.txt"), "no path separators")
+        engine.undo([r!.id])
+        XCTAssertTrue(exists(shelf("Documents").appendingPathComponent("report.txt")) || exists(u))
+        XCTAssertFalse(exists(shelf("Documents").appendingPathComponent("Q3 report.txt")))
+    }
+
+    func testTagCountsSkipKeepTag() async {
+        make(pick: nil)
+        let u = file("a.txt"); Tags.add(u, ["Utilities", "Keep"])
+        XCTAssertEqual(engine.tagCounts()["Utilities"], 1)
+        XCTAssertNil(engine.tagCounts()["Keep"])
+    }
+
     func testSizeParsing() {
         XCTAssertEqual(Engine.parseSize("2 GB"), 2_000_000_000)
         XCTAssertEqual(Engine.parseSize("500mb"), 500_000_000)
