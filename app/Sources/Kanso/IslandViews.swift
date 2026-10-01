@@ -8,7 +8,7 @@ import SwiftUI
 enum IslandInk {
     static let text = Color(nsColor: NSColor(hex: 0xF5F5F7))
     static let text2 = Color.white.opacity(0.6)
-    static let text3 = Color.white.opacity(0.4)
+    static let text3 = Color.white.opacity(0.6)   // 6.2:1 on black; 40% failed 4.5:1 for 11 pt text
     static let control = Color.white.opacity(0.12)
     static let rim = Color.white.opacity(0.18)
 }
@@ -101,12 +101,12 @@ struct IslandBody: View {
                         }.padding(.trailing, 14)
                     }
                     .frame(height: island.notch.height)
-                    line(n).lineLimit(1).truncationMode(.middle).padding(.horizontal, 14).frame(maxWidth: .infinity)
+                    line(n).lineLimit(1).truncationMode(.middle).help(n.line).padding(.horizontal, 14).frame(maxWidth: .infinity)
                 }
             } else {
                 HStack(spacing: 10) {
                     icon(n)
-                    line(n).lineLimit(1).truncationMode(.middle)
+                    line(n).lineLimit(1).truncationMode(.middle).help(n.line)
                     Spacer(minLength: 4)
                     if island.notices.count > 1 { countBadge(n) }
                     if hint { IslandKey(text: m.settings.islandShortcut.display, dark: true) }
@@ -334,10 +334,10 @@ struct NameUnit: View {
     @State private var hover = false
     var body: some View {
         VStack(spacing: 2) {
-            if let old { Text(old).font(.system(size: 11, design: .monospaced)).foregroundStyle(Color.white.opacity(0.35)).strikethrough().lineLimit(1).truncationMode(.middle) }
+            if let old { Text(old).font(.system(size: 11, design: .monospaced)).foregroundStyle(Color.white.opacity(0.6)).strikethrough().lineLimit(1).truncationMode(.middle) }
             HStack(spacing: 6) {
                 Button { NSWorkspace.shared.open(URL(fileURLWithPath: path)) } label: {
-                    Text(name).font(.system(size: size, weight: .bold)).foregroundStyle(IslandInk.text).lineLimit(1).truncationMode(.middle)
+                    Text(name).font(.system(size: size, weight: .bold)).foregroundStyle(IslandInk.text).lineLimit(2).truncationMode(.middle).multilineTextAlignment(.center).help(name)
                 }
                 .buttonStyle(.plain).help("Open")
                 Button { AppModel.shared.reveal(path) } label: { Image(systemName: "arrow.up.right").font(.system(size: 13)).foregroundStyle(Color.white.opacity(0.45)) }
@@ -356,7 +356,7 @@ struct Breadcrumb: View {
     var body: some View {
         HStack(spacing: 4) {
             ForEach(Array(ancestors.enumerated()), id: \.offset) { _, a in
-                Text(a).font(.system(size: 11)).foregroundStyle(Color.white.opacity(0.45)).lineLimit(1).truncationMode(.tail)
+                Text(a).font(.system(size: 11)).foregroundStyle(Color.white.opacity(0.6)).lineLimit(1).truncationMode(.tail)
                 Image(systemName: "chevron.right").font(.system(size: 8, weight: .semibold)).foregroundStyle(Color.white.opacity(0.3))
             }
             Text("\(emoji) \(current)").font(.system(size: 11)).foregroundStyle(Color.white.opacity(0.85)).lineLimit(1).fixedSize()
@@ -375,12 +375,12 @@ struct SubtleAction: View {
             HStack(spacing: 6) {
                 Image(systemName: action.icon).font(.system(size: 12)).foregroundStyle(Color.white.opacity(0.7))
                 Text(label ?? action.label).font(.system(size: 12, weight: .medium)).foregroundStyle(Color.white.opacity(0.85))
-                if !action.key.isEmpty { Text(action.key).font(.system(size: 11, weight: .medium)).foregroundStyle(Color.white.opacity(0.35)) }
+                if !action.key.isEmpty { Text(action.key).font(.system(size: 11, weight: .medium)).foregroundStyle(Color.white.opacity(0.6)) }
             }
             .padding(.horizontal, 12).frame(height: 26)
             .background(Capsule().fill(Color.white.opacity(selected ? 0.15 : 0.08)))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PressStyle())
         .accessibilityLabel(action.label)
     }
 }
@@ -429,7 +429,7 @@ struct DuplicateBody: View {
         let keptName = (keptPath as NSString).lastPathComponent
         let size = (Int64(a.details["size"] ?? "") ?? 0).bytes
         VStack(spacing: 12) {
-            NoticeHead(icon: "doc.on.doc", tint: .duplicate, title: "Already have \(keptName)", time: a.ts.relative).stagger(0)
+            NoticeHead(icon: "doc.on.doc", tint: .duplicate, title: "Copy of \(keptName) held", time: a.ts.relative).stagger(0)
             HStack(alignment: .top, spacing: 16) {
                 column(label: "Kept", path: keptPath, name: keptName, folder: shelfName(keptPath))
                 column(label: "Extra copy · \(size) · identical", path: a.dst, name: a.name, folder: a.shelf)
@@ -447,7 +447,7 @@ struct DuplicateBody: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(label).font(.system(size: 10.5)).foregroundStyle(IslandInk.text3).lineLimit(1)
                 HStack(spacing: 4) {
-                    Text(name).font(.system(size: 14, weight: .semibold)).foregroundStyle(IslandInk.text).lineLimit(1).truncationMode(.middle)
+                    Text(name).font(.system(size: 14, weight: .semibold)).foregroundStyle(IslandInk.text).lineLimit(1).truncationMode(.middle).help(name)
                     Button { m.reveal(path) } label: { Image(systemName: "arrow.up.right").font(.system(size: 11)).foregroundStyle(Color.white.opacity(0.45)) }.buttonStyle(.plain).accessibilityLabel("Show in Finder")
                 }
                 Text("\(m.settings.emoji(for: folder)) \(folder)").font(.system(size: 11)).foregroundStyle(Color.white.opacity(0.7)).lineLimit(1)
@@ -508,7 +508,7 @@ struct CountedList: View {
                     MorphIcon(notice: n, size: 22)
                     VStack(alignment: .leading, spacing: 0) {
                         if case .renamed(let a) = n, let o = a.oldName { Text(o).font(.system(size: 10.5, design: .monospaced)).foregroundStyle(IslandInk.text3).strikethrough().lineLimit(1) }
-                        Text(title(n)).font(.system(size: 13, weight: .semibold)).foregroundStyle(IslandInk.text).lineLimit(1).truncationMode(.middle)
+                        Text(title(n)).font(.system(size: 13, weight: .semibold)).foregroundStyle(IslandInk.text).lineLimit(1).truncationMode(.middle).help(title(n))
                     }
                     Spacer(minLength: 8)
                     if case .renamed(let a) = n { Text("\(m.settings.emoji(for: a.shelf)) \(a.shelf)").font(.system(size: 11)).foregroundStyle(Color.white.opacity(0.7)) }
@@ -517,6 +517,10 @@ struct CountedList: View {
                 .padding(.horizontal, 10).padding(.vertical, 6)
                 .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.white.opacity(sel ? 0.10 : 0)))
                 .contentShape(Rectangle()).onTapGesture { island.index = i; island.selection = i }
+                // VoiceOver: one button per row (the keyboard uses ↑ ↓ and ⌘Z through the island's key handler).
+                .accessibilityElement(children: .combine).accessibilityAddTraits(.isButton)
+                .accessibilityAction { island.index = i; island.selection = i }
+                .accessibilityAction(named: "Undo") { island.selection = i; island.actions().first { $0.key == "⌘Z" }?.run() }
             }
         }
     }
@@ -578,7 +582,7 @@ struct FanBody: View {
                 NameUnit(old: a.oldName, name: a.name, path: a.dst)
                 crumb(a, m)
             }
-            .id(a.id).transition(.opacity.combined(with: .offset(y: 8)))
+            .id(a.id).transition(Motion.reduced ? .opacity : .opacity.combined(with: .offset(y: 8)))
             ActionRow(labelOverride: "Undo this file")
         }
         .animation(Motion.spring(), value: island.index)
@@ -655,7 +659,7 @@ struct OverviewBody: View {
         let act = island.actions().indices.contains(i) ? island.actions()[i] : nil
         return HStack(spacing: 10) {
             Image(systemName: n.icon).font(.system(size: 12)).foregroundStyle(n.tint.islandGlyph).frame(width: 26, height: 26).background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(n.tint.islandFill))
-            Text(title(n)).font(.system(size: 13, weight: .medium)).foregroundStyle(n.tint.fg).lineLimit(1).truncationMode(.middle)
+            Text(title(n)).font(.system(size: 13, weight: .medium)).foregroundStyle(n.tint.fg).lineLimit(1).truncationMode(.middle).help(title(n))
             Spacer(minLength: 8)
             if let act {
                 Button(action: act.run) {
@@ -666,13 +670,16 @@ struct OverviewBody: View {
                     }
                     .padding(.horizontal, 10).frame(height: 24).background(Capsule().fill(Color.white.opacity(0.1))).overlay(Capsule().strokeBorder(Color.white.opacity(0.14), lineWidth: 0.75))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(PressStyle())
+                .accessibilityLabel(act.label)
             }
         }
         .padding(.horizontal, 10).frame(height: 40)
         .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(Color(nsColor: NSColor(hex: 0x1C1C1E))))
         .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(sel ? Color.white.opacity(0.9) : Color.white.opacity(0.12), lineWidth: sel ? 2 : 1))
         .contentShape(Rectangle()).onTapGesture { island.selection = i }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(title(n))
     }
 
     func recentRow(_ a: Action, _ row: Int) -> some View {
@@ -680,7 +687,7 @@ struct OverviewBody: View {
         return HStack(spacing: 10) {
             Image(systemName: a.kind == .renamed ? "checkmark" : a.kind == .duplicate ? "doc.on.doc" : a.kind == .trashed ? "shippingbox" : "square.3.layers.3d").font(.system(size: 11)).foregroundStyle(IslandInk.text2).frame(width: 18)
             Text(a.kind == .renamed ? "Renamed \(a.oldName.map { ($0 as NSString).deletingPathExtension } ?? "") → \((a.name as NSString).deletingPathExtension)" : summary(a) + " · " + a.name)
-                .font(.system(size: 12)).foregroundStyle(IslandInk.text).lineLimit(1).truncationMode(.middle)
+                .font(.system(size: 12)).foregroundStyle(IslandInk.text).lineLimit(1).truncationMode(.middle).help(a.name)
             Spacer(minLength: 8)
             Text(sel ? "⌘Z" : a.ts.shortAgo).font(.system(size: 11)).foregroundStyle(IslandInk.text3)
         }
@@ -688,6 +695,9 @@ struct OverviewBody: View {
         .background(RoundedRectangle(cornerRadius: 15, style: .continuous).fill(Color.white.opacity(sel ? 0.14 : 0.06)))
         .overlay(RoundedRectangle(cornerRadius: 15, style: .continuous).strokeBorder(Color.white.opacity(0.10), lineWidth: 0.75))
         .contentShape(Rectangle()).onTapGesture { island.selection = row }
+        .accessibilityElement(children: .combine).accessibilityAddTraits(.isButton)
+        .accessibilityAction { island.selection = row }
+        .accessibilityAction(named: "Undo") { m.undo([a.id]) }
     }
 
     func title(_ n: Need) -> String {

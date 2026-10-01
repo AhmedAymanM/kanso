@@ -56,6 +56,7 @@ enum K {
     static let accentStroke = Tint.accent.stroke
     static let window = Color.dyn(0xF4F2EE, 0x1C1C1E)
     static let sidebar = Color.dyn(0xECE8E1, 0x232325)
+    static let sidebarText2 = Color.dyn(0x5E5E63, 0xA1A1A6)   // secondary text on the sidebar material: 5.3:1 light, 5.9:1 dark
     static let rowSelected = Color.dyn(0x000000, 0xFFFFFF, 0.08, 0.10)   // selected sidebar row, hovered pop-up row
     static let glass = Color.dyn(0xFBFAF8, 0x2A2A2C, 0.90, 0.92)
     static let card = Color.dyn(0xFFFFFF, 0x2C2C2E)
@@ -97,7 +98,7 @@ enum Motion {
 // MARK: Text styles
 
 extension View {
-    func eyebrow() -> some View { font(.system(size: 10.5, weight: .semibold)).kerning(0.5).foregroundStyle(K.text3).textCase(.uppercase) }
+    func eyebrow() -> some View { font(.system(size: 10.5, weight: .semibold)).kerning(0.5).foregroundStyle(K.text2).textCase(.uppercase) }
     func card(radius: CGFloat = 12) -> some View {
         background(RoundedRectangle(cornerRadius: radius).fill(K.card))
             .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(K.separator, lineWidth: 0.75))
@@ -116,7 +117,7 @@ struct SectionTitle: View {
                 if let action {
                     Button(trailing, action: action).buttonStyle(LinkStyle())
                 } else {
-                    Text(trailing).font(.system(size: 11)).foregroundStyle(K.text3)
+                    Text(trailing).font(.system(size: 11)).foregroundStyle(K.text2)
                 }
             }
         }
@@ -154,7 +155,7 @@ struct PrimaryStyle: ButtonStyle {
             .frame(height: small ? 26 : 30)
             .contentShape(Capsule())
             .liquid(Capsule(), tint: tint.bg.opacity(0.9))
-            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+            .scaleEffect(configuration.isPressed && !Motion.reduced ? 0.96 : 1)
             .animation(.spring(response: 0.25, dampingFraction: 0.8), value: configuration.isPressed)
             .focusRing(13)
     }
@@ -172,7 +173,7 @@ struct SecondaryStyle: ButtonStyle {
             .frame(height: small ? 26 : 30)
             .contentShape(Capsule())
             .liquid(Capsule())
-            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+            .scaleEffect(configuration.isPressed && !Motion.reduced ? 0.96 : 1)
             .animation(.spring(response: 0.25, dampingFraction: 0.8), value: configuration.isPressed)
             .focusRing(13)
     }
@@ -196,6 +197,15 @@ struct LinkStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label.font(.system(size: 11.5, weight: .medium)).foregroundStyle(color.opacity(configuration.isPressed ? 0.6 : 1))
             .contentShape(Rectangle())
+    }
+}
+
+/// Tactile press: 96% scale (none with Reduce Motion), no other styling.
+struct PressStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label.contentShape(Rectangle())
+            .scaleEffect(configuration.isPressed && !Motion.reduced ? 0.96 : 1)
+            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
     }
 }
 
@@ -350,7 +360,7 @@ struct Row<Trailing: View>: View {
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 6) {
                         Text(title).font(.system(size: 13, weight: .medium)).foregroundStyle(dim ? K.text3 : K.text)
-                        if let badge { Text(badge).font(.system(size: 10, weight: .medium)).foregroundStyle(K.text3).padding(.horizontal, 5).frame(height: 16).background(RoundedRectangle(cornerRadius: 4).fill(K.fill)) }
+                        if let badge { Text(badge).font(.system(size: 10, weight: .medium)).foregroundStyle(K.text2).padding(.horizontal, 5).frame(height: 16).background(RoundedRectangle(cornerRadius: 4).fill(K.fill)) }
                     }
                     if let desc { Text(desc).font(.system(size: 11.5)).foregroundStyle(dim ? K.text3 : K.text2).fixedSize(horizontal: false, vertical: true) }
                 }
@@ -380,7 +390,7 @@ struct Segmented<T: Hashable>: View {
         HStack(spacing: 2) {
             ForEach(options, id: \.0) { opt in
                 let on = value == opt.0
-                Button { withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) { value = opt.0 } } label: {
+                Button { withAnimation(Motion.reduced ? .easeOut(duration: 0.2) : .spring(response: 0.32, dampingFraction: 0.82)) { value = opt.0 } } label: {
                     Text(opt.1).font(.system(size: 12, weight: on ? .semibold : .regular)).fixedSize()
                         .foregroundStyle(on ? K.text : K.text2)
                         .padding(.horizontal, 12).frame(height: 26)
@@ -483,13 +493,6 @@ extension PageHeader where Trailing == EmptyView {
     }
 }
 
-struct Footnote: View {
-    var text = "Your files never leave your Mac."
-    var body: some View {
-        HStack(spacing: 5) { Image(systemName: "lock"); Text(text) }
-            .font(.system(size: 11.5)).foregroundStyle(K.text3).frame(maxWidth: .infinity)
-    }
-}
 
 /// Emoji in a small tile (activity rows, done rows).
 struct EmojiTile: View {

@@ -122,7 +122,7 @@ struct CapsuleStyle: ButtonStyle {
         configuration.label.font(.system(size: 12, weight: .medium)).foregroundStyle(K.text).padding(.horizontal, 12).frame(height: 28)
             .contentShape(Capsule())
             .liquid(Capsule())
-            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+            .scaleEffect(configuration.isPressed && !Motion.reduced ? 0.96 : 1)
             .animation(.spring(response: 0.25, dampingFraction: 0.8), value: configuration.isPressed)
     }
 }
@@ -136,9 +136,9 @@ struct ChoiceCard<Preview: View>: View {
     var pick: () -> Void
     @ViewBuilder var preview: Preview
     var body: some View {
-        Button { withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) { pick() } } label: {
+        Button { withAnimation(Motion.reduced ? .easeOut(duration: 0.2) : .spring(response: 0.35, dampingFraction: 0.75)) { pick() } } label: {
             VStack(alignment: .leading, spacing: 10) {
-                preview.frame(maxWidth: .infinity, minHeight: 86).background(RoundedRectangle(cornerRadius: 10).fill(K.window))
+                preview.frame(maxWidth: .infinity, minHeight: 86).background(RoundedRectangle(cornerRadius: 2).fill(K.window))   // 14 card − 12 padding
                 HStack(spacing: 6) {
                     Text(title).font(.system(size: 13, weight: .semibold)).foregroundStyle(K.text)
                     if soon { Text("Soon").font(.system(size: 10, weight: .medium)).foregroundStyle(K.text3).padding(.horizontal, 6).frame(height: 16).background(Capsule().fill(K.fill)) }
@@ -150,8 +150,8 @@ struct ChoiceCard<Preview: View>: View {
             .background { if selected { RoundedRectangle(cornerRadius: 14).fill(K.card).liquid(RoundedRectangle(cornerRadius: 14), interactive: false) } else { RoundedRectangle(cornerRadius: 14).fill(K.fill) } }
             .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(selected ? K.switchOn.opacity(0.55) : K.separator, lineWidth: selected ? 1.25 : 0.75))
             .shadow(color: .black.opacity(selected ? 0.08 : 0), radius: 12, y: 6)
-            .scaleEffect(selected ? 1 : 0.985)
-            .animation(.spring(response: 0.35, dampingFraction: 0.75), value: selected)
+            .scaleEffect(selected || Motion.reduced ? 1 : 0.985)
+            .animation(Motion.reduced ? .easeOut(duration: 0.2) : .spring(response: 0.35, dampingFraction: 0.75), value: selected)
             .opacity(soon ? 0.5 : 1)
             .contentShape(Rectangle())
         }
@@ -196,7 +196,7 @@ struct SortingPage: View {
         Showcase(tint: .accent, icon: "square.3.layers.3d", headline: "Every new file lands on the right shelf", demo: "Downloads → ✨ My Shelves → 📄 Documents").gated_showcase(on)
         FeatureCard(icon: "square.3.layers.3d", title: "Sorting", desc: "Files new downloads and clutter onto shelves in ✨ My Shelves.", reads: false, on: sortingBinding)
         Group {
-            PageSection(title: "Watched folders", subtitle: "Kanso sorts new files in these folders.", action: ("Add Folder…", { m.addFolders() })) { folders }
+            PageSection(title: "Watched folders", subtitle: "Kanso sorts new files in these folders.", action: ("Add folder…", { m.addFolders() })) { folders }
             PageSection(title: "Behavior") { behavior }
             RulesSection()
         }
@@ -214,7 +214,7 @@ struct SortingPage: View {
                             .overlay(alignment: .bottomTrailing) { if !allowed { Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 11)).foregroundStyle(.yellow).offset(x: 6, y: 4) } }
                         VStack(alignment: .leading, spacing: 1) {
                             Text((r as NSString).lastPathComponent).font(.system(size: 13, weight: .medium)).foregroundStyle(K.text)
-                            Text(allowed ? "\((r as NSString).abbreviatingWithTildeInPath) · \(placed) placed today" : "Permission not allowed").lineLimit(1).truncationMode(.middle).font(.system(size: 11.5)).foregroundStyle(allowed ? K.text2 : Tint.duplicate.fg)
+                            Text(allowed ? "\((r as NSString).abbreviatingWithTildeInPath) · \(placed) placed today" : "Permission not allowed").lineLimit(1).truncationMode(.middle).help(allowed ? (r as NSString).expandingTildeInPath : "Kanso can't read this folder. Allow it in Privacy & Security.").font(.system(size: 11.5)).foregroundStyle(allowed ? K.text2 : Tint.duplicate.fg)
                         }
                         Spacer()
                         if allowed {
@@ -306,7 +306,7 @@ struct RulesSection: View {
             }
             HStack {
                 Spacer()
-                Button { let r = Rule([Condition(.name, "")], dest: "Documents"); withAnimation(Motion.spring(0.35)) { draft = r; open = r.id } } label: { Label("Add Rule", systemImage: "plus") }.buttonStyle(CapsuleStyle())
+                Button { let r = Rule([Condition(.name, "")], dest: "Documents"); withAnimation(Motion.spring(0.35)) { draft = r; open = r.id } } label: { Label("Add rule", systemImage: "plus") }.buttonStyle(CapsuleStyle())
             }
         }
         if !m.pending.suggestions.isEmpty {
@@ -343,7 +343,7 @@ struct RenamingPage: View {
                 RowGroup {
                     HStack(spacing: 8) {
                         ForEach(Array(m.settings.nameParts.enumerated()), id: \.element) { i, p in
-                            if i > 0 { Text(m.settings.separator == " " ? "·" : m.settings.separator).font(.system(size: 12)).foregroundStyle(K.text3) }
+                            if i > 0 { Text(m.settings.separator == " " ? "·" : m.settings.separator).font(.system(size: 12)).foregroundStyle(K.text2) }
                             partChip(p)
                         }
                         Spacer()

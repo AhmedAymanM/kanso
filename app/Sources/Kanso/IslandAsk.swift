@@ -215,7 +215,7 @@ struct AskProposal: View {
             HStack(spacing: 6) {
                 if let icon { Image(systemName: icon).font(.system(size: 12)).foregroundStyle(Color.white.opacity(0.7)) }
                 Text(label).font(.system(size: 12, weight: .medium)).foregroundStyle(Color.white.opacity(0.9))
-                Text(key).font(.system(size: 11)).foregroundStyle(Color.white.opacity(0.4))
+                Text(key).font(.system(size: 11)).foregroundStyle(Color.white.opacity(0.6))
             }
             .padding(.horizontal, 12).frame(height: 28).background(Capsule().fill(Color.white.opacity(prominent ? 0.16 : 0.08)))
         }
