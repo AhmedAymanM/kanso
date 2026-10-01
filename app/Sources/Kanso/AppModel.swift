@@ -444,9 +444,10 @@ final class AppModel: ObservableObject {
                   Date().timeIntervalSince1970 - (Stat.mtime(target).map { max($0, c) } ?? c) >= 5 else { continue }
             mounted.removeValue(forKey: volume)
             try? NSWorkspace.shared.unmountAndEjectDevice(at: volume)
+            if settings.smartEjectOnlyEject { continue }
             if let a = engine.trashInstaller(entry.image, app: app) {
                 refresh()
-                Island.shared.show(.installer(a))
+                if settings.smartEjectNotice { Island.shared.show(.installer(a)) }
             }
         }
     }

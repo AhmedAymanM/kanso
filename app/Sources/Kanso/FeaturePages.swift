@@ -527,32 +527,111 @@ struct ShelfGlyph: View {
 
 // MARK: Tagging and Smart Eject (not designed yet: same anatomy, minimal)
 
+/// A Finder tag: coloured dot and name.
+struct TagChip: View {
+    var text: String
+    var color: Color
+    var body: some View {
+        HStack(spacing: 6) {
+            Circle().fill(color).frame(width: 9, height: 9)
+            Text(text).font(.system(size: TS.small, weight: .semibold)).foregroundStyle(Tint.neutral.fg)
+        }
+        .padding(.horizontal, 10).frame(height: 24).background(Capsule().fill(Tint.neutral.bg))
+    }
+}
+
 struct TaggingPage: View {
     @EnvironmentObject var m: AppModel
+    var recent: [Action] { Array(m.actions.filter { !$0.undone && !$0.tags.isEmpty }.suffix(3).reversed()) }
+    var total: Int { m.actions.filter { !$0.undone && !$0.tags.isEmpty }.count }
+
     var body: some View {
-        Showcase(tint: .rename, icon: "tag", headline: "Files carry what they are as Finder tags", demo: "Scan_0012.pdf → Invoice, Vattenfall").gated_showcase(m.settings.tagging)
+        Showcase(tint: .where, icon: "tag", headline: "Files carry what they are as Finder tags", demo: "Scan_0012.pdf → Invoice, Vattenfall").gated_showcase(m.settings.tagging)
         FeatureCard(icon: "tag", title: "Tagging", desc: "Adds Finder tags like Invoice and the company name.", reads: true, on: m.binding(\.tagging))
-        PageSection(title: "What gets tagged") {
-            RowGroup {
-                Row(icon: "doc.text", title: "Kind and organization", desc: "From the first page of a file, for example Invoice and Vattenfall. Only the tags are kept.") { EmptyView() }
-                Row(icon: "hand.raised", title: "Keep tag", desc: "Files tagged \"\(m.settings.keepTag)\" are never moved, renamed or tagged.", last: true) { Chip(text: m.settings.keepTag, tint: .neutral) }
+        Group {
+            PageSection(title: "What gets tagged") {
+                RowGroup {
+                    Row(icon: "doc.text", title: "Kind", desc: "Invoice, Receipt, Contract, Report, Letter…") { KToggle(on: m.binding(\.tagKind), label: "Tag the kind") }
+                    Row(icon: "building.2", title: "Organization", desc: "The company named on the first page, like Vattenfall.", last: true) { KToggle(on: m.binding(\.tagOrganization), label: "Tag the organization") }
+                }
+            }
+            PageSection(title: "What it looks like in Finder") {
+                RowGroup {
+                    Row(icon: "doc.text", title: "Invoice-Vattenfall-2026-03.pdf", desc: "Documents · tagged just now", last: true) { tagChips(["Invoice", "Vattenfall"]) }
+                }
+            }
+            PageSection(title: "Keep tag") {
+                RowGroup {
+                    Row(icon: "hand.raised", title: "Files tagged “\(m.settings.keepTag)” are left alone", desc: "Never moved, renamed or tagged. Added automatically to anything you undo.", last: true) { TagChip(text: m.settings.keepTag, color: .gray) }
+                }
+            }
+            PageSection(title: "Recently tagged", subtitle: total == 0 ? "Nothing tagged yet." : "\(total.formatted()) files tagged since you started") {
+                if recent.isEmpty {
+                    Text("Tags appear here after Kanso reads a file's first page.").font(.system(size: TS.small)).foregroundStyle(K.text2).padding(.horizontal, 4)
+                } else {
+                    RowGroup {
+                        ForEach(Array(recent.enumerated()), id: \.element.id) { i, a in
+                            Row(icon: "doc.text", title: a.name, desc: a.ts.relative, last: i == recent.count - 1) { tagChips(a.tags) }
+                        }
+                    }
+                }
             }
         }
         .gated(m.settings.tagging)
+    }
+
+    func tagChips(_ tags: [String]) -> some View {
+        HStack(spacing: 6) {
+            ForEach(Array(tags.prefix(3).enumerated()), id: \.offset) { i, t in TagChip(text: t, color: [Color.orange, .blue, .green][i % 3]) }
+        }
     }
 }
 
 struct SmartEjectPage: View {
     @EnvironmentObject var m: AppModel
+    var ejected: [Action] { m.actions.filter { !$0.undone && $0.kind == .trashed && $0.details["installer"] != nil } }
+
     var body: some View {
         Showcase(tint: .accent, icon: "eject", headline: "Installed? The installer cleans up after itself", demo: "Figma.dmg → ⏏ ejected → 🗑️ Trash").gated_showcase(m.settings.smartEject)
         FeatureCard(icon: "eject", title: "Smart Eject", desc: "After an app is installed, ejects its disk image and moves the installer to the Trash.", reads: false, on: m.binding(\.smartEject))
-        PageSection(title: "How it decides") {
-            RowGroup {
-                Row(icon: "checkmark.seal", title: "Only provably spent files", desc: "The app must be in Applications, installed after the disk image was mounted.") { EmptyView() }
-                Row(icon: "arrow.uturn.backward", title: "Undo in the island", desc: "Every Smart Eject shows a notice with Put Back (⌘Z).", last: true) { EmptyView() }
+        Group {
+            PageSection(title: "How it decides", subtitle: "Only when all three are true. Otherwise the installer stays where it is.") {
+                HStack(alignment: .top, spacing: 12) {
+                    step("opticaldisc", "You open the disk image", "It mounts, and Kanso notes the time.")
+                    step("macwindow", "The app lands in Applications", "With a newer creation time than the mount.")
+                    step("trash", "Kanso ejects and trashes it", "Journaled. ⌘Z puts it back.")
+                }
+            }
+            PageSection(title: "Options") {
+                RowGroup {
+                    Row(icon: "bell", title: "Show a notice with Put Back", desc: "Every Smart Eject appears in the island for a few seconds.") { KToggle(on: m.binding(\.smartEjectNotice), label: "Show a notice") }
+                    Row(icon: "eject.circle", title: "Only eject, never trash", desc: "Leave the installer where it is after ejecting it.", last: true) { KToggle(on: m.binding(\.smartEjectOnlyEject), label: "Only eject") }
+                }
+            }
+            PageSection(title: "Recently ejected", subtitle: ejected.isEmpty ? "No installers yet." : "\(ejected.count) installers · \(ejected.reduce(Int64(0)) { $0 + (Int64($1.details["size"] ?? "") ?? 0) }.bytes) freed") {
+                if ejected.isEmpty {
+                    Text("Eject a disk image after installing an app and it shows up here.").font(.system(size: TS.small)).foregroundStyle(K.text2).padding(.horizontal, 4)
+                } else {
+                    let rows = Array(ejected.suffix(3).reversed())
+                    RowGroup {
+                        ForEach(Array(rows.enumerated()), id: \.element.id) { i, a in
+                            Row(icon: "shippingbox", title: a.srcName, desc: "\((Int64(a.details["size"] ?? "") ?? 0).bytes) · \(a.details["installer"] ?? "The app") is in Applications · \(a.ts.relative)", last: i == rows.count - 1) {
+                                Button("Put Back") { m.undo([a.id]) }.buttonStyle(SecondaryStyle(small: true))
+                            }
+                        }
+                    }
+                }
             }
         }
         .gated(m.settings.smartEject)
+    }
+
+    func step(_ icon: String, _ title: String, _ sub: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Image(systemName: icon).font(.system(size: TS.body)).foregroundStyle(Tint.accent.fg).frame(width: 34, height: 34).background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Tint.accent.bg))
+            Text(title).font(.system(size: TS.body, weight: .semibold)).foregroundStyle(K.text).fixedSize(horizontal: false, vertical: true)
+            Text(sub).font(.system(size: TS.small)).foregroundStyle(K.text2).fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(14).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading).card(radius: 16)
     }
 }
