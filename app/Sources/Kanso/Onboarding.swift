@@ -49,8 +49,8 @@ struct OnboardingView: View {
 
     func title(_ t: String, _ s: String) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(t).font(.system(size: 30, weight: .regular, design: .serif)).tracking(-0.5).foregroundStyle(K.text).multilineTextAlignment(.leading)
-            if !s.isEmpty { Text(s).font(.system(size: 13)).foregroundStyle(K.text2).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true) }
+            Text(t).font(.system(size: TS.display, weight: .regular, design: .serif)).tracking(-0.5).foregroundStyle(K.text).multilineTextAlignment(.leading)
+            if !s.isEmpty { Text(s).font(.system(size: TS.body)).foregroundStyle(K.text2).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true) }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -61,17 +61,17 @@ struct OnboardingView: View {
             title("Kanso needs to open \(folderCount).", "")
             VStack(alignment: .leading, spacing: 8) {
                 ForEach([("square.3.layers.3d", "Only the top level is sorted; shelves go inside the same folder."), ("laptopcomputer", "Nothing leaves this Mac."), ("checkmark.shield", "macOS asks once per folder. Uncheck one to leave it out.")], id: \.1) { b in
-                    Label { Text(b.1).font(.system(size: 13)).foregroundStyle(K.text2) } icon: { Image(systemName: b.0).foregroundStyle(Tint.accent.fg).frame(width: 18) }
+                    Label { Text(b.1).font(.system(size: TS.body)).foregroundStyle(K.text2) } icon: { Image(systemName: b.0).foregroundStyle(Tint.accent.fg).frame(width: 18) }
                 }
             }
             VStack(spacing: 0) {
                 ForEach(Array(m.settings.roots.enumerated()), id: \.element) { i, r in
                     Toggle(isOn: Binding(get: { chosen.contains(r) }, set: { on in if on { chosen.insert(r) } else { chosen.remove(r) } })) {
                         HStack(spacing: 10) {
-                            Text(folderEmoji(r)).font(.system(size: 16))
-                            Text((r as NSString).lastPathComponent).font(.system(size: 13, weight: .medium)).foregroundStyle(K.text)
+                            Text(folderEmoji(r)).font(.system(size: TS.heading))
+                            Text((r as NSString).lastPathComponent).font(.system(size: TS.body, weight: .medium)).foregroundStyle(K.text)
                             Spacer()
-                            Text((r as NSString).abbreviatingWithTildeInPath).font(.system(size: 11)).foregroundStyle(K.text2).lineLimit(1).truncationMode(.middle)
+                            Text((r as NSString).abbreviatingWithTildeInPath).font(.system(size: TS.meta)).foregroundStyle(K.text2).lineLimit(1).truncationMode(.middle)
                         }
                     }
                     .toggleStyle(.checkbox).tint(K.accent)
@@ -91,10 +91,10 @@ struct OnboardingView: View {
 
     func folderCard(_ e: String, _ n: String, _ d: String) -> some View {
         HStack(alignment: .top, spacing: 8) {
-            Text(e).font(.system(size: 18))
+            Text(e).font(.system(size: TS.heading))
             VStack(alignment: .leading, spacing: 2) {
-                Text(n).font(.system(size: 12, weight: .semibold)).foregroundStyle(K.text)
-                Text(d).font(.system(size: 11)).foregroundStyle(K.text2).fixedSize(horizontal: false, vertical: true)
+                Text(n).font(.system(size: TS.small, weight: .semibold)).foregroundStyle(K.text)
+                Text(d).font(.system(size: TS.meta)).foregroundStyle(K.text2).fixedSize(horizontal: false, vertical: true)
             }
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
@@ -126,11 +126,11 @@ struct OnboardingView: View {
             if !demo.pressed {
                 VStack(spacing: 8) {
                     HStack(spacing: 8) {
-                        Text("Press").font(.system(size: 13)).foregroundStyle(K.text2)
+                        Text("Press").font(.system(size: TS.body)).foregroundStyle(K.text2)
                         ForEach(Array(m.settings.islandShortcut.display.map(String.init).enumerated()), id: \.offset) { BigKeycap(key: $0.element) }
-                        Text("to open it").font(.system(size: 13)).foregroundStyle(K.text2)
+                        Text("to open it").font(.system(size: TS.body)).foregroundStyle(K.text2)
                     }
-                    Text("or click the island · it opens by itself after 10 s").font(.system(size: 11)).foregroundStyle(K.text3)
+                    Text("or click the island · it opens by itself after 10 s").font(.system(size: TS.meta)).foregroundStyle(K.text3)
                 }
                 .frame(maxWidth: .infinity)
             }
@@ -151,7 +151,7 @@ struct OnboardingView: View {
                     Button("Open System Settings") { NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Siri-Settings.extension")!) }.buttonStyle(SecondaryStyle(small: true))
                 }
             }
-            Text("Nothing leaves this Mac either way. You can change this later in Settings → Privacy & AI.").font(.system(size: 11.5)).foregroundStyle(K.text2)
+            Text("Nothing leaves this Mac either way. You can change this later in Settings → Privacy & AI.").font(.system(size: TS.small)).foregroundStyle(K.text2)
         }
     }
 
@@ -163,7 +163,7 @@ struct OnboardingView: View {
                 choice(false, "sparkle", "Only sort new files", "Leave what's there alone. Sort everything later from the Overview.")
                 choice(true, "checklist", "Preview a cleanup", "See the plan as a list, uncheck anything, then apply. Nothing moves before you do.")
             }
-            Text("The first Sort everything is always a preview. Everything can be undone.").font(.system(size: 11.5)).foregroundStyle(K.text2)
+            Text("The first Sort everything is always a preview. Everything can be undone.").font(.system(size: TS.small)).foregroundStyle(K.text2)
         }
     }
 
@@ -171,9 +171,9 @@ struct OnboardingView: View {
         let sel = cleanup == v
         return Button { cleanup = v } label: {
             VStack(alignment: .leading, spacing: 10) {
-                Image(systemName: icon).font(.system(size: 14)).foregroundStyle(sel ? Tint.accent.fg : K.text2).frame(width: 32, height: 32).background(RoundedRectangle(cornerRadius: 9).fill(sel ? Tint.accent.bg : K.fillStrong))
-                Text(t).font(.system(size: 14, weight: .semibold)).foregroundStyle(K.text)
-                Text(d).font(.system(size: 12)).foregroundStyle(K.text2).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
+                Image(systemName: icon).font(.system(size: TS.emphasis)).foregroundStyle(sel ? Tint.accent.fg : K.text2).frame(width: 32, height: 32).background(RoundedRectangle(cornerRadius: 9).fill(sel ? Tint.accent.bg : K.fillStrong))
+                Text(t).font(.system(size: TS.emphasis, weight: .semibold)).foregroundStyle(K.text)
+                Text(d).font(.system(size: TS.small)).foregroundStyle(K.text2).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
             }
             .padding(16).frame(maxWidth: .infinity, minHeight: 140, alignment: .topLeading)
             .background(RoundedRectangle(cornerRadius: 14).fill(sel ? K.card : K.fill))
@@ -188,7 +188,7 @@ struct OnboardingView: View {
     var declined: some View {
         VStack(alignment: .leading, spacing: 22) {
             Spacer().frame(height: 50)
-            Image(systemName: "folder.badge.minus").font(.system(size: 34)).foregroundStyle(K.text2)
+            Image(systemName: "folder.badge.minus").font(.system(size: TS.hero)).foregroundStyle(K.text2)
             title("Kanso needs at least one folder to work.", "You can allow Downloads, Desktop or Documents in Privacy & Security → Files & Folders. Kanso picks them up as soon as you do.")
         }
     }
@@ -202,7 +202,7 @@ struct OnboardingView: View {
             if step != .declined {
                 HStack(spacing: 6) {
                     ForEach(steps, id: \.self) { st in Capsule().fill(st == step ? K.accent : K.fillStrong).frame(width: st == step ? 22 : 8, height: 6) }
-                    Text(step == .ai ? "Before step 3 · only if Apple Intelligence is off" : "Step \((steps.firstIndex(of: step) ?? 0) + 1) of \(steps.count)").font(.system(size: 11)).foregroundStyle(K.text2).padding(.leading, 6)
+                    Text(step == .ai ? "Before step 3 · only if Apple Intelligence is off" : "Step \((steps.firstIndex(of: step) ?? 0) + 1) of \(steps.count)").font(.system(size: TS.meta)).foregroundStyle(K.text2).padding(.leading, 6)
                 }
                 .animation(Motion.spring(), value: step)
             }
@@ -234,7 +234,7 @@ struct OnboardingView: View {
 struct BigKeycap: View {
     var key: String
     var body: some View {
-        Text(key).font(.system(size: 15, weight: .medium)).foregroundStyle(K.text).frame(width: 34, height: 34)
+        Text(key).font(.system(size: TS.emphasis, weight: .medium)).foregroundStyle(K.text).frame(width: 34, height: 34)
             .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(K.card).shadow(color: .black.opacity(0.08), radius: 2, y: 1))
             .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).strokeBorder(K.separator, lineWidth: 0.75))
     }
@@ -252,27 +252,27 @@ struct DemoIsland: View {
                 VStack(alignment: .leading, spacing: 10) {
                     if expanded {
                         HStack(spacing: 8) {
-                            Image(systemName: "checkmark").font(.system(size: 10, weight: .bold)).foregroundStyle(Tint.rename.fg).frame(width: 20, height: 20).background(Circle().fill(Tint.rename.soft))
-                            Text("Renamed").font(.system(size: 13, weight: .semibold)).foregroundStyle(.white)
+                            Image(systemName: "checkmark").font(.system(size: TS.micro, weight: .bold)).foregroundStyle(Tint.rename.fg).frame(width: 20, height: 20).background(Circle().fill(Tint.rename.soft))
+                            Text("Renamed").font(.system(size: TS.body, weight: .semibold)).foregroundStyle(.white)
                             Spacer()
-                            Text("demo").font(.system(size: 11)).foregroundStyle(.white.opacity(0.4))
+                            Text("demo").font(.system(size: TS.meta)).foregroundStyle(.white.opacity(0.4))
                         }
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Scan_0012.pdf").font(.system(size: 11, design: .monospaced)).strikethrough().foregroundStyle(.white.opacity(0.35))
-                            Text("Invoice-Vattenfall-2026-03.pdf").font(.system(size: 16, weight: .bold)).foregroundStyle(.white)
+                            Text("Scan_0012.pdf").font(.system(size: TS.meta, design: .monospaced)).strikethrough().foregroundStyle(.white.opacity(0.35))
+                            Text("Invoice-Vattenfall-2026-03.pdf").font(.system(size: TS.heading, weight: .bold)).foregroundStyle(.white)
                         }
                         .padding(10).frame(maxWidth: .infinity, alignment: .leading).background(RoundedRectangle(cornerRadius: 12).fill(Color.white.opacity(0.08)))
                         HStack(spacing: 8) {
                             ForEach([("arrow.uturn.backward", "Undo  ⌘Z"), ("folder.badge.magnifyingglass", "Reveal in Finder  ⌘R")], id: \.1) { t in
-                                Label(t.1, systemImage: t.0).font(.system(size: 11.5, weight: .medium)).foregroundStyle(.white.opacity(0.85)).padding(.horizontal, 10).frame(height: 26).background(Capsule().fill(Color.white.opacity(0.1)))
+                                Label(t.1, systemImage: t.0).font(.system(size: TS.small, weight: .medium)).foregroundStyle(.white.opacity(0.85)).padding(.horizontal, 10).frame(height: 26).background(Capsule().fill(Color.white.opacity(0.1)))
                             }
                         }
                     } else {
                         HStack(spacing: 10) {
-                            Image(systemName: "pencil").font(.system(size: 10, weight: .semibold)).foregroundStyle(Tint.rename.fg).frame(width: 20, height: 20).background(RoundedRectangle(cornerRadius: 6).fill(Tint.rename.soft))
-                            SweepText(from: "Scan_0012.pdf", to: "Invoice-Vattenfall-2026-03.pdf", glyphColor: Color(nsColor: NSColor(hex: 0x8FC9A8))).font(.system(size: 12, weight: .medium)).foregroundStyle(.white).lineLimit(1)
+                            Image(systemName: "pencil").font(.system(size: TS.micro, weight: .semibold)).foregroundStyle(Tint.rename.fg).frame(width: 20, height: 20).background(RoundedRectangle(cornerRadius: 6).fill(Tint.rename.soft))
+                            SweepText(from: "Scan_0012.pdf", to: "Invoice-Vattenfall-2026-03.pdf", glyphColor: Color(nsColor: NSColor(hex: 0x8FC9A8))).font(.system(size: TS.small, weight: .medium)).foregroundStyle(.white).lineLimit(1)
                             Spacer(minLength: 0)
-                            Text(m.settings.islandShortcut.display).font(.system(size: 10.5, weight: .medium)).foregroundStyle(.white.opacity(0.7)).padding(.horizontal, 6).frame(height: 18).background(RoundedRectangle(cornerRadius: 5).fill(Color.white.opacity(0.12)))
+                            Text(m.settings.islandShortcut.display).font(.system(size: TS.meta, weight: .medium)).foregroundStyle(.white.opacity(0.7)).padding(.horizontal, 6).frame(height: 18).background(RoundedRectangle(cornerRadius: 5).fill(Color.white.opacity(0.12)))
                         }
                     }
                 }

@@ -104,15 +104,15 @@ struct AskField: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: "sparkles").font(.system(size: 13)).foregroundStyle(Color.white.opacity(0.55))
-            TextField("Ask about these files…", text: $island.askText).textFieldStyle(.plain).font(.system(size: 13))
+            Image(systemName: "sparkles").font(.system(size: TS.body)).foregroundStyle(Color.white.opacity(0.55))
+            TextField("Ask about these files…", text: $island.askText).textFieldStyle(.plain).font(.system(size: TS.body))
                 .foregroundStyle(island.askFocus ? IslandInk.text : Color.white.opacity(0.6)).focused($focused)
                 .onSubmit { island.submitAsk() }
             if island.askState == .thinking {
                 ThinkingOrb()
-                Text("Thinking…").font(.system(size: 12)).foregroundStyle(Color.white.opacity(0.6))
+                Text("Thinking…").font(.system(size: TS.small)).foregroundStyle(Color.white.opacity(0.6))
             } else if island.askText.isEmpty {
-                Text(island.askHistory.isEmpty ? "Tab" : "sent · ↑ recalls").font(.system(size: 11)).foregroundStyle(IslandInk.text3)
+                Text(island.askHistory.isEmpty ? "Tab" : "sent · ↑ recalls").font(.system(size: TS.meta)).foregroundStyle(IslandInk.text3)
             }
         }
         .padding(.horizontal, 12).frame(height: 36)
@@ -153,8 +153,8 @@ struct AskProposal: View {
         switch island.askState {
         case .move(let shelf, let ids):
             HStack(spacing: 8) {
-                Image(systemName: "folder.badge.plus").font(.system(size: 13)).foregroundStyle(Color.white.opacity(0.7))
-                Text("Move \(ids.count) \(ids.count == 1 ? "file" : "files") → \(m.settings.emoji(for: shelf)) \(shelf)").font(.system(size: 13, weight: .medium)).foregroundStyle(IslandInk.text)
+                Image(systemName: "folder.badge.plus").font(.system(size: TS.body)).foregroundStyle(Color.white.opacity(0.7))
+                Text("Move \(ids.count) \(ids.count == 1 ? "file" : "files") → \(m.settings.emoji(for: shelf)) \(shelf)").font(.system(size: TS.body, weight: .medium)).foregroundStyle(IslandInk.text)
                 Spacer()
                 pill("Move \(ids.count) \(ids.count == 1 ? "file" : "files")", "↩", prominent: true) { island.confirmAsk(trash: false) }
                 pill("Cancel", "esc") { island.cancelAsk() }
@@ -168,12 +168,12 @@ struct AskProposal: View {
             let total = acts.reduce(Int64(0)) { $0 + (Int64($1.details["size"] ?? "") ?? 0) }
             VStack(alignment: .leading, spacing: 8) {
                 VStack(alignment: .leading, spacing: 6) {
-                    HStack { Image(systemName: "trash").font(.system(size: 12)); Text("Move \(acts.count) \(acts.count == 1 ? "file" : "files") to Trash (\(total.bytes))").font(.system(size: 13, weight: .semibold)); Spacer(); Text("written by Kanso").font(.system(size: 10.5)).opacity(0.7) }
+                    HStack { Image(systemName: "trash").font(.system(size: TS.small)); Text("Move \(acts.count) \(acts.count == 1 ? "file" : "files") to Trash (\(total.bytes))").font(.system(size: TS.body, weight: .semibold)); Spacer(); Text("written by Kanso").font(.system(size: TS.meta)).opacity(0.7) }
                     ForEach(acts.prefix(5)) { a in
-                        HStack { Image(systemName: "doc").font(.system(size: 11)); Text(a.name).font(.system(size: 12, weight: .medium)).lineLimit(1); Spacer()
-                            Text(detail(a)).font(.system(size: 11)).opacity(0.75).lineLimit(1) }
+                        HStack { Image(systemName: "doc").font(.system(size: TS.meta)); Text(a.name).font(.system(size: TS.small, weight: .medium)).lineLimit(1); Spacer()
+                            Text(detail(a)).font(.system(size: TS.meta)).opacity(0.75).lineLimit(1) }
                     }
-                    if acts.count > 5 { Text("+ \(acts.count - 5) more").font(.system(size: 11)).opacity(0.75) }
+                    if acts.count > 5 { Text("+ \(acts.count - 5) more").font(.system(size: TS.meta)).opacity(0.75) }
                 }
                 .foregroundStyle(Tint.duplicate.fg).padding(12)
                 .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color(nsColor: NSColor(hex: 0xF7E4B5))))
@@ -185,7 +185,7 @@ struct AskProposal: View {
             }
         case .answer(let text, let tainted, let ids):
             VStack(alignment: .leading, spacing: 8) {
-                Text(text).font(.system(size: 13)).foregroundStyle(IslandInk.text).fixedSize(horizontal: false, vertical: true)
+                Text(text).font(.system(size: TS.body)).foregroundStyle(IslandInk.text).fixedSize(horizontal: false, vertical: true)
                 if tainted, !ids.isEmpty {
                     // The request read file contents: no trash tool, only a plain button the user presses.
                     HStack(spacing: 8) {
@@ -213,9 +213,9 @@ struct AskProposal: View {
     func pill(_ label: String, _ key: String, icon: String? = nil, prominent: Bool = false, _ run: @escaping () -> Void) -> some View {
         Button(action: run) {
             HStack(spacing: 6) {
-                if let icon { Image(systemName: icon).font(.system(size: 12)).foregroundStyle(Color.white.opacity(0.7)) }
-                Text(label).font(.system(size: 12, weight: .medium)).foregroundStyle(Color.white.opacity(0.9))
-                Text(key).font(.system(size: 11)).foregroundStyle(Color.white.opacity(0.6))
+                if let icon { Image(systemName: icon).font(.system(size: TS.small)).foregroundStyle(Color.white.opacity(0.7)) }
+                Text(label).font(.system(size: TS.small, weight: .medium)).foregroundStyle(Color.white.opacity(0.9))
+                Text(key).font(.system(size: TS.meta)).foregroundStyle(Color.white.opacity(0.6))
             }
             .padding(.horizontal, 12).frame(height: 28).background(Capsule().fill(Color.white.opacity(prominent ? 0.16 : 0.08)))
         }

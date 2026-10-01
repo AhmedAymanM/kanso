@@ -422,7 +422,7 @@ final class Island: ObservableObject {
         if overview {
             let needs = m.needs.prefix(3).map { n -> IslandAction in
                 switch n {
-                case .duplicate(let a): return IslandAction(label: "Move to Trash", key: "⌘⌫", icon: "trash") { m.trash(a.id) }
+                case .duplicate(let a): return IslandAction(label: "Move copy to Trash", key: "⌘⌫", icon: "trash") { m.trash(a.id) }
                 case .renames: return IslandAction(label: "Review…", key: "↩") { self.hide(); Windows.shared.showReview(tab: .renames) }
                 case .rule(let r): return IslandAction(label: "Create rule", key: "↩") { m.acceptSuggestion(r.id) }
                 }

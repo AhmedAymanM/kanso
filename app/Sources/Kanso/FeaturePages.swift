@@ -17,32 +17,32 @@ struct Showcase: View {
 
     var body: some View {
         HStack(spacing: 28) {
-            Image(systemName: icon).font(.system(size: 40, weight: .light)).foregroundStyle(tint.fg).frame(width: 64)
+            Image(systemName: icon).font(.system(size: TS.hero, weight: .light)).foregroundStyle(tint.fg).frame(width: 64)
                 .symbolEffect(.bounce, value: playing)
             VStack(alignment: .leading, spacing: 10) {
-                Text(headline).font(.system(size: 26, weight: .regular, design: .serif)).tracking(-0.4).foregroundStyle(tint.fg)
+                Text(headline).font(.system(size: TS.headline, weight: .regular, design: .serif)).tracking(-0.4).foregroundStyle(tint.fg)
                 HStack(spacing: 6) {
                     ForEach(Array(steps.enumerated()), id: \.offset) { i, step in
                         if i <= shown {
-                            if i > 0 { Image(systemName: "arrow.right").font(.system(size: 10, weight: .semibold)).transition(.opacity) }
+                            if i > 0 { Image(systemName: "arrow.right").font(.system(size: TS.micro, weight: .semibold)).transition(.opacity) }
                             Text(step).transition(.asymmetric(insertion: .offset(x: -8).combined(with: .opacity), removal: .opacity))
                         }
                     }
                 }
-                .font(.system(size: 12, design: .monospaced)).foregroundStyle(tint.fg)
+                .font(.system(size: TS.small, design: .monospaced)).foregroundStyle(tint.fg)
                 .padding(.horizontal, 12).frame(height: 28).background(Capsule().fill(K.card.opacity(0.6)))
             }
             Spacer(minLength: 0)
             VStack(spacing: 8) {
                 Button(action: play) {
-                    Image(systemName: playing ? "stop.fill" : "play.fill").font(.system(size: 15)).foregroundStyle(tint.fg)
+                    Image(systemName: playing ? "stop.fill" : "play.fill").font(.system(size: TS.emphasis)).foregroundStyle(tint.fg)
                         .contentTransition(.symbolEffect(.replace))
                         .frame(width: 44, height: 44).contentShape(Circle())
                         .liquid(Circle(), tint: K.card.opacity(0.5))
                 }
                 .buttonStyle(.plain).focusRing(22)
                 .accessibilityLabel("How it works")
-                Text("How it works").font(.system(size: 11)).foregroundStyle(tint.fg)
+                Text("How it works").font(.system(size: TS.meta)).foregroundStyle(tint.fg)
             }
         }
         .padding(.horizontal, 28).padding(.vertical, 32)
@@ -73,13 +73,13 @@ struct FeatureCard: View {
     @Binding var on: Bool
     var body: some View {
         HStack(spacing: 14) {
-            Image(systemName: icon).font(.system(size: 16)).foregroundStyle(K.text2).frame(width: 28)
+            Image(systemName: icon).font(.system(size: TS.heading)).foregroundStyle(K.text2).frame(width: 28)
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 8) {
-                    Text(title).font(.system(size: 14, weight: .semibold)).foregroundStyle(K.text)
+                    Text(title).font(.system(size: TS.emphasis, weight: .semibold)).foregroundStyle(K.text)
                     Badge(icon: reads ? "text.viewfinder" : "doc", text: reads ? "Reads contents" : "Metadata only")
                 }
-                Text(desc).font(.system(size: 12)).foregroundStyle(K.text2).fixedSize(horizontal: false, vertical: true)
+                Text(desc).font(.system(size: TS.small)).foregroundStyle(K.text2).fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 8)
             KToggle(on: $on, label: title)
@@ -104,8 +104,8 @@ struct PageSection<Content: View>: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .bottom) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(title).font(.system(size: 13, weight: .semibold)).foregroundStyle(K.text)
-                    if let subtitle { Text(subtitle).font(.system(size: 11.5)).foregroundStyle(K.text2) }
+                    Text(title).font(.system(size: TS.body, weight: .semibold)).foregroundStyle(K.text)
+                    if let subtitle { Text(subtitle).font(.system(size: TS.small)).foregroundStyle(K.text2) }
                 }
                 Spacer()
                 if let action { Button { action.run() } label: { Label(action.label, systemImage: "plus") }.buttonStyle(CapsuleStyle()) }
@@ -119,7 +119,7 @@ struct PageSection<Content: View>: View {
 /// Small glass-look capsule button.
 struct CapsuleStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label.font(.system(size: 12, weight: .medium)).foregroundStyle(K.text).padding(.horizontal, 12).frame(height: 28)
+        configuration.label.font(.system(size: TS.small, weight: .medium)).foregroundStyle(K.text).padding(.horizontal, 12).frame(height: 28)
             .contentShape(Capsule())
             .liquid(Capsule())
             .scaleEffect(configuration.isPressed && !Motion.reduced ? 0.96 : 1)
@@ -140,10 +140,10 @@ struct ChoiceCard<Preview: View>: View {
             VStack(alignment: .leading, spacing: 10) {
                 preview.frame(maxWidth: .infinity, minHeight: 86).background(RoundedRectangle(cornerRadius: 2).fill(K.window))   // 14 card − 12 padding
                 HStack(spacing: 6) {
-                    Text(title).font(.system(size: 13, weight: .semibold)).foregroundStyle(K.text)
-                    if soon { Text("Soon").font(.system(size: 10, weight: .medium)).foregroundStyle(K.text3).padding(.horizontal, 6).frame(height: 16).background(Capsule().fill(K.fill)) }
+                    Text(title).font(.system(size: TS.body, weight: .semibold)).foregroundStyle(K.text)
+                    if soon { Text("Soon").font(.system(size: TS.micro, weight: .medium)).foregroundStyle(K.text3).padding(.horizontal, 6).frame(height: 16).background(Capsule().fill(K.fill)) }
                 }
-                Text(caption).font(.system(size: 11.5)).foregroundStyle(K.text2).fixedSize(horizontal: false, vertical: true)
+                Text(caption).font(.system(size: TS.small)).foregroundStyle(K.text2).fixedSize(horizontal: false, vertical: true)
             }
             .padding(12)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)   // cards in a row share one height
@@ -174,7 +174,7 @@ struct ShelfFolder: View {
                 Image(nsImage: NSWorkspace.shared.icon(for: .folder)).resizable().aspectRatio(contentMode: .fit).frame(width: size, height: size)
                 Text(emoji).font(.system(size: size * 0.4)).offset(y: size * 0.08)
             }
-            Text(label).font(.system(size: 11, weight: .medium)).foregroundStyle(K.text)
+            Text(label).font(.system(size: TS.meta, weight: .medium)).foregroundStyle(K.text)
         }
     }
 }
@@ -210,11 +210,11 @@ struct SortingPage: View {
                 let placed = m.actions.filter { $0.root == r || $0.root == (r as NSString).expandingTildeInPath }.filter { Calendar.current.isDateInToday($0.ts) && $0.kind == .sorted }.count
                 VStack(spacing: 0) {
                     HStack(spacing: 12) {
-                        Text(folderEmoji(r)).font(.system(size: 24)).frame(width: 30)
-                            .overlay(alignment: .bottomTrailing) { if !allowed { Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 11)).foregroundStyle(.yellow).offset(x: 6, y: 4) } }
+                        Text(folderEmoji(r)).font(.system(size: TS.headline)).frame(width: 30)
+                            .overlay(alignment: .bottomTrailing) { if !allowed { Image(systemName: "exclamationmark.triangle.fill").font(.system(size: TS.meta)).foregroundStyle(.yellow).offset(x: 6, y: 4) } }
                         VStack(alignment: .leading, spacing: 1) {
-                            Text((r as NSString).lastPathComponent).font(.system(size: 13, weight: .medium)).foregroundStyle(K.text)
-                            Text(allowed ? "\((r as NSString).abbreviatingWithTildeInPath) · \(placed) placed today" : "Permission not allowed").lineLimit(1).truncationMode(.middle).help(allowed ? (r as NSString).expandingTildeInPath : "Kanso can't read this folder. Allow it in Privacy & Security.").font(.system(size: 11.5)).foregroundStyle(allowed ? K.text2 : Tint.duplicate.fg)
+                            Text((r as NSString).lastPathComponent).font(.system(size: TS.body, weight: .medium)).foregroundStyle(K.text)
+                            Text(allowed ? "\((r as NSString).abbreviatingWithTildeInPath) · \(placed) placed today" : "Permission not allowed").lineLimit(1).truncationMode(.middle).help(allowed ? (r as NSString).expandingTildeInPath : "Kanso can't read this folder. Allow it in Privacy & Security.").font(.system(size: TS.small)).foregroundStyle(allowed ? K.text2 : Tint.duplicate.fg)
                         }
                         Spacer()
                         if allowed {
@@ -247,8 +247,8 @@ struct SortingPage: View {
                 Rectangle().fill(K.separator).frame(height: 0.75)
                 VStack(alignment: .leading, spacing: 10) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Approach").font(.system(size: 12.5, weight: .medium)).foregroundStyle(K.text)
-                        Text("Switching affects new files only.").font(.system(size: 11.5)).foregroundStyle(K.text2)
+                        Text("Approach").font(.system(size: TS.body, weight: .medium)).foregroundStyle(K.text)
+                        Text("Switching affects new files only.").font(.system(size: TS.small)).foregroundStyle(K.text2)
                     }
                     HStack(alignment: .top, spacing: 14) {
                         ChoiceCard(title: "By kind", caption: "Shelves by file type. Reads only names and metadata.", selected: true, pick: { m.set(\.approach, .kind) }) { EmojiRow(items: [("📄", "Documents"), ("🖼️", "Images"), ("📦", "Archives")]) }
@@ -300,7 +300,7 @@ struct RulesSection: View {
                     if r.id != rules.last?.id { Rectangle().fill(K.separator).frame(height: 0.75) }
                 }
                 if rules.isEmpty {
-                    Text("No rules yet. Kanso sorts by type, and moving a file to another shelf teaches it.").font(.system(size: 12)).foregroundStyle(K.text2).padding(16)
+                    Text("No rules yet. Kanso sorts by type, and moving a file to another shelf teaches it.").font(.system(size: TS.small)).foregroundStyle(K.text2).padding(16)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
@@ -343,7 +343,7 @@ struct RenamingPage: View {
                 RowGroup {
                     HStack(spacing: 8) {
                         ForEach(Array(m.settings.nameParts.enumerated()), id: \.element) { i, p in
-                            if i > 0 { Text(m.settings.separator == " " ? "·" : m.settings.separator).font(.system(size: 12)).foregroundStyle(K.text2) }
+                            if i > 0 { Text(m.settings.separator == " " ? "·" : m.settings.separator).font(.system(size: TS.small)).foregroundStyle(K.text2) }
                             partChip(p)
                         }
                         Spacer()
@@ -366,11 +366,11 @@ struct RenamingPage: View {
                         Rectangle().fill(K.separator).frame(height: 0.75)
                         VStack(alignment: .leading, spacing: 8) {
                             HStack(spacing: 10) {
-                                TextField("yyyy-MM-dd", text: m.binding(\.dateFormat)).textFieldStyle(.plain).font(.system(size: 12.5, design: .monospaced))
+                                TextField("yyyy-MM-dd", text: m.binding(\.dateFormat)).textFieldStyle(.plain).font(.system(size: TS.body, design: .monospaced))
                                     .padding(.horizontal, 12).frame(width: 220, height: 30).background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(K.fill))
                                 Chip(text: dateExample, tint: .rename)
                             }
-                            Text("Patterns: yyyy, MM, MMM, dd, HH. Put literal text in single quotes.").font(.system(size: 11.5)).foregroundStyle(K.text2)
+                            Text("Patterns: yyyy, MM, MMM, dd, HH. Put literal text in single quotes.").font(.system(size: TS.small)).foregroundStyle(K.text2)
                         }
                         .padding(.horizontal, 16).padding(.vertical, 12).frame(maxWidth: .infinity, alignment: .leading)
                         .transition(.opacity.combined(with: .move(edge: .top)))
@@ -378,13 +378,13 @@ struct RenamingPage: View {
                 }
             }
             HStack(spacing: 12) {
-                Image(systemName: "eye").font(.system(size: 13)).foregroundStyle(Tint.rename.fg)
+                Image(systemName: "eye").font(.system(size: TS.body)).foregroundStyle(Tint.rename.fg)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("PREVIEW").font(.system(size: 10, weight: .semibold)).kerning(0.6).foregroundStyle(Tint.rename.fg)
-                    Text(preview).font(.system(size: 14, weight: .medium, design: .monospaced)).foregroundStyle(Tint.rename.fg).textSelection(.enabled)
+                    Text("PREVIEW").font(.system(size: TS.micro, weight: .semibold)).kerning(0.6).foregroundStyle(Tint.rename.fg)
+                    Text(preview).font(.system(size: TS.emphasis, weight: .medium, design: .monospaced)).foregroundStyle(Tint.rename.fg).textSelection(.enabled)
                 }
                 Spacer()
-                Text("from Scan_0012.pdf").font(.system(size: 11.5)).foregroundStyle(Tint.rename.fg)
+                Text("from Scan_0012.pdf").font(.system(size: TS.small)).foregroundStyle(Tint.rename.fg)
             }
             .padding(.horizontal, 16).padding(.vertical, 12).background(RoundedRectangle(cornerRadius: 14).fill(Tint.rename.bg))
             .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Tint.rename.stroke, lineWidth: 0.75))
@@ -395,7 +395,7 @@ struct RenamingPage: View {
                     }.padding(.horizontal, 16).padding(.vertical, 6)
                     Rectangle().fill(K.separator).frame(height: 0.75)
                     Option(title: "Only rename meaningless names", desc: "Names you typed yourself are never touched.") {
-                        Image(systemName: "lock").font(.system(size: 13)).foregroundStyle(K.text2)
+                        Image(systemName: "lock").font(.system(size: TS.body)).foregroundStyle(K.text2)
                     }.padding(.horizontal, 16).padding(.vertical, 6)
                 }
             }
@@ -406,7 +406,7 @@ struct RenamingPage: View {
     func partChip(_ p: String) -> some View {
         HStack(spacing: 6) {
             Image(systemName: "line.3.horizontal").font(.system(size: 8)).foregroundStyle(K.text3)
-            Text(Self.partNames[p] ?? p).font(.system(size: 12, weight: .medium)).foregroundStyle(K.text)
+            Text(Self.partNames[p] ?? p).font(.system(size: TS.small, weight: .medium)).foregroundStyle(K.text)
         }
         .padding(.horizontal, 12).frame(height: 28)
         .background(Capsule().fill(K.card).shadow(color: .black.opacity(0.06), radius: 1.5, y: 1)).overlay(Capsule().strokeBorder(K.separator, lineWidth: 0.75))
@@ -469,10 +469,10 @@ struct DuplicatesPage: View {
     var heldCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 12) {
-                Text("🪞").font(.system(size: 26))
+                Text("🪞").font(.system(size: TS.headline))
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(m.duplicatesBytes.bytes).font(.system(size: 20, weight: .semibold)).foregroundStyle(Tint.duplicate.fg)
-                    Text("in Duplicates · \(held.files) \(held.files == 1 ? "file" : "files")").font(.system(size: 11.5)).foregroundStyle(Tint.duplicate.fg)
+                    Text(m.duplicatesBytes.bytes).font(.system(size: TS.title, weight: .semibold)).foregroundStyle(Tint.duplicate.fg)
+                    Text("in Duplicates · \(held.files) \(held.files == 1 ? "file" : "files")").font(.system(size: TS.small)).foregroundStyle(Tint.duplicate.fg)
                 }
                 Spacer()
                 Button { m.trashAllDuplicates() } label: { Label("Move all to Trash…", systemImage: "trash") }.buttonStyle(CapsuleStyle()).disabled(m.duplicatesBytes == 0)
@@ -491,7 +491,7 @@ struct DuplicatesPage: View {
                 .frame(height: 6)
                 HStack(spacing: 14) {
                     ForEach(Array(held.parts.enumerated()), id: \.offset) { i, p in
-                        HStack(spacing: 5) { Circle().fill(Tint.duplicate.fg.opacity(1 - Double(i) * 0.3)).frame(width: 6, height: 6); Text("\(p.0) \(p.1.bytes)").font(.system(size: 11)).foregroundStyle(Tint.duplicate.fg) }
+                        HStack(spacing: 5) { Circle().fill(Tint.duplicate.fg.opacity(1 - Double(i) * 0.3)).frame(width: 6, height: 6); Text("\(p.0) \(p.1.bytes)").font(.system(size: TS.meta)).foregroundStyle(Tint.duplicate.fg) }
                     }
                 }
             }
@@ -522,7 +522,7 @@ struct DuplicatesPage: View {
 /// A single big shelf emoji in a choice card preview.
 struct ShelfGlyph: View {
     var emoji: String
-    var body: some View { Text(emoji).font(.system(size: 40)).frame(maxWidth: .infinity, minHeight: 86) }
+    var body: some View { Text(emoji).font(.system(size: TS.hero)).frame(maxWidth: .infinity, minHeight: 86) }
 }
 
 // MARK: Tagging and Smart Eject (not designed yet: same anatomy, minimal)

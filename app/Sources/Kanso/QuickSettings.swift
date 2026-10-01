@@ -27,10 +27,10 @@ struct QuickSettings: View {
 
     var header: some View {
         HStack(alignment: .firstTextBaseline) {
-            Text("Kanso").font(.system(size: 20, weight: .regular, design: .serif)).foregroundStyle(K.text)
-            Text("簡素").font(.system(size: 12, design: .serif)).foregroundStyle(K.text2)
+            Text("Kanso").font(.system(size: TS.title, weight: .regular, design: .serif)).foregroundStyle(K.text)
+            Text("簡素").font(.system(size: TS.small, design: .serif)).foregroundStyle(K.text2)
             Spacer()
-            Text("v\(Bundle.main.version)").font(.system(size: 11)).foregroundStyle(K.text2)
+            Text("v\(Bundle.main.version)").font(.system(size: TS.meta)).foregroundStyle(K.text2)
         }
         .padding(.horizontal, 4)
     }
@@ -39,8 +39,8 @@ struct QuickSettings: View {
         Button { StatusItem.shared.close(); Island.shared.openOverview() } label: {
             HStack(spacing: 8) {
                 Circle().fill(Tint.accent.fg).frame(width: 7, height: 7)
-                Text("\(m.needs.count) need\(m.needs.count == 1 ? "s" : "") you").font(.system(size: 12.5, weight: .semibold)).foregroundStyle(Tint.accent.fg)
-                Text("· Show Kanso").font(.system(size: 12.5)).foregroundStyle(K.text2)
+                Text("\(m.needs.count) need\(m.needs.count == 1 ? "s" : "") you").font(.system(size: TS.body, weight: .semibold)).foregroundStyle(Tint.accent.fg)
+                Text("· Show Kanso").font(.system(size: TS.body)).foregroundStyle(K.text2)
                 Spacer()
                 Keycap(key: m.settings.islandShortcut.display)
             }
@@ -92,15 +92,15 @@ struct QuickSettings: View {
         let on = m.sortingOn
         return Button { withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) { menuOpen.toggle() } } label: {
             HStack(spacing: 12) {
-                Image(systemName: "square.3.layers.3d").font(.system(size: 14)).foregroundStyle(on ? K.text2 : K.text3).frame(width: 22)
+                Image(systemName: "square.3.layers.3d").font(.system(size: TS.emphasis)).foregroundStyle(on ? K.text2 : K.text3).frame(width: 22)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("Sorting").font(.system(size: 13, weight: .semibold)).foregroundStyle(K.text)
-                    Text(on ? "On · watching \(m.settings.activeRoots.count) \(m.settings.activeRoots.count == 1 ? "folder" : "folders")" : "Off · \(m.offLine)").font(.system(size: 11)).foregroundStyle(on ? Tint.accent.fg : K.text2)
+                    Text("Sorting").font(.system(size: TS.body, weight: .semibold)).foregroundStyle(K.text)
+                    Text(on ? "On · watching \(m.settings.activeRoots.count) \(m.settings.activeRoots.count == 1 ? "folder" : "folders")" : "Off · \(m.offLine)").font(.system(size: TS.meta)).foregroundStyle(on ? Tint.accent.fg : K.text2)
                         .contentTransition(.opacity)
                 }
                 Spacer()
                 if !menuOpen { Dot(on: on, size: 7) }
-                Image(systemName: "chevron.down").font(.system(size: 10, weight: .semibold)).foregroundStyle(K.text2).rotationEffect(.degrees(menuOpen ? 180 : 0))
+                Image(systemName: "chevron.down").font(.system(size: TS.micro, weight: .semibold)).foregroundStyle(K.text2).rotationEffect(.degrees(menuOpen ? 180 : 0))
             }
             .padding(.horizontal, 14).frame(maxHeight: .infinity).contentShape(Rectangle())
         }
@@ -113,10 +113,10 @@ struct QuickSettings: View {
     func option(_ icon: String, _ title: String, checked: Bool, _ run: @escaping () -> Void) -> some View {
         Button { withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) { run(); menuOpen = false } } label: {
             HStack(spacing: 10) {
-                Image(systemName: icon).font(.system(size: 12)).foregroundStyle(K.text2).frame(width: 18)
-                Text(title).font(.system(size: 13)).foregroundStyle(K.text)
+                Image(systemName: icon).font(.system(size: TS.small)).foregroundStyle(K.text2).frame(width: 18)
+                Text(title).font(.system(size: TS.body)).foregroundStyle(K.text)
                 Spacer()
-                if checked { Image(systemName: "checkmark").font(.system(size: 11, weight: .semibold)).foregroundStyle(K.text) }
+                if checked { Image(systemName: "checkmark").font(.system(size: TS.meta, weight: .semibold)).foregroundStyle(K.text) }
             }
             .padding(.horizontal, 10).frame(height: 32).contentShape(Rectangle())
         }
@@ -127,7 +127,7 @@ struct QuickSettings: View {
     var footer: some View {
         HStack(spacing: 6) {
             Dot(on: m.aiReady || !m.settings.appleIntelligence, size: 6)
-            Text("Apple Intelligence").font(.system(size: 11.5)).foregroundStyle(K.text2)
+            Text("Apple Intelligence").font(.system(size: TS.small)).foregroundStyle(K.text2)
             Spacer()
             GlassIconButton(symbol: "gearshape", label: "Settings") { Windows.shared.showSettings() }.keyboardShortcut(",")
             GlassIconButton(symbol: "power", label: "Quit Kanso") { NSApp.terminate(nil) }.keyboardShortcut("q")
@@ -168,7 +168,7 @@ struct GlassIconButton: View {
     var action: () -> Void
     var body: some View {
         Button(action: action) {
-            Image(systemName: symbol).font(.system(size: 12)).foregroundStyle(K.text).frame(width: 28, height: 28)
+            Image(systemName: symbol).font(.system(size: TS.small)).foregroundStyle(K.text).frame(width: 28, height: 28)
                 .background(Circle().fill(QuickSettings.tileOn).shadow(color: .black.opacity(0.12), radius: 2, y: 1))
                 .contentShape(Circle())
         }
@@ -184,13 +184,13 @@ struct FeatureTile: View {
         Button { withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) { on.toggle() } } label: {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
-                    Image(systemName: icon).font(.system(size: 13)).foregroundStyle(on ? K.text2 : K.text3)
+                    Image(systemName: icon).font(.system(size: TS.body)).foregroundStyle(on ? K.text2 : K.text3)
                     Spacer()
                     if on { Circle().fill(Tint.accent.fg).frame(width: 7, height: 7) } else { Circle().strokeBorder(K.text3, lineWidth: 1).frame(width: 7, height: 7) }
                 }
                 VStack(alignment: .leading, spacing: 0) {
-                    Text(name).font(.system(size: 12.5, weight: .semibold)).foregroundStyle(K.text)
-                    Text(on ? "On" : "Off").font(.system(size: 10.5)).foregroundStyle(on ? Tint.accent.fg : K.text2)
+                    Text(name).font(.system(size: TS.body, weight: .semibold)).foregroundStyle(K.text)
+                    Text(on ? "On" : "Off").font(.system(size: TS.meta)).foregroundStyle(on ? Tint.accent.fg : K.text2)
                 }
             }
             .padding(12).frame(maxWidth: .infinity, minHeight: 80, alignment: .leading)
@@ -218,10 +218,10 @@ struct RulePreview: View {
     var emoji: String
     var body: some View {
         HStack(spacing: 6) {
-            Text("IF").font(.system(size: 10, weight: .bold)).foregroundStyle(Tint.rule.fg)
-            Text(conditionText(condition)).font(.system(size: 11.5)).padding(.horizontal, 6).frame(height: 20).background(RoundedRectangle(cornerRadius: 5).fill(K.card))
+            Text("IF").font(.system(size: TS.micro, weight: .bold)).foregroundStyle(Tint.rule.fg)
+            Text(conditionText(condition)).font(.system(size: TS.small)).padding(.horizontal, 6).frame(height: 20).background(RoundedRectangle(cornerRadius: 5).fill(K.card))
             Image(systemName: "arrow.right").font(.system(size: 9)).foregroundStyle(K.text3)
-            Text("\(emoji) \(shelf)").font(.system(size: 11.5, weight: .medium)).padding(.horizontal, 6).frame(height: 20).background(RoundedRectangle(cornerRadius: 5).fill(K.card))
+            Text("\(emoji) \(shelf)").font(.system(size: TS.small, weight: .medium)).padding(.horizontal, 6).frame(height: 20).background(RoundedRectangle(cornerRadius: 5).fill(K.card))
             Spacer(minLength: 0)
         }
         .foregroundStyle(K.text)

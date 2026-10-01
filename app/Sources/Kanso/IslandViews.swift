@@ -125,19 +125,19 @@ struct IslandBody: View {
     var hint: Bool { m.settings.showShortcutHint && m.settings.shortcutHintUntil > Date() }
 
     func countBadge(_ n: Notice) -> some View {
-        Text("\(island.notices.count)").font(.system(size: 11, weight: .bold)).foregroundStyle(n.tint.islandGlyph)
+        Text("\(island.notices.count)").font(.system(size: TS.meta, weight: .bold)).foregroundStyle(n.tint.islandGlyph)
             .padding(.horizontal, 7).frame(height: 18).background(Capsule().fill(n.tint.islandFill)).contentTransition(.numericText())
             .accessibilityLabel("\(island.notices.count) notices")
     }
 
     @ViewBuilder func line(_ n: Notice) -> some View {
         if case .renamed(let a) = n, let old = a.oldName {
-            SweepText(from: old, to: a.name, glyphColor: Color(nsColor: NSColor(hex: 0x8FC9A8)), final: "Renamed \(a.name)").font(.system(size: 12, weight: .medium)).foregroundStyle(IslandInk.text)
+            SweepText(from: old, to: a.name, glyphColor: Color(nsColor: NSColor(hex: 0x8FC9A8)), final: "Renamed \(a.name)").font(.system(size: TS.small, weight: .medium)).foregroundStyle(IslandInk.text)
         } else if island.notices.count > 1, Set(island.notices.map(\.kindKey)).count == 1, let k = island.notices.first?.kindKey {
             Text("\(island.notices.count) \(k == "renamed" ? "renamed" : k == "duplicate" ? "copies held" : "notices")")
-                .font(.system(size: 12, weight: .medium)).foregroundStyle(IslandInk.text).contentTransition(.numericText())
+                .font(.system(size: TS.small, weight: .medium)).foregroundStyle(IslandInk.text).contentTransition(.numericText())
         } else {
-            Text(n.line).font(.system(size: 12, weight: .medium)).foregroundStyle(IslandInk.text)
+            Text(n.line).font(.system(size: TS.small, weight: .medium)).foregroundStyle(IslandInk.text)
         }
     }
 }
@@ -171,7 +171,7 @@ struct IslandLip: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            Text(hints).font(.system(size: 11)).foregroundStyle(Color.white.opacity(0.5)).lineLimit(1)
+            Text(hints).font(.system(size: TS.meta)).foregroundStyle(Color.white.opacity(0.5)).lineLimit(1)
             Spacer()
             if island.overview && (!m.needs.isEmpty || !m.done.isEmpty) {
                 IslandGlassButton(symbol: "gearshape", label: "Settings") { island.hide(); Windows.shared.showSettings() }.keyboardShortcut(",")
@@ -205,7 +205,7 @@ struct IslandGlassButton: View {
     @State private var hover = false
     var body: some View {
         Button(action: action) {
-            Image(systemName: symbol).font(.system(size: 14)).foregroundStyle(Color.white.opacity(0.9)).frame(width: 32, height: 32)
+            Image(systemName: symbol).font(.system(size: TS.emphasis)).foregroundStyle(Color.white.opacity(0.9)).frame(width: 32, height: 32)
                 .background {
                     if #available(macOS 26, *), !Motion.solid { Color.clear.glassEffect(.clear, in: Circle()) }
                     else { Circle().fill(IslandInk.control) }
@@ -282,7 +282,7 @@ struct TagDots: View {
                         Circle().fill(Self.color(t)).frame(width: 9, height: 9).overlay(Circle().strokeBorder(Color.black, lineWidth: 1.5).padding(-1.5))
                     }
                 }
-                Text(tags.joined(separator: ", ")).font(.system(size: 11)).foregroundStyle(Color.white.opacity(0.55)).lineLimit(1)
+                Text(tags.joined(separator: ", ")).font(.system(size: TS.meta)).foregroundStyle(Color.white.opacity(0.55)).lineLimit(1)
             }
             .accessibilityLabel("Tags: " + tags.joined(separator: ", "))
         }
@@ -295,9 +295,9 @@ struct NoticeHead: View {
     var tags: [String] = []
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: icon).font(.system(size: 10, weight: .bold)).foregroundStyle(tint.islandGlyph).frame(width: 20, height: 20).background(Circle().fill(tint.islandFill))
-            Text(title + " ·").font(.system(size: 13, weight: .semibold)).foregroundStyle(IslandInk.text).lineLimit(1)
-            Text(time).font(.system(size: 11)).foregroundStyle(IslandInk.text3)
+            Image(systemName: icon).font(.system(size: TS.micro, weight: .bold)).foregroundStyle(tint.islandGlyph).frame(width: 20, height: 20).background(Circle().fill(tint.islandFill))
+            Text(title + " ·").font(.system(size: TS.body, weight: .semibold)).foregroundStyle(IslandInk.text).lineLimit(1)
+            Text(time).font(.system(size: TS.meta)).foregroundStyle(IslandInk.text3)
             Spacer(minLength: 8)
             TagDots(tags: tags)
         }
@@ -316,7 +316,7 @@ struct PreviewTile: View {
             .overlay(alignment: .topTrailing) {
                 if eye && hover {
                     Button { island.quickLook() } label: {
-                        Image(systemName: "eye").font(.system(size: 10)).foregroundStyle(.white).frame(width: 20, height: 20).background(Circle().fill(Color.black.opacity(0.6)))
+                        Image(systemName: "eye").font(.system(size: TS.micro)).foregroundStyle(.white).frame(width: 20, height: 20).background(Circle().fill(Color.black.opacity(0.6)))
                     }
                     .buttonStyle(.plain).padding(4).help("Quick Look").accessibilityLabel("Quick Look").transition(.opacity)
                 }
@@ -334,13 +334,13 @@ struct NameUnit: View {
     @State private var hover = false
     var body: some View {
         VStack(spacing: 2) {
-            if let old { Text(old).font(.system(size: 11, design: .monospaced)).foregroundStyle(Color.white.opacity(0.6)).strikethrough().lineLimit(1).truncationMode(.middle) }
+            if let old { Text(old).font(.system(size: TS.meta, design: .monospaced)).foregroundStyle(Color.white.opacity(0.6)).strikethrough().lineLimit(1).truncationMode(.middle) }
             HStack(spacing: 6) {
                 Button { NSWorkspace.shared.open(URL(fileURLWithPath: path)) } label: {
                     Text(name).font(.system(size: size, weight: .bold)).foregroundStyle(IslandInk.text).lineLimit(2).truncationMode(.middle).multilineTextAlignment(.center).help(name)
                 }
                 .buttonStyle(.plain).help("Open")
-                Button { AppModel.shared.reveal(path) } label: { Image(systemName: "arrow.up.right").font(.system(size: 13)).foregroundStyle(Color.white.opacity(0.45)) }
+                Button { AppModel.shared.reveal(path) } label: { Image(systemName: "arrow.up.right").font(.system(size: TS.body)).foregroundStyle(Color.white.opacity(0.45)) }
                     .buttonStyle(.plain).opacity(hover ? 1 : 0).help("Show in Finder (⌘R)").accessibilityLabel("Show in Finder")
             }
         }
@@ -356,10 +356,10 @@ struct Breadcrumb: View {
     var body: some View {
         HStack(spacing: 4) {
             ForEach(Array(ancestors.enumerated()), id: \.offset) { _, a in
-                Text(a).font(.system(size: 11)).foregroundStyle(Color.white.opacity(0.6)).lineLimit(1).truncationMode(.tail)
+                Text(a).font(.system(size: TS.meta)).foregroundStyle(Color.white.opacity(0.6)).lineLimit(1).truncationMode(.tail)
                 Image(systemName: "chevron.right").font(.system(size: 8, weight: .semibold)).foregroundStyle(Color.white.opacity(0.3))
             }
-            Text("\(emoji) \(current)").font(.system(size: 11)).foregroundStyle(Color.white.opacity(0.85)).lineLimit(1).fixedSize()
+            Text("\(emoji) \(current)").font(.system(size: TS.meta)).foregroundStyle(Color.white.opacity(0.85)).lineLimit(1).fixedSize()
         }
         .frame(maxWidth: .infinity)
     }
@@ -373,9 +373,9 @@ struct SubtleAction: View {
     var body: some View {
         Button(action: action.run) {
             HStack(spacing: 6) {
-                Image(systemName: action.icon).font(.system(size: 12)).foregroundStyle(Color.white.opacity(0.7))
-                Text(label ?? action.label).font(.system(size: 12, weight: .medium)).foregroundStyle(Color.white.opacity(0.85))
-                if !action.key.isEmpty { Text(action.key).font(.system(size: 11, weight: .medium)).foregroundStyle(Color.white.opacity(0.6)) }
+                Image(systemName: action.icon).font(.system(size: TS.small)).foregroundStyle(Color.white.opacity(0.7))
+                Text(label ?? action.label).font(.system(size: TS.small, weight: .medium)).foregroundStyle(Color.white.opacity(0.85))
+                if !action.key.isEmpty { Text(action.key).font(.system(size: TS.meta, weight: .medium)).foregroundStyle(Color.white.opacity(0.6)) }
             }
             .padding(.horizontal, 12).frame(height: 26)
             .background(Capsule().fill(Color.white.opacity(selected ? 0.15 : 0.08)))
@@ -445,12 +445,12 @@ struct DuplicateBody: View {
         HStack(alignment: .top, spacing: 10) {
             PreviewTile(path: path, size: CGSize(width: 44, height: 58), eye: false)
             VStack(alignment: .leading, spacing: 2) {
-                Text(label).font(.system(size: 10.5)).foregroundStyle(IslandInk.text3).lineLimit(1)
+                Text(label).font(.system(size: TS.meta)).foregroundStyle(IslandInk.text3).lineLimit(1)
                 HStack(spacing: 4) {
-                    Text(name).font(.system(size: 14, weight: .semibold)).foregroundStyle(IslandInk.text).lineLimit(1).truncationMode(.middle).help(name)
-                    Button { m.reveal(path) } label: { Image(systemName: "arrow.up.right").font(.system(size: 11)).foregroundStyle(Color.white.opacity(0.45)) }.buttonStyle(.plain).accessibilityLabel("Show in Finder")
+                    Text(name).font(.system(size: TS.emphasis, weight: .semibold)).foregroundStyle(IslandInk.text).lineLimit(1).truncationMode(.middle).help(name)
+                    Button { m.reveal(path) } label: { Image(systemName: "arrow.up.right").font(.system(size: TS.meta)).foregroundStyle(Color.white.opacity(0.45)) }.buttonStyle(.plain).accessibilityLabel("Show in Finder")
                 }
-                Text("\(m.settings.emoji(for: folder)) \(folder)").font(.system(size: 11)).foregroundStyle(Color.white.opacity(0.7)).lineLimit(1)
+                Text("\(m.settings.emoji(for: folder)) \(folder)").font(.system(size: TS.meta)).foregroundStyle(Color.white.opacity(0.7)).lineLimit(1)
             }
             Spacer(minLength: 0)
         }
@@ -466,8 +466,8 @@ struct SimpleBody: View {
             HStack(spacing: 10) {
                 MorphIcon(notice: n, size: 28)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(title).font(.system(size: 15, weight: .semibold)).foregroundStyle(IslandInk.text).lineLimit(2)
-                    if let sub { Text(sub).font(.system(size: 11.5)).foregroundStyle(IslandInk.text2) }
+                    Text(title).font(.system(size: TS.emphasis, weight: .semibold)).foregroundStyle(IslandInk.text).lineLimit(2)
+                    if let sub { Text(sub).font(.system(size: TS.small)).foregroundStyle(IslandInk.text2) }
                 }
                 Spacer(minLength: 0)
             }
@@ -497,9 +497,9 @@ struct CountedList: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 8) {
-                Text("\(island.notices.count)").font(.system(size: 11, weight: .bold)).foregroundStyle(Tint.rename.islandGlyph).frame(width: 20, height: 20).background(Circle().fill(Tint.rename.islandFill))
-                Text("\(island.notices.count) notices ·").font(.system(size: 13, weight: .semibold)).foregroundStyle(IslandInk.text)
-                Text("last \(island.notices.last.map(time) ?? "")").font(.system(size: 11)).foregroundStyle(IslandInk.text3)
+                Text("\(island.notices.count)").font(.system(size: TS.meta, weight: .bold)).foregroundStyle(Tint.rename.islandGlyph).frame(width: 20, height: 20).background(Circle().fill(Tint.rename.islandFill))
+                Text("\(island.notices.count) notices ·").font(.system(size: TS.body, weight: .semibold)).foregroundStyle(IslandInk.text)
+                Text("last \(island.notices.last.map(time) ?? "")").font(.system(size: TS.meta)).foregroundStyle(IslandInk.text3)
             }
             .padding(.bottom, 4)
             ForEach(Array(island.notices.enumerated()), id: \.element.id) { i, n in
@@ -507,12 +507,12 @@ struct CountedList: View {
                 HStack(spacing: 10) {
                     MorphIcon(notice: n, size: 22)
                     VStack(alignment: .leading, spacing: 0) {
-                        if case .renamed(let a) = n, let o = a.oldName { Text(o).font(.system(size: 10.5, design: .monospaced)).foregroundStyle(IslandInk.text3).strikethrough().lineLimit(1) }
-                        Text(title(n)).font(.system(size: 13, weight: .semibold)).foregroundStyle(IslandInk.text).lineLimit(1).truncationMode(.middle).help(title(n))
+                        if case .renamed(let a) = n, let o = a.oldName { Text(o).font(.system(size: TS.meta, design: .monospaced)).foregroundStyle(IslandInk.text3).strikethrough().lineLimit(1) }
+                        Text(title(n)).font(.system(size: TS.body, weight: .semibold)).foregroundStyle(IslandInk.text).lineLimit(1).truncationMode(.middle).help(title(n))
                     }
                     Spacer(minLength: 8)
-                    if case .renamed(let a) = n { Text("\(m.settings.emoji(for: a.shelf)) \(a.shelf)").font(.system(size: 11)).foregroundStyle(Color.white.opacity(0.7)) }
-                    if sel { Text("⌘Z").font(.system(size: 11)).foregroundStyle(IslandInk.text3) }
+                    if case .renamed(let a) = n { Text("\(m.settings.emoji(for: a.shelf)) \(a.shelf)").font(.system(size: TS.meta)).foregroundStyle(Color.white.opacity(0.7)) }
+                    if sel { Text("⌘Z").font(.system(size: TS.meta)).foregroundStyle(IslandInk.text3) }
                 }
                 .padding(.horizontal, 10).padding(.vertical, 6)
                 .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.white.opacity(sel ? 0.10 : 0)))
@@ -551,7 +551,7 @@ struct FanBody: View {
             .frame(height: 124)
             Button { withAnimation(Motion.spring()) { island.fanned = true } } label: {
                 HStack(spacing: 4) { Text("\(files.count) files renamed"); Image(systemName: "chevron.right").font(.system(size: 9, weight: .semibold)) }
-                    .font(.system(size: 12, weight: .medium)).foregroundStyle(IslandInk.text).padding(.horizontal, 14).frame(height: 28)
+                    .font(.system(size: TS.small, weight: .medium)).foregroundStyle(IslandInk.text).padding(.horizontal, 14).frame(height: 28)
                     .background(Capsule().fill(IslandInk.control)).overlay(Capsule().strokeBorder(IslandInk.rim, lineWidth: 0.75))
             }
             .buttonStyle(.plain)
@@ -563,7 +563,7 @@ struct FanBody: View {
         let a = files[island.index]
         return VStack(spacing: 10) {
             HStack {
-                Text("\(island.index + 1) of \(files.count)").font(.system(size: 12, weight: .semibold)).foregroundStyle(IslandInk.text)
+                Text("\(island.index + 1) of \(files.count)").font(.system(size: TS.small, weight: .semibold)).foregroundStyle(IslandInk.text)
                 Spacer()
                 TagDots(tags: a.tags)
             }
@@ -594,7 +594,7 @@ struct ShortcutsList: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Image(systemName: "keyboard").foregroundStyle(IslandInk.text2)
-                Text("Keyboard shortcuts").font(.system(size: 14, weight: .semibold)).foregroundStyle(IslandInk.text)
+                Text("Keyboard shortcuts").font(.system(size: TS.emphasis, weight: .semibold)).foregroundStyle(IslandInk.text)
                 Spacer()
                 IslandKey(text: "esc", dark: true)
             }
@@ -607,10 +607,10 @@ struct ShortcutsList: View {
     }
     func group(_ title: String, _ rows: [(String, String)]) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(title.uppercased()).font(.system(size: 10, weight: .semibold)).kerning(0.5).foregroundStyle(IslandInk.text3)
+            Text(title.uppercased()).font(.system(size: TS.micro, weight: .semibold)).kerning(0.5).foregroundStyle(IslandInk.text3)
             ForEach(rows, id: \.0) { r in
                 HStack(spacing: 6) {
-                    Text(r.0).font(.system(size: 12)).foregroundStyle(IslandInk.text).fixedSize(horizontal: false, vertical: true)
+                    Text(r.0).font(.system(size: TS.small)).foregroundStyle(IslandInk.text).fixedSize(horizontal: false, vertical: true)
                     Spacer(minLength: 2)
                     IslandKey(text: r.1, dark: true)
                 }
@@ -632,8 +632,8 @@ struct OverviewBody: View {
         VStack(alignment: .leading, spacing: 8) {
             if needs.isEmpty && recent.isEmpty {
                 HStack(spacing: 10) {
-                    Image(systemName: "checkmark").font(.system(size: 11, weight: .bold)).foregroundStyle(Tint.accent.islandGlyph).frame(width: 22, height: 22).background(Circle().fill(Tint.accent.islandFill))
-                    Text("All quiet · \(Stats.month(m.actions).sorted) files kept in order this month").font(.system(size: 13)).foregroundStyle(IslandInk.text)
+                    Image(systemName: "checkmark").font(.system(size: TS.meta, weight: .bold)).foregroundStyle(Tint.accent.islandGlyph).frame(width: 22, height: 22).background(Circle().fill(Tint.accent.islandFill))
+                    Text("All quiet · \(Stats.month(m.actions).sorted) files kept in order this month").font(.system(size: TS.body)).foregroundStyle(IslandInk.text)
                 }
                 .padding(.vertical, 4)
                 .stagger(0)
@@ -642,7 +642,7 @@ struct OverviewBody: View {
                 eyebrow("Needs you · \(m.needs.count)").stagger(0)
                 ForEach(Array(needs.enumerated()), id: \.element.id) { i, n in needRow(n, i).stagger(1 + i) }
                 if m.needs.count > 3 {
-                    Button("+ \(m.needs.count - 3) more · Activity") { island.hide(); Windows.shared.showMain(.activity) }.buttonStyle(.plain).font(.system(size: 11)).foregroundStyle(IslandInk.text2)
+                    Button("+ \(m.needs.count - 3) more · Activity") { island.hide(); Windows.shared.showMain(.activity) }.buttonStyle(.plain).font(.system(size: TS.meta)).foregroundStyle(IslandInk.text2)
                 }
             }
             if !recent.isEmpty {
@@ -652,21 +652,21 @@ struct OverviewBody: View {
         }
     }
 
-    func eyebrow(_ t: String) -> some View { Text(t.uppercased()).font(.system(size: 10.5, weight: .semibold)).kerning(0.5).foregroundStyle(IslandInk.text3).padding(.horizontal, 4) }
+    func eyebrow(_ t: String) -> some View { Text(t.uppercased()).font(.system(size: TS.meta, weight: .semibold)).kerning(0.5).foregroundStyle(IslandInk.text3).padding(.horizontal, 4) }
 
     func needRow(_ n: Need, _ i: Int) -> some View {
         let sel = island.selection == i
         let act = island.actions().indices.contains(i) ? island.actions()[i] : nil
         return HStack(spacing: 10) {
-            Image(systemName: n.icon).font(.system(size: 12)).foregroundStyle(n.tint.islandGlyph).frame(width: 26, height: 26).background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(n.tint.islandFill))
-            Text(title(n)).font(.system(size: 13, weight: .medium)).foregroundStyle(n.tint.fg).lineLimit(1).truncationMode(.middle).help(title(n))
+            Image(systemName: n.icon).font(.system(size: TS.small)).foregroundStyle(n.tint.islandGlyph).frame(width: 26, height: 26).background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(n.tint.islandFill))
+            Text(title(n)).font(.system(size: TS.body, weight: .medium)).foregroundStyle(n.tint.fg).lineLimit(1).truncationMode(.middle).help(title(n))
             Spacer(minLength: 8)
             if let act {
                 Button(action: act.run) {
                     HStack(spacing: 5) {
-                        if act.key != "↩" { Text(act.key).font(.system(size: 10.5)).foregroundStyle(Color.white.opacity(0.5)) }
-                        Text(act.label).font(.system(size: 11.5, weight: .medium)).foregroundStyle(Color.white.opacity(0.85))
-                        if act.key == "↩" { Image(systemName: "return").font(.system(size: 10)).foregroundStyle(Color.white.opacity(0.5)) }
+                        if act.key != "↩" { Text(act.key).font(.system(size: TS.meta)).foregroundStyle(Color.white.opacity(0.5)) }
+                        Text(act.label).font(.system(size: TS.small, weight: .medium)).foregroundStyle(Color.white.opacity(0.85))
+                        if act.key == "↩" { Image(systemName: "return").font(.system(size: TS.micro)).foregroundStyle(Color.white.opacity(0.5)) }
                     }
                     .padding(.horizontal, 10).frame(height: 24).background(Capsule().fill(Color.white.opacity(0.1))).overlay(Capsule().strokeBorder(Color.white.opacity(0.14), lineWidth: 0.75))
                 }
@@ -685,11 +685,11 @@ struct OverviewBody: View {
     func recentRow(_ a: Action, _ row: Int) -> some View {
         let sel = island.selection == row
         return HStack(spacing: 10) {
-            Image(systemName: a.kind == .renamed ? "checkmark" : a.kind == .duplicate ? "doc.on.doc" : a.kind == .trashed ? "shippingbox" : "square.3.layers.3d").font(.system(size: 11)).foregroundStyle(IslandInk.text2).frame(width: 18)
+            Image(systemName: a.kind == .renamed ? "checkmark" : a.kind == .duplicate ? "doc.on.doc" : a.kind == .trashed ? "shippingbox" : "square.3.layers.3d").font(.system(size: TS.meta)).foregroundStyle(IslandInk.text2).frame(width: 18)
             Text(a.kind == .renamed ? "Renamed \(a.oldName.map { ($0 as NSString).deletingPathExtension } ?? "") → \((a.name as NSString).deletingPathExtension)" : summary(a) + " · " + a.name)
-                .font(.system(size: 12)).foregroundStyle(IslandInk.text).lineLimit(1).truncationMode(.middle).help(a.name)
+                .font(.system(size: TS.small)).foregroundStyle(IslandInk.text).lineLimit(1).truncationMode(.middle).help(a.name)
             Spacer(minLength: 8)
-            Text(sel ? "⌘Z" : a.ts.shortAgo).font(.system(size: 11)).foregroundStyle(IslandInk.text3)
+            Text(sel ? "⌘Z" : a.ts.shortAgo).font(.system(size: TS.meta)).foregroundStyle(IslandInk.text3)
         }
         .padding(.horizontal, 12).frame(height: 34)
         .background(RoundedRectangle(cornerRadius: 15, style: .continuous).fill(Color.white.opacity(sel ? 0.14 : 0.06)))
@@ -702,7 +702,7 @@ struct OverviewBody: View {
 
     func title(_ n: Need) -> String {
         switch n {
-        case .duplicate(let a): return "Copy of \(((a.details["kept"] ?? a.name) as NSString).lastPathComponent) held · \((Int64(a.details["size"] ?? "") ?? 0).bytes)"
+        case .duplicate(let a): return "Copy of \(((a.details["kept"] ?? a.name) as NSString).lastPathComponent) held"
         case .renames(let p, _): return "\(p.count) files can be renamed"
         case .rule(let r): return "You moved \(r.files.count) files to \(r.shelf)"
         }
@@ -722,7 +722,7 @@ struct IslandKey: View {
     var text: String
     var dark: Bool
     var body: some View {
-        Text(text).font(.system(size: 10.5, weight: .medium)).foregroundStyle(dark ? .white.opacity(0.7) : K.text2)
+        Text(text).font(.system(size: TS.meta, weight: .medium)).foregroundStyle(dark ? .white.opacity(0.7) : K.text2)
             .padding(.horizontal, 6).frame(height: 18)
             .background(RoundedRectangle(cornerRadius: 5).fill(dark ? .white.opacity(0.12) : K.fill))
     }
