@@ -58,6 +58,9 @@ public struct Plan: Sendable {
 public let partialExtensions = [".crdownload", ".download", ".part", ".partial", ".opdownload", ".tmp"]
 
 public final class Engine: @unchecked Sendable {
+    /// Reading contents pauses on a low battery; tests replace this so they don't depend on the machine's charge.
+    nonisolated(unsafe) public static var batteryLow: () -> Bool = { lowBattery() }
+
     public let store: Store
     public let classifier: Classifier
     public var setIcon: (URL, String) -> Void = FolderIcon.set
@@ -222,7 +225,7 @@ public final class Engine: @unchecked Sendable {
         let dup = settings.duplicates ? Duplicates(engine: self) : nil
         found.sort { keeperOrder($0.0, $1.0, settings.keeper) }
         let knownTags = settings.tagging && settings.useExistingTags ? existingTags() : []
-        let mayRead = !lowBattery()
+        let mayRead = !Engine.batteryLow()
 
         for (url, root, stage, fresh) in found {
             if stage == .recent {
