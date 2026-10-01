@@ -1,0 +1,214 @@
+# tidy config: ~/.config/tidy/config.toml
+# Edit freely; the agent reads it on every run.
+
+# Folders tidy watches. Only their top level is sorted (it never digs into subfolders).
+roots = ["~/Downloads", "~/Desktop", "~/Documents"]
+# iCloud Drive works too; files that aren't downloaded are sorted by name only, never fetched:
+# roots = ["~/Downloads", "~/Desktop", "~/Documents", "~/Library/Mobile Documents/com~apple~CloudDocs"]
+
+# Each root gets three folders: tidy sorts into "My Shelves/<Type>", never touches "Manual Shelves"
+# (yours to organize by hand), and keeps new arrivals visible in "Recents".
+library = "My Shelves"
+manual_library = "Manual Shelves"
+recents_dir = "Recents"
+# Recents: "links" = sort right away and leave a symlink in Recents for recent_days,
+#          "hold"  = the file itself waits in Recents for recent_days, then gets sorted,
+#          "off"   = sort right away, no Recents.
+recents = "links"
+recent_days = 7
+# Seconds a file must stay unchanged before tidy touches it (lets downloads/copies finish).
+settle_seconds = 10
+# Give each folder a Finder icon with its emoji.
+folder_icons = true
+# von confidence (top1 - top2 probability) needed to pick a type for an unknown file; otherwise Unsorted.
+min_confidence = 0.4
+# Von probability needed for a natural-language rule ("when = ...") to fire.
+rule_threshold = 0.7
+# Files are sorted by type (extension), never by guessed content. Models only run for unknown
+# types and folders: Apple Intelligence picks a type or creates a new one (remembered per extension
+# in ~/.config/tidy/learned.json); von picks an existing type. Anything still unclear goes to Unsorted.
+# Apple Intelligence needs macOS 26+ with it switched on, and Xcode 26+ to install the SDK.
+apple_intelligence = true
+# Also move folders (off: only files and app/document bundles move). Folders with a .git inside never move.
+sort_folders = false
+# Add Finder tags to sorted files.
+tag = true
+# Items carrying this Finder tag are never moved. `tidy undo` adds it to whatever it restores,
+# and Finder's right-click "Don't Sort with Tidy" / "Allow Tidy to Sort" toggle it.
+keep_tag = "Keep"
+notify = true
+
+# Types: each becomes "<root>/My Shelves/<Type>". `match` = extensions that belong there.
+# `description` is what models read when an unknown type needs a folder (and is kept for future AI features).
+# An extension listed in two types goes to the first one.
+
+[categories.Documents]
+emoji = "📄"
+description = "Text documents: PDFs, word-processor files, plain text and notes"
+match = ["pdf", "doc", "docx", "pages", "txt", "md", "rtf", "odt"]
+
+[categories.Reports]
+emoji = "📊"
+description = "Spreadsheets and tabular data: budgets, tables, exports"
+match = ["xls", "xlsx", "numbers", "csv", "tsv", "ods"]
+
+[categories.Presentations]
+emoji = "📽️"
+description = "Slide decks"
+match = ["key", "ppt", "pptx", "odp"]
+
+[categories.Ebooks]
+emoji = "📚"
+description = "Electronic books for e-readers"
+match = ["epub", "mobi", "azw", "azw3", "fb2", "djvu"]
+
+[categories.Images]
+emoji = "🖼️"
+description = "Photos, pictures, graphics and icons"
+match = ["jpg", "jpeg", "png", "heic", "gif", "webp", "tiff", "bmp", "svg", "raw", "ico", "avif"]
+
+[categories.Screenshots]
+emoji = "📸"
+description = "Screenshots and screen recordings taken on this Mac (found by the screen-capture flag, not the extension)"
+match = []
+
+[categories.Videos]
+emoji = "🎬"
+description = "Video clips and movies"
+match = ["mov", "mp4", "m4v", "avi", "mkv", "webm"]
+
+[categories.Audio]
+emoji = "🎵"
+description = "Music, podcasts, voice memos and sound files"
+match = ["mp3", "m4a", "wav", "aiff", "flac", "ogg", "mid", "midi"]
+
+[categories.Design]
+emoji = "🎨"
+description = "Design and layered graphics source files"
+match = ["psd", "fig", "sketch", "ai", "xd"]
+
+[categories.Code]
+emoji = "💻"
+description = "Source code, scripts, notebooks and config files"
+match = ["py", "js", "ts", "tsx", "jsx", "sh", "rb", "go", "rs", "swift", "java", "c", "cpp", "h", "html", "css", "ipynb", "yaml", "yml", "toml"]
+
+[categories.Automations]
+emoji = "⚙️"
+description = "Automation workflows and macros: Shortcuts, Automator, AppleScript, Keyboard Maestro, Alfred, Hazel, BetterTouchTool"
+match = ["shortcut", "workflow", "scpt", "scptd", "applescript", "kmmacros", "kmlibrary", "alfredworkflow", "hazelrules", "bttpreset", "popclipextz"]
+
+[categories.Databases]
+emoji = "🗄️"
+description = "Databases and database dumps: SQL scripts, SQLite, MongoDB, Access and other database files"
+match = ["sql", "sqlite", "sqlite3", "db", "db3", "duckdb", "mdb", "accdb", "bson", "dump", "rdb", "realm", "frm", "ibd"]
+
+[categories.Diagrams]
+emoji = "📐"
+description = "Diagrams and charts: architecture, flowcharts, schemas, mind maps"
+match = ["mermaid", "mmd", "drawio", "excalidraw", "puml", "plantuml", "dot", "gv", "vsdx", "graffle"]
+
+[categories.JSON]
+emoji = "🧾"
+description = "JSON data files and API exports"
+match = ["json", "jsonl", "geojson"]
+
+[categories.Archives]
+emoji = "📦"
+description = "Compressed archives and bundles of files"
+match = ["zip", "tar", "gz", "tgz", "bz2", "xz", "7z", "rar"]
+
+[categories.Apps]
+emoji = "📲"
+description = "Applications, installers and disk images"
+match = ["dmg", "pkg", "mpkg", "app", "iso"]
+
+[categories."3D Models"]
+emoji = "🧊"
+description = "3D models and scenes for printing, games and design"
+match = ["stl", "obj", "fbx", "blend", "glb", "gltf", "usdz", "3mf", "dae"]
+
+[categories.Keys]
+emoji = "🔑"
+description = "Security keys, certificates and password vaults"
+match = ["pem", "p12", "pfx", "cer", "crt", "der", "csr", "pub", "gpg", "asc", "kdbx", "keychain"]
+
+[categories.Calendars]
+emoji = "📅"
+description = "Calendar invites and events"
+match = ["ics", "ical", "vcs"]
+
+[categories.Contacts]
+emoji = "👤"
+description = "Contact cards"
+match = ["vcf", "vcard"]
+
+[categories.Torrents]
+emoji = "🧲"
+description = "Torrent and magnet files for peer-to-peer downloads"
+match = ["torrent"]
+
+[categories.Fonts]
+emoji = "🔤"
+description = "Font files"
+match = ["ttf", "otf", "woff", "woff2"]
+
+[categories.Unsorted]
+emoji = "❓"
+description = "Items whose type could not be determined"
+match = []
+
+# Reserved for AI tagging, renaming and context-aware organization (not used yet).
+# Content-based subfolders from the first version of tidy, judged from the file name and source only.
+[context]
+enabled = false
+[context.Documents]
+Finance = "Invoices, receipts, bank statements, tax forms, payslips, bills, insurance"
+Work = "Work projects, reports, business contracts, proposals, presentations, meeting notes, CVs"
+Personal = "IDs, rental and lease agreements, housing, letters from authorities, health records, travel bookings, tickets, personal letters"
+Learning = "Books, papers, course material, lecture notes, manuals, tutorials"
+[context.Images]
+Photos = "Camera photos of people, places, events, pets, nature"
+Pictures = "Wallpapers, memes, icons, logos, illustrations, downloaded pictures"
+
+# Your own rules, checked top to bottom before the categories. First match wins.
+# Conditions (all given ones must hold):
+#   glob = "*invoice*"          file name pattern, case-insensitive
+#   ext  = ["pdf"]              extensions
+#   from = "github.com"         text in the "downloaded from" URL
+#   when = "a lecture slide deck or university assignment"   plain English, judged by von
+# dest: a folder inside "<root>/My Shelves" like "Documents/Invoices", or an absolute path like "~/Pictures/Wallpapers".
+# tags: Finder tags to add.
+#
+# [[rules]]
+# glob = "*rechnung*"
+# dest = "Documents/Invoices"
+# tags = ["Invoice"]
+#
+# [[rules]]
+# from = "arbeitsagentur.de"
+# dest = "~/Documents/Personal/Agentur"
+#
+# [[rules]]
+# when = "a university lecture, assignment or exam"
+# dest = "Documents/University"
+# tags = ["Uni"]
+
+# Automation workflows exported as plain JSON: told apart by where they were downloaded from.
+[[rules]]
+from = "make.com"
+ext = ["json"]
+dest = "Automations"
+
+[[rules]]
+from = "n8n"            # n8n.cloud, n8n.io, and self-hosted n8n hosts with "n8n" in the name
+ext = ["json"]
+dest = "Automations"
+
+[[rules]]
+from = "zapier.com"
+ext = ["json", "zip"]
+dest = "Automations"
+
+[[rules]]
+glob = "*blueprint*.json"   # Make blueprints that have no download URL
+dest = "Automations"

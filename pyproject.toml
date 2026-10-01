@@ -1,0 +1,34 @@
+[project]
+name = "tidy"
+version = "0.1.0"
+description = "Automatic macOS file sorter: Apple on-device model looks, von decides."
+readme = "README.md"
+authors = [
+    { name = "Ahmed Ayman", email = "ahmed.ayman93@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "von-sdk>=1.2.2",
+]
+
+[project.scripts]
+tidy = "tidy:main"
+
+[project.optional-dependencies]
+apple = [
+    "apple-fm-sdk",
+]
+
+[build-system]
+requires = ["uv_build>=0.12.5,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+bench = [
+    "decider-ai>=1.4.0",
+    "laya>=0.3.20",
+    "rlcd",
+]
+
+[tool.uv.sources]
+rlcd = { git = "https://github.com/Heman10x-NGU/Verdict-open-jev" }
