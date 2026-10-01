@@ -104,7 +104,7 @@ struct ActivityPage: View {
         let list = entries
         let selected = list.first { $0.id == m.selectedActivity } ?? list.first
         HStack(spacing: 0) {
-            listColumn(list, selected: selected?.id).frame(width: 260)
+            listColumn(list, selected: selected?.id).frame(width: 340)
             if let selected {
                 // Activity v3: the detail is one rounded card with a soft border.
                 let flat = EntryDetail.isFlat(selected)   // the final Renamed layout (tag flow) has no card
