@@ -1,5 +1,6 @@
 import KansoCore
 import QuickLookThumbnailing
+import Quartz
 import SwiftUI
 
 /// A row in Activity: something pending, one action, a batch (one run of many sorts), or a file still downloading.
@@ -28,11 +29,12 @@ enum Entry: Identifiable {
 }
 
 enum Filter: String, CaseIterable {
-    case all = "All", needs = "Needs you", renamed = "Renamed", tagged = "Tagged", duplicates = "Duplicates", ejected = "Smart Eject", undone = "Undone"
+    case all = "All", needs = "Needs you", handled = "Handled", renamed = "Renamed", tagged = "Tagged", duplicates = "Duplicates", ejected = "Smart Eject", undone = "Undone"
     var icon: String {
         switch self {
         case .all: return "tray.full"
         case .needs: return "exclamationmark.circle"
+        case .handled: return "checkmark.circle"
         case .renamed: return "pencil"
         case .tagged: return "tag"
         case .duplicates: return "doc.on.doc"
@@ -44,6 +46,7 @@ enum Filter: String, CaseIterable {
         switch self {
         case .all: return "Everything Kanso does shows up here, with Undo."
         case .needs: return "Nothing needs you. Duplicates and rename suggestions appear here first."
+        case .handled: return "Nothing handled yet. Sorted files, renames and Trash moves show up here, with Undo."
         case .renamed: return "No renamed files yet. Kanso renames only meaningless names, like Scan_0012."
         case .tagged: return "No tagged files yet. Turn on Tagging to add Finder tags from a file's first page."
         case .duplicates: return "No duplicates. Extra copies wait on the Duplicates shelf when they show up."
@@ -82,6 +85,8 @@ struct ActivityPage: View {
             switch (filter, entry) {
             case (.all, _): passes = true
             case (.needs, .need): passes = true
+            case (.handled, .need): passes = false
+            case (.handled, _): passes = true
             case (.renamed, .action(let a)): passes = a.kind == .renamed && !a.undone
             case (.renamed, .need(.renames)): passes = true
             case (.tagged, .action(let a)): passes = !a.tags.isEmpty && !a.undone
@@ -100,10 +105,15 @@ struct ActivityPage: View {
         let selected = list.first { $0.id == m.selectedActivity } ?? list.first
         HStack(spacing: 0) {
             listColumn(list, selected: selected?.id).frame(width: 260)
-            Rectangle().fill(K.separator).frame(width: 0.75)
             if let selected {
+                // Activity v3: the detail is one rounded card with a soft border.
                 EntryDetail(entry: selected, next: next(after: selected, in: list)).id(selected.id)
                     .transition(Motion.reduced ? .opacity : .opacity.combined(with: .offset(x: 12)))
+                    .background(RoundedRectangle(cornerRadius: 24, style: .continuous).fill(K.card))
+                    .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).strokeBorder(K.separator, lineWidth: 0.75))
+                    .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 4).padding(.trailing, 12).padding(.bottom, 12)
             } else {
                 emptyState
             }
@@ -146,11 +156,6 @@ struct ActivityPage: View {
     func listColumn(_ list: [Entry], selected: String?) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
-                HStack(spacing: 6) {
-                    Text("\(m.today.sorted) today").font(.system(size: TS.small, weight: .medium)).foregroundStyle(Tint.accent.fg)
-                        .padding(.horizontal, 8).frame(height: 22).background(Capsule().fill(Tint.accent.bg))
-                    Text(m.needs.isEmpty ? "nothing needs you" : "\(m.needs.count) need you").font(.system(size: TS.small)).foregroundStyle(K.text2)
-                }
                 // HIG (search fields, pop-up buttons): search at the top of the list column, with a filter menu beside it
                 // (the Mail pattern). One pop-up for mutually exclusive filters scales to any number of them.
                 HStack(spacing: 8) {
@@ -162,7 +167,13 @@ struct ActivityPage: View {
                     .padding(.horizontal, 12).frame(height: 32).liquid(Capsule(), tint: nil, fallback: K.fill, interactive: false)
                     filterMenu
                 }
-                if filter != .all {
+                Picker("Show", selection: $filter.animation(Motion.spring(0.3))) {
+                    Text("All").tag(Filter.all)
+                    Text(m.needs.isEmpty ? "Needs you" : "Needs you · \(m.needs.count)").tag(Filter.needs)
+                    Text("Handled").tag(Filter.handled)
+                }
+                .pickerStyle(.segmented).labelsHidden().controlSize(.small).frame(width: 236)
+                if ![.all, .needs, .handled].contains(filter) {
                     HStack(spacing: 6) {
                         Text("Filtered by \(filter.rawValue)").font(.system(size: TS.small)).foregroundStyle(K.text2)
                         Button { withAnimation(Motion.spring(0.3)) { filter = .all } } label: { Image(systemName: "xmark.circle.fill").font(.system(size: TS.small)).foregroundStyle(K.text3) }
@@ -176,7 +187,6 @@ struct ActivityPage: View {
                         HStack {
                             Text(g.0).eyebrow()
                             Spacer()
-                            if g.0 == "Needs you" { Text("pinned").font(.system(size: TS.micro)).foregroundStyle(K.text2) }
                         }
                         .padding(.horizontal, 8).padding(.top, 8).padding(.bottom, 2)
                         ForEach(g.1) { e in Button { withAnimation(Motion.spring(0.25)) { m.selectedActivity = e.id } } label: { ListRow(entry: e, selected: e.id == selected) }.buttonStyle(PlainRowStyle()).focusRing(9) }
@@ -184,28 +194,29 @@ struct ActivityPage: View {
                 }
                 .padding(.bottom, 16)
             }
-            .padding(.top, 8).padding(.horizontal, 12)
+            .padding(.top, 4).padding(.horizontal, 12)
         }
         .softTopEdge()
     }
 
     /// A glass circle with the filter symbol (filled and tinted while a filter is on); opens a menu with a check on the current one.
     var filterMenu: some View {
-        Menu {
+        let fine = ![.all, .needs, .handled].contains(filter)
+        return Menu {
             Picker("Filter", selection: $filter) {
-                ForEach(Filter.allCases, id: \.self) { f in
-                    Label(f == .needs && !m.needs.isEmpty ? "\(f.rawValue) (\(m.needs.count))" : f.rawValue, systemImage: f.icon).tag(f)
+                ForEach([Filter.renamed, .tagged, .duplicates, .ejected, .undone], id: \.self) { f in
+                    Label(f.rawValue, systemImage: f.icon).tag(f)
                 }
             }
             .pickerStyle(.inline)
         } label: {
-            Image(systemName: filter == .all ? "line.3.horizontal.decrease" : "line.3.horizontal.decrease.circle.fill")
-                .font(.system(size: TS.body, weight: .medium)).foregroundStyle(filter == .all ? K.text2 : Tint.accent.fg)
+            Image(systemName: fine ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease")
+                .font(.system(size: TS.body, weight: .medium)).foregroundStyle(fine ? Tint.accent.fg : K.text2)
                 .frame(width: 32, height: 32).contentShape(Circle())
-                .liquid(Circle(), tint: filter == .all ? nil : Tint.accent.bg, fallback: filter == .all ? K.fill : Tint.accent.bg)
+                .liquid(Circle(), tint: fine ? Tint.accent.bg : nil, fallback: fine ? Tint.accent.bg : K.fill)
         }
         .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden).fixedSize()
-        .help("Filter activity").accessibilityLabel("Filter activity")
+        .help("Filter activity").accessibilityLabel(fine ? "Filter activity, \(filter.rawValue)" : "Filter activity")
     }
 
     func group(_ list: [Entry]) -> [(String, [Entry])] {
@@ -226,25 +237,26 @@ func title(_ e: Entry) -> String {
     case .need(.renames(let p, _)): return "\(p.count) files can be renamed"
     case .need(.rule(let r)): return r.files.first ?? "Rule suggestion"
     case .action(let a): return a.kind == .trashed ? a.srcName : a.name
-    case .batch(_, let a): return "\((a.first?.root as NSString?)?.lastPathComponent ?? "Folder") tidied"
+    case .batch(_, let a): return "\(a.count) files"
     case .waiting(let w): return w.partial ? w.url.deletingPathExtension().lastPathComponent : w.url.lastPathComponent
     }
 }
 
-func subtitle(_ e: Entry) -> String {
+@MainActor func subtitle(_ e: Entry) -> String {
+    let st = AppModel.shared.settings
     switch e {
-    case .need(.duplicate): return "Duplicate · trash or keep?"
-    case .need(.renames): return "Rename review · nothing changed yet"
-    case .need(.rule(let r)): return "Rule suggestion · \(r.files.count) moved to \(r.shelf)"
+    case .need(.duplicate(let a)): return "Copy held · " + (Int64(a.details["size"] ?? "") ?? 0).bytes
+    case .need(.renames): return "Review before renaming"
+    case .need(.rule(let r)): return "Rule suggested · \(r.shelf) shelf"
     case .action(let a):
         if a.undone { return "Undone · " + summary(a).lowercased() }
         switch a.kind {
-        case .renamed: return "Renamed from \(a.oldName ?? "")" + (a.tags.isEmpty ? "" : " · tagged")
+        case .renamed: return "Renamed from \(a.oldName ?? "")"
         case .duplicate: return "Copy kept in Duplicates"
-        case .trashed: return "Moved to Trash · \((Int64(a.details["size"] ?? "") ?? 0).bytes)"
-        case .sorted: return "Sorted to \(a.shelf)" + (a.tags.isEmpty ? "" : " · tagged")
+        case .trashed: return a.details["installer"] != nil ? "Smart Eject · installer moved to Trash" : "Moved to Trash · \((Int64(a.details["size"] ?? "") ?? 0).bytes)"
+        case .sorted: return "Sorted → \(st.emoji(for: a.shelf)) \(a.shelf)"
         }
-    case .batch(_, let a): return "\(a.count) files to shelves"
+    case .batch(_, let a): return "Sorted into \(Set(a.map(\.shelf)).count) shelves"
     case .waiting(let w): return w.partial ? "Waiting · still downloading" : "Waiting · settling"
     }
 }
@@ -274,20 +286,19 @@ struct ListRow: View {
     }
 
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
-            EmojiTile(emoji: emoji, fill: pending ? K.cardSoft : K.fill)
+        HStack(alignment: .center, spacing: 10) {
+            EmojiTile(emoji: emoji, size: 40, fill: K.card)
             VStack(alignment: .leading, spacing: 2) {
-                HStack {
-                    Text(title(entry)).font(.system(size: TS.small, weight: .semibold)).foregroundStyle(K.text).lineLimit(1).truncationMode(.middle)
-                    Spacer()
-                    Text(entry.ts.listTime).font(.system(size: TS.micro)).foregroundStyle(K.text2)
+                HStack(alignment: .firstTextBaseline) {
+                    Text(title(entry)).font(.system(size: TS.body, weight: .bold)).foregroundStyle(pending ? tint.fg : K.text).lineLimit(1).truncationMode(.middle)
+                    Spacer(minLength: 4)
+                    Text(entry.ts.listTime).font(.system(size: TS.meta)).foregroundStyle(pending ? tint.fg : K.text2)
                 }
-                Text(subtitle(entry)).font(.system(size: TS.meta)).foregroundStyle(pending ? tint.fg : K.text2).lineLimit(1)
+                Text(subtitle(entry)).font(.system(size: TS.small)).foregroundStyle(pending ? tint.fg : K.text2).lineLimit(1)
             }
         }
-        .padding(.horizontal, 10).padding(.vertical, 9)
-        .background(RoundedRectangle(cornerRadius: 9).fill(pending ? tint.bg : (selected ? K.fillStrong : .clear)))
-        .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(selected ? tint.stroke : .clear, lineWidth: 1))
+        .padding(.horizontal, 8).padding(.vertical, 8)
+        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(selected ? K.fillStrong : .clear))
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(selected ? [.isSelected, .isButton] : .isButton)
@@ -300,45 +311,90 @@ struct EntryDetail: View {
     @EnvironmentObject var m: AppModel
     var entry: Entry
     var next: Entry?
+    @State private var showKeys = false
+
+    var renamedAction: Action? { if case .action(let a) = entry, a.kind == .renamed { return a }; return nil }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            head.padding(.horizontal, 20).padding(.top, 16).padding(.bottom, 12)
             ScrollView {
-                VStack(alignment: .leading, spacing: 22) {
-                    HStack {
-                        chip
-                        // The shelf a sorted file landed on: click it to move the file (and teach Kanso).
-                        if case .action(let a) = entry, a.kind == .sorted, !a.undone {
-                            MenuPicker(options: shelfOptions(a.shelf), value: Binding(get: { a.shelf }, set: { if $0 != a.shelf { m.move(a.id, to: $0) } }),
-                                       emoji: { m.settings.emoji(for: $0) })
-                                .help("Move to another shelf")
+                VStack(alignment: .leading, spacing: 16) {
+                    if let a = renamedAction {
+                        renamedHero(a)
+                    } else {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(headline).font(.system(size: TS.heading, weight: .bold)).foregroundStyle(K.text).lineLimit(2)
+                            Text(sub).font(.system(size: TS.body)).foregroundStyle(K.text2).fixedSize(horizontal: false, vertical: true)
                         }
-                        Spacer()
-                        Text(meta).font(.system(size: TS.meta)).foregroundStyle(K.text2)
+                        visual
                     }
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(headline).font(.system(size: TS.title2, weight: .bold)).foregroundStyle(K.text).lineLimit(2)
-                        Text(sub).font(.system(size: TS.body)).foregroundStyle(K.text2).fixedSize(horizontal: false, vertical: true)
-                    }
-                    visual
                     decided
+                    filedIn
                     if let next { Button("Next: \(nextLabel(next)) ↓") { m.selectedActivity = next.id }.buttonStyle(LinkStyle(color: K.text2)) }
                 }
-                .padding(.horizontal, 28).padding(.top, 8).padding(.bottom, 20)
+                .padding(.horizontal, 20).padding(.bottom, 16)
             }
-            .softTopEdge()
             .defaultScrollAnchor(ProcessInfo.processInfo.environment["KANSO_SCROLL"] == "bottom" ? .bottom : .top)   // screenshots of the scrolled state
+            actionBar.padding(.horizontal, 20).padding(.bottom, 14).padding(.top, 4).frame(maxWidth: .infinity, alignment: .trailing)
+            footer
         }
-        // The actions float on a glass bar. The scroll view insets for it and, on macOS 26, extends its edge effect beneath it.
-        .floatingBar {
-            glassGroup {
-                actionBar.padding(.horizontal, 14).padding(.vertical, 10).frame(maxWidth: .infinity, alignment: .leading)
-                    .onGlass()   // the buttons inside draw solid: no glass on glass
-                    .liquid(RoundedRectangle(cornerRadius: 22, style: .continuous), tint: nil, fallback: K.card, interactive: false)
-                    .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(K.separator, lineWidth: 0.75))
+    }
+
+    // MARK: Head, footer
+
+    var badge: (icon: String, text: String, tint: Tint) {
+        switch entry {
+        case .need(let n): return (n.icon, "\(n.label) · needs you", n.tint)
+        case .action(let a):
+            switch a.kind {
+            case .renamed: return ("checkmark", "Renamed", .rename)
+            case .duplicate: return ("doc.on.doc", "Duplicate", .duplicate)
+            case .trashed: return ("trash", "Moved to Trash", .neutral)
+            case .sorted: return ("checkmark", a.undone ? "Sorted · undone" : "Sorted", .accent)
             }
-            .padding(.horizontal, 20).padding(.bottom, 14).padding(.top, 4)
+        case .batch: return ("checkmark", "Batch", .neutral)
+        case .waiting: return ("hourglass", "Waiting", .neutral)
         }
+    }
+
+    var head: some View {
+        let b = badge
+        return HStack(spacing: 10) {
+            Image(systemName: b.icon).font(.system(size: TS.small, weight: .bold)).foregroundStyle(b.tint.fg)
+                .frame(width: 26, height: 26).background(Circle().fill(b.tint.bg)).accessibilityHidden(true)
+            Text(b.text).font(.system(size: TS.emphasis, weight: .semibold)).foregroundStyle(K.text)
+            Spacer()
+            Text(meta).font(.system(size: TS.small)).foregroundStyle(K.text2)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    var footer: some View {
+        HStack {
+            Text("↑↓ move between activities").font(.system(size: TS.small)).foregroundStyle(K.text2)
+            Spacer()
+            Button { showKeys.toggle() } label: {
+                Image(systemName: "keyboard").font(.system(size: TS.body)).foregroundStyle(K.text2)
+                    .frame(width: 30, height: 30).contentShape(Circle()).liquid(Circle())
+            }
+            .buttonStyle(.plain).focusRing(15).help("Keyboard shortcuts").accessibilityLabel("Keyboard shortcuts")
+            .popover(isPresented: $showKeys, arrowEdge: .top) { shortcuts }
+        }
+        .padding(.horizontal, 20).padding(.vertical, 10)
+        .overlay(alignment: .top) { Rectangle().fill(K.separator).frame(height: 0.75) }
+    }
+
+    var shortcuts: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ForEach([("↑ ↓", "Move between activities"), ("⌘Z", "Undo or Put Back"), ("⌘⌫", "Move the copy to Trash"), ("↩", "Do the main action"), ("⌘↩", "Rename all"), ("⌥⌘K", "Open the island")], id: \.0) { k in
+                HStack(spacing: 14) {
+                    Text(k.0).font(.system(size: TS.small, weight: .medium, design: .monospaced)).foregroundStyle(K.text).frame(width: 44, alignment: .leading)
+                    Text(k.1).font(.system(size: TS.small)).foregroundStyle(K.text2)
+                }
+            }
+        }
+        .padding(16)
     }
 
     func shelfOptions(_ current: String) -> [(String, String)] {
@@ -347,32 +403,91 @@ struct EntryDetail: View {
         return o
     }
 
-    var chip: some View {
-        switch entry {
-        case .need(let n): return Chip(icon: n.icon, text: "\(n.label) · needs you", tint: n.tint)
-        case .action(let a):
-            switch a.kind {
-            case .renamed: return Chip(icon: "pencil.line", text: a.tags.isEmpty ? "Renamed" : "Renamed · tagged", tint: .rename)
-            case .duplicate: return Chip(icon: "doc.on.doc", text: "Duplicate", tint: .duplicate)
-            case .trashed: return Chip(icon: "trash", text: "Moved to Trash", tint: .neutral)
-            case .sorted: return Chip(icon: "square.3.layers.3d", text: a.undone ? "Sorted · undone" : "Sorted", tint: .neutral)
-            }
-        case .batch: return Chip(icon: "display", text: "Batch", tint: .neutral)
-        case .waiting: return Chip(icon: "hourglass", text: "Waiting", tint: .neutral)
-        }
+    var meta: String {
+        (Calendar.current.isDateInToday(entry.ts) ? "Today" : entry.ts.formatted(.dateTime.month(.abbreviated).day())) + " " + entry.ts.clock
     }
 
-    var meta: String {
-        let when = (Calendar.current.isDateInToday(entry.ts) ? "Today" : entry.ts.formatted(.dateTime.month(.abbreviated).day())) + ", " + entry.ts.clock
-        var parts = [when]
-        func root(_ r: String) { if !r.isEmpty { parts.append("\(folderEmoji(r)) \((r as NSString).lastPathComponent)") } }
-        switch entry {
-        case .need(.duplicate(let a)), .action(let a): root(a.root); if let h = a.details["from"].flatMap({ URL(string: $0)?.host }) { parts.append("from \(h)") }
-        case .batch(_, let a): root(a.first?.root ?? "")
-        case .waiting(let w): root(w.root.path)
-        default: break
+    // MARK: Renamed hero and recipe
+
+    func renamedHero(_ a: Action) -> some View {
+        let t = Tint.rename
+        let palette = [t.fg, Tint.where.fg, Tint.rule.fg, Tint.duplicate.fg]
+        return HStack(alignment: .top, spacing: 16) {
+            HeroPreview(path: a.dst).frame(width: 72, height: 94)
+            VStack(alignment: .leading, spacing: 6) {
+                Text(a.oldName ?? "").font(.system(size: TS.meta, design: .monospaced)).foregroundStyle(t.fg.opacity(0.8)).lineLimit(1).truncationMode(.middle)
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text(a.name).font(.system(size: TS.heading, weight: .bold)).foregroundStyle(t.fg).lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 0)
+                    Button { m.reveal(a.dst) } label: { Image(systemName: "arrow.up.right").font(.system(size: TS.small, weight: .semibold)).foregroundStyle(t.fg) }
+                        .buttonStyle(.plain).focusRing(6).help("Show in Finder").accessibilityLabel("Show in Finder")
+                }
+                HStack(spacing: 6) {
+                    Text((a.root as NSString).lastPathComponent)
+                    Image(systemName: "chevron.right").font(.system(size: 9, weight: .semibold))
+                    Text("\(m.settings.emoji(for: a.shelf)) \(a.shelf)").fontWeight(.medium)
+                }
+                .font(.system(size: TS.small)).foregroundStyle(t.fg).lineLimit(1)
+                FlowLayout(spacing: 6) {
+                    ForEach(Array(a.tags.enumerated()), id: \.element) { i, tag in TagPill(name: tag, color: palette[i % palette.count]) }
+                    AddTagPill { m.addTag(a.id, $0) }
+                }
+                Label { Text("File is still findable by the old name \(a.oldName ?? "")").fixedSize(horizontal: false, vertical: true) } icon: { Image(systemName: "info.circle") }
+                    .font(.system(size: TS.meta)).foregroundStyle(t.fg).labelStyle(TightLabel())
+            }
         }
-        return parts.joined(separator: " · ")
+        .padding(16).frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(t.bg))
+    }
+
+    /// Kind - Organization - Date from the rename details; empty when the engine kept none.
+    func recipe(_ a: Action) -> [(String, String, String)] {
+        var out: [(String, String, String)] = []
+        let src = a.source.replacingOccurrences(of: "contents, page ", with: "p.").replacingOccurrences(of: "contents", with: "read")
+        if let k = a.details["kind"] { out.append(("Kind", k, src)) }
+        if let o = a.details["organization"] { out.append(("Organization", o, src)) }
+        if let d = a.details["date"].flatMap({ ISO8601DateFormatter().date(from: $0) }) { out.append(("Date", d.formatted(.iso8601.year().month().dateSeparator(.dash)), src)) }
+        return out
+    }
+
+    func recipeCard(_ a: Action, _ parts: [(String, String, String)]) -> some View {
+        let t = Tint.rename
+        let stem = ((a.oldName ?? "") as NSString).deletingPathExtension
+        let label = Meaningless.label(stem) ?? ""
+        let what = label.hasPrefix("Scan") ? "a scanner default" : label.hasPrefix("IMG") ? "a camera default" : label.hasPrefix("download") ? "a download default" : "a name"
+        return VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top, spacing: 6) {
+                ForEach(Array(parts.enumerated()), id: \.offset) { i, p in
+                    VStack(spacing: 3) {
+                        Text(p.1).font(.system(size: TS.body, weight: .semibold, design: .monospaced)).foregroundStyle(t.fg).lineLimit(1).minimumScaleFactor(0.7)
+                            .padding(.horizontal, 8).frame(height: 30).background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(t.bg))
+                        Text(p.0).font(.system(size: TS.small, weight: .semibold)).foregroundStyle(K.text)
+                        Text(p.2).font(.system(size: TS.meta)).foregroundStyle(K.text2).lineLimit(1)
+                    }
+                    if i < parts.count - 1 { Text("-").font(.system(size: TS.body, design: .monospaced)).foregroundStyle(K.text3).frame(height: 30) }
+                }
+                Text(".\((a.name as NSString).pathExtension)").font(.system(size: TS.body, design: .monospaced)).foregroundStyle(K.text3).frame(height: 30)
+            }
+            Rectangle().fill(K.separator).frame(height: 0.75)
+            Label("Replaced \(stem) — \(what) with no meaning", systemImage: "viewfinder").font(.system(size: TS.small)).foregroundStyle(K.text2).labelStyle(TightLabel())
+        }
+        .padding(16).frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(K.fill))
+    }
+
+    /// "Filed in [shelf] because …": the shelf picker for anything Kanso sorted or renamed.
+    @ViewBuilder var filedIn: some View {
+        if case .action(let a) = entry, a.kind == .sorted || a.kind == .renamed, !a.undone {
+            let ext = (a.name as NSString).pathExtension.uppercased()
+            let why = a.source == "you" ? "you moved it here" : a.why.hasPrefix("rule") ? "your rule matched" : a.why == "screenshot" ? "screenshots go to \(a.shelf)"
+                : a.why.hasPrefix("apple-intelligence") ? "Apple Intelligence picked it" : ext.isEmpty ? "" : "\(ext) files go to \(a.shelf)"
+            HStack(spacing: 10) {
+                Label("Filed in", systemImage: "folder").font(.system(size: TS.small)).foregroundStyle(K.text2)
+                MenuPicker(options: shelfOptions(a.shelf), value: Binding(get: { a.shelf }, set: { if $0 != a.shelf { m.move(a.id, to: $0) } }), emoji: { m.settings.emoji(for: $0) })
+                    .help("Move to another shelf")
+                if !why.isEmpty { Text("because \(why)").font(.system(size: TS.small)).foregroundStyle(K.text2).lineLimit(1) }
+            }
+        }
     }
 
     var headline: String {
@@ -567,26 +682,31 @@ struct EntryDetail: View {
         }
     }
 
-    var decided: some View {
+    @ViewBuilder var decided: some View {
+        let title = { () -> String in if case .need(.duplicate) = entry { return "How Kanso knew" }; return "How Kanso decided" }()
         VStack(alignment: .leading, spacing: 8) {
-            Text({ if case .need(.duplicate) = entry { return "How Kanso knew" }; return "How Kanso decided" }()).font(.system(size: TS.body, weight: .semibold)).foregroundStyle(K.text)
-            VStack(spacing: 0) {
-                ForEach(Array(rows.enumerated()), id: \.offset) { i, r in
-                    // Title over value, source on the right: fits the narrow detail column without truncating.
-                    HStack(spacing: 12) {
-                        Image(systemName: r.0).font(.system(size: TS.small)).foregroundStyle(K.text2).frame(width: 18)
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text(r.1).font(.system(size: TS.body, weight: .medium)).foregroundStyle(K.text)
-                            Text(r.2).font(.system(size: TS.small)).foregroundStyle(K.text2).fixedSize(horizontal: false, vertical: true)
+            Text(title).font(.system(size: TS.small, weight: .semibold)).foregroundStyle(K.text2)
+            if let a = renamedAction, !recipe(a).isEmpty {
+                recipeCard(a, recipe(a))
+            } else {
+                VStack(spacing: 0) {
+                    ForEach(Array(rows.enumerated()), id: \.offset) { i, r in
+                        // Title over value, source on the right: fits the narrow detail column without truncating.
+                        HStack(spacing: 12) {
+                            Image(systemName: r.0).font(.system(size: TS.small)).foregroundStyle(K.text2).frame(width: 18)
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(r.1).font(.system(size: TS.body, weight: .medium)).foregroundStyle(K.text)
+                                Text(r.2).font(.system(size: TS.small)).foregroundStyle(K.text2).fixedSize(horizontal: false, vertical: true)
+                            }
+                            Spacer(minLength: 8)
+                            Text(r.3).font(.system(size: TS.meta)).foregroundStyle(r.3.hasPrefix("contents") ? Tint.rename.fg : K.text2).lineLimit(1).fixedSize()
                         }
-                        Spacer(minLength: 8)
-                        Text(r.3).font(.system(size: TS.meta)).foregroundStyle(r.3.hasPrefix("contents") ? Tint.rename.fg : K.text2).lineLimit(1).fixedSize()
+                        .padding(.horizontal, 14).padding(.vertical, 8)
+                        if i < rows.count - 1 { Rectangle().fill(K.separator).frame(height: 0.75) }
                     }
-                    .padding(.horizontal, 14).padding(.vertical, 8)
-                    if i < rows.count - 1 { Rectangle().fill(K.separator).frame(height: 0.75) }
                 }
+                .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(K.fill))
             }
-            .card()
         }
     }
 
@@ -617,10 +737,10 @@ struct EntryDetail: View {
                 if a.undone {
                     Button("Show in Finder") { m.reveal(a.src) }.buttonStyle(SecondaryStyle())
                 } else if a.kind == .trashed {
-                    Button { m.undo([a.id]) } label: { HStack { Text("Put Back"); Hint(text: "⌘Z") } }.buttonStyle(PrimaryStyle()).keyboardShortcut("z")
+                    Button { m.undo([a.id]) } label: { HStack { Image(systemName: "arrow.uturn.backward"); Text("Put Back"); Hint(text: "⌘Z") } }.buttonStyle(PrimaryStyle(tint: .duplicate)).keyboardShortcut("z")
                 } else {
-                    Button { m.undo([a.id]) } label: { HStack { Text(a.kind == .renamed ? "Undo rename" : "Undo"); Hint(text: "⌘Z") } }
-                        .buttonStyle(PrimaryStyle(tint: a.kind == .renamed ? .rename : .accent)).keyboardShortcut("z")
+                    Button { m.undo([a.id]) } label: { HStack { Image(systemName: "arrow.uturn.backward"); Text("Undo"); Hint(text: "⌘Z") } }
+                        .buttonStyle(PrimaryStyle(tint: .duplicate)).keyboardShortcut("z")
                     Button("Show in Finder") { m.reveal(a.dst) }.buttonStyle(SecondaryStyle())
                 }
             case .batch(let run, let a):
@@ -718,4 +838,64 @@ extension View {
     @ViewBuilder func floatingBar<B: View>(@ViewBuilder _ bar: () -> B) -> some View {
         if #available(macOS 26, *) { safeAreaBar(edge: .bottom) { bar() } } else { safeAreaInset(edge: .bottom) { bar() } }
     }
+}
+
+
+/// Icon and text hugging each other (a Label with a 5 pt gap).
+struct TightLabel: LabelStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) { configuration.icon; configuration.title }
+    }
+}
+
+/// The page preview in the hero; hovering shows an eye that opens Quick Look.
+struct HeroPreview: View {
+    var path: String
+    @State private var hover = false
+    var body: some View {
+        Thumb(path: path)
+            .overlay {
+                Button { QuickLook.show(URL(fileURLWithPath: path)) } label: {
+                    Image(systemName: "eye").font(.system(size: TS.body, weight: .semibold)).foregroundStyle(.white)
+                        .frame(width: 30, height: 30).background(Circle().fill(.black.opacity(0.55)))
+                }
+                .buttonStyle(.plain).focusRing(15).help("Quick Look").accessibilityLabel("Quick Look")
+                .opacity(hover || Motion.snapshot ? 1 : 0)
+            }
+            .onHover { hover = $0 }
+    }
+}
+
+/// "+ Add tag": a pill that opens a small field; Return adds a Finder tag to the file.
+struct AddTagPill: View {
+    var add: (String) -> Void
+    @State private var open = false
+    @State private var text = ""
+    var body: some View {
+        Button { open = true } label: {
+            HStack(spacing: 4) { Image(systemName: "plus").font(.system(size: TS.micro, weight: .semibold)); Text("Add tag").font(.system(size: TS.meta)) }
+                .foregroundStyle(Tint.rename.fg).padding(.horizontal, 7).frame(height: 20)
+                .overlay(Capsule().strokeBorder(Tint.rename.stroke, lineWidth: 0.75)).contentShape(Capsule())
+        }
+        .buttonStyle(.plain).focusRing(10).accessibilityLabel("Add tag")
+        .popover(isPresented: $open, arrowEdge: .bottom) {
+            TextField("Tag name", text: $text).textFieldStyle(.roundedBorder).frame(width: 160).padding(12)
+                .onSubmit { add(text.trimmingCharacters(in: .whitespaces)); text = ""; open = false }
+        }
+    }
+}
+
+/// Quick Look panel for one file.
+final class QuickLook: NSObject, QLPreviewPanelDataSource {
+    static let shared = QuickLook()
+    var url: URL?
+    @MainActor static func show(_ url: URL) {
+        shared.url = url
+        let p = QLPreviewPanel.shared()!
+        p.dataSource = shared
+        p.reloadData()
+        p.makeKeyAndOrderFront(nil)
+    }
+    func numberOfPreviewItems(in panel: QLPreviewPanel!) -> Int { url == nil ? 0 : 1 }
+    func previewPanel(_ panel: QLPreviewPanel!, previewItemAt index: Int) -> QLPreviewItem! { url as NSURL? }
 }

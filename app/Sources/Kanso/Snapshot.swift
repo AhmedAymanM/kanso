@@ -13,6 +13,7 @@ enum Snapshot {
         let m = AppModel.shared
         m.engine.detectCorrections()
         m.refresh()
+        if let k = ProcessInfo.processInfo.environment["KANSO_SELECT"], let a = m.actions.first(where: { $0.kind.rawValue == k }) { m.selectedActivity = a.id.uuidString }   // pick an Activity entry by kind
         let only = ProcessInfo.processInfo.environment["KANSO_SNAPSHOT_ONLY"]?.split(separator: ",").map(String.init)
         for mode in ["light", "dark"] {
             let ap = NSAppearance(named: mode == "dark" ? .darkAqua : .aqua)!

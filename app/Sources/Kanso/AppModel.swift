@@ -101,7 +101,11 @@ final class AppModel: ObservableObject {
     let engine: Engine
     let ai = AppleIntelligence()
 
-    @Published private(set) var settings: Settings
+    @Published private(set) var settings: Settings {
+        didSet { if oldValue.roots != settings.roots { refreshAccess() } }
+    }
+    /// Watched folders macOS won't let Kanso read (privacy blocks Desktop, Documents, Downloads until allowed). Drives the Sorting badge.
+    @Published private(set) var inaccessibleRoots: [String] = []
     @Published private(set) var actions: [Action] = []
     @Published private(set) var pending = Pending()
     @Published private(set) var waiting: [Waiting] = []
@@ -126,6 +130,10 @@ final class AppModel: ObservableObject {
         }
         self.settings = store.settings
         refresh()
+        refreshAccess()
+        NotificationCenter.default.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { _ in
+            MainActor.assumeIsolated { AppModel.shared.refreshAccess() }
+        }
     }
 
     // MARK: State
@@ -298,6 +306,14 @@ final class AppModel: ObservableObject {
     func dismissRenames() { engine.dismissRenames(); refresh() }
     func acceptSuggestion(_ id: UUID) { engine.acceptSuggestion(id); refresh() }
     func dismissSuggestion(_ id: UUID) { engine.dismissSuggestion(id); refresh() }
+    /// "+ Add tag" on a renamed file: a Finder tag on the file, remembered on the action.
+    func addTag(_ id: UUID, _ name: String) {
+        guard let a = actions.first(where: { $0.id == id }), !name.isEmpty, !a.tags.contains(name) else { return }
+        Tags.add(URL(fileURLWithPath: a.dst), [name])
+        store.modify([id]) { $0.tags.append(name) }
+        refresh()
+    }
+
     func move(_ id: UUID, to shelf: String) { engine.move(id, to: shelf); refresh() }
 
     /// "Don't sort this file": adds the keep tag.
@@ -403,6 +419,11 @@ final class AppModel: ObservableObject {
     nonisolated static func canRead(_ path: String) -> Bool {
         let p = (path as NSString).expandingTildeInPath
         return (try? FileManager.default.contentsOfDirectory(atPath: p)) != nil
+    }
+
+    func refreshAccess() {
+        let bad = settings.roots.filter { !AppModel.canRead($0) }
+        if bad != inaccessibleRoots { inaccessibleRoots = bad }
     }
 
     func openPrivacySettings() {
