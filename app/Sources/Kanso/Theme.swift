@@ -97,8 +97,23 @@ enum Motion {
 
 // MARK: Text styles
 
+/// The type scale (DESIGN_SYSTEM.md §3). Every text and glyph size comes from here; icons smaller than text (8–9 pt chevrons) stay literal.
+enum TS {
+    static let micro: CGFloat = 10      // chart labels, tiny badges
+    static let meta: CGFloat = 11       // eyebrows, times, sources, key hints, badges
+    static let small: CGFloat = 12      // descriptions, secondary lines
+    static let body: CGFloat = 13       // rows, buttons, body text
+    static let emphasis: CGFloat = 15   // card and section titles, names, page title
+    static let heading: CGFloat = 17    // file names in notices
+    static let title: CGFloat = 20      // wordmark, large values
+    static let title2: CGFloat = 22     // Activity headline
+    static let headline: CGFloat = 26   // showcase headline, folder emoji
+    static let display: CGFloat = 30    // statements, numerals
+    static let hero: CGFloat = 40       // showcase glyph, big emoji
+}
+
 extension View {
-    func eyebrow() -> some View { font(.system(size: 10.5, weight: .semibold)).kerning(0.5).foregroundStyle(K.text2).textCase(.uppercase) }
+    func eyebrow() -> some View { font(.system(size: TS.meta, weight: .semibold)).kerning(0.5).foregroundStyle(K.text2).textCase(.uppercase) }
     func card(radius: CGFloat = 12) -> some View {
         background(RoundedRectangle(cornerRadius: radius).fill(K.card))
             .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(K.separator, lineWidth: 0.75))
@@ -111,13 +126,13 @@ struct SectionTitle: View {
     var action: (() -> Void)? = nil
     var body: some View {
         HStack(alignment: .firstTextBaseline) {
-            Text(title).font(.system(size: 13, weight: .semibold)).foregroundStyle(K.text)
+            Text(title).font(.system(size: TS.body, weight: .semibold)).foregroundStyle(K.text)
             Spacer()
             if let trailing {
                 if let action {
                     Button(trailing, action: action).buttonStyle(LinkStyle())
                 } else {
-                    Text(trailing).font(.system(size: 11)).foregroundStyle(K.text2)
+                    Text(trailing).font(.system(size: TS.meta)).foregroundStyle(K.text2)
                 }
             }
         }
@@ -183,7 +198,7 @@ struct SecondaryStyle: ButtonStyle {
 struct PillStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 11.5, weight: .medium))
+            .font(.system(size: TS.small, weight: .medium))
             .foregroundStyle(K.text)
             .padding(.horizontal, 9)
             .frame(height: 22)
@@ -195,7 +210,7 @@ struct PillStyle: ButtonStyle {
 struct LinkStyle: ButtonStyle {
     var color: Color = K.accent
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label.font(.system(size: 11.5, weight: .medium)).foregroundStyle(color.opacity(configuration.isPressed ? 0.6 : 1))
+        configuration.label.font(.system(size: TS.small, weight: .medium)).foregroundStyle(color.opacity(configuration.isPressed ? 0.6 : 1))
             .contentShape(Rectangle())
     }
 }
@@ -222,7 +237,7 @@ struct Keycap: View {
     var inverted = false
     var body: some View {
         Text(key)
-            .font(.system(size: 10.5, weight: .medium))
+            .font(.system(size: TS.meta, weight: .medium))
             .foregroundStyle(inverted ? .white.opacity(0.85) : K.text2)
             .padding(.horizontal, 5)
             .frame(minWidth: 20, minHeight: 18)
@@ -234,7 +249,7 @@ struct Keycap: View {
 /// Shortcut hint inside a button: "⌃⌥⌘⌫" at 70% white.
 struct Hint: View {
     var text: String
-    var body: some View { Text(text).font(.system(size: 10.5, weight: .medium)).opacity(0.7) }
+    var body: some View { Text(text).font(.system(size: TS.meta, weight: .medium)).opacity(0.7) }
 }
 
 struct Chip: View {
@@ -244,8 +259,8 @@ struct Chip: View {
     var onCard = false
     var body: some View {
         HStack(spacing: 4) {
-            if let icon { Image(systemName: icon).font(.system(size: 10, weight: .semibold)) }
-            Text(text).font(.system(size: 11, weight: .semibold))
+            if let icon { Image(systemName: icon).font(.system(size: TS.micro, weight: .semibold)) }
+            Text(text).font(.system(size: TS.meta, weight: .semibold))
         }
         .foregroundStyle(tint.fg)
         .padding(.horizontal, 8)
@@ -264,9 +279,9 @@ struct Badge: View {
             if let on {
                 Circle().fill(on ? K.accent : .clear).overlay(Circle().strokeBorder(on ? .clear : K.text3, lineWidth: 1)).frame(width: 6, height: 6)
             } else {
-                Image(systemName: icon).font(.system(size: 9.5))
+                Image(systemName: icon).font(.system(size: TS.micro))
             }
-            Text(text).font(.system(size: 11, weight: .medium))
+            Text(text).font(.system(size: TS.meta, weight: .medium))
         }
         .foregroundStyle(on == true ? K.accent : K.text2)
         .padding(.horizontal, 8)
@@ -281,7 +296,7 @@ struct Pill: View {
     var mono = false
     var body: some View {
         Text(text)
-            .font(mono ? .system(size: 11, design: .monospaced) : .system(size: 11))
+            .font(mono ? .system(size: TS.meta, design: .monospaced) : .system(size: TS.meta))
             .fixedSize()
             .foregroundStyle(K.text2)
             .padding(.horizontal, 6)
@@ -298,7 +313,7 @@ struct TagPill: View {
     var body: some View {
         HStack(spacing: 4) {
             Circle().fill(color ?? .clear).overlay(Circle().strokeBorder(color == nil ? K.text3 : .clear, lineWidth: 1)).frame(width: 7, height: 7)
-            Text(name).font(.system(size: 11)).fixedSize()
+            Text(name).font(.system(size: TS.meta)).fixedSize()
         }
         .foregroundStyle(K.text2)
         .padding(.horizontal, 7)
@@ -356,13 +371,13 @@ struct Row<Trailing: View>: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(alignment: .center, spacing: 14) {
-                Image(systemName: icon).font(.system(size: 15)).foregroundStyle(K.text2).frame(width: 20)
+                Image(systemName: icon).font(.system(size: TS.emphasis)).foregroundStyle(K.text2).frame(width: 20)
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 6) {
-                        Text(title).font(.system(size: 13, weight: .medium)).foregroundStyle(dim ? K.text3 : K.text)
-                        if let badge { Text(badge).font(.system(size: 10, weight: .medium)).foregroundStyle(K.text2).padding(.horizontal, 5).frame(height: 16).background(RoundedRectangle(cornerRadius: 4).fill(K.fill)) }
+                        Text(title).font(.system(size: TS.body, weight: .medium)).foregroundStyle(dim ? K.text3 : K.text)
+                        if let badge { Text(badge).font(.system(size: TS.micro, weight: .medium)).foregroundStyle(K.text2).padding(.horizontal, 5).frame(height: 16).background(RoundedRectangle(cornerRadius: 4).fill(K.fill)) }
                     }
-                    if let desc { Text(desc).font(.system(size: 11.5)).foregroundStyle(dim ? K.text3 : K.text2).fixedSize(horizontal: false, vertical: true) }
+                    if let desc { Text(desc).font(.system(size: TS.small)).foregroundStyle(dim ? K.text3 : K.text2).fixedSize(horizontal: false, vertical: true) }
                 }
                 Spacer(minLength: 12)
                 trailing
@@ -391,7 +406,7 @@ struct Segmented<T: Hashable>: View {
             ForEach(options, id: \.0) { opt in
                 let on = value == opt.0
                 Button { withAnimation(Motion.reduced ? .easeOut(duration: 0.2) : .spring(response: 0.32, dampingFraction: 0.82)) { value = opt.0 } } label: {
-                    Text(opt.1).font(.system(size: 12, weight: on ? .semibold : .regular)).fixedSize()
+                    Text(opt.1).font(.system(size: TS.small, weight: on ? .semibold : .regular)).fixedSize()
                         .foregroundStyle(on ? K.text : K.text2)
                         .padding(.horizontal, 12).frame(height: 26)
                         .background {
@@ -427,9 +442,9 @@ struct MenuPicker<T: Hashable>: View {
             .pickerStyle(.inline).labelsHidden()
         } label: {
             HStack(spacing: 8) {
-                if let emoji { Text(emoji(value)).font(.system(size: 14)) }
-                Text(options.first { $0.0 == value }?.1 ?? "").font(.system(size: 13, weight: .medium)).foregroundStyle(K.text)
-                Image(systemName: "chevron.up.chevron.down").font(.system(size: 10, weight: .semibold)).foregroundStyle(K.text2)
+                if let emoji { Text(emoji(value)).font(.system(size: TS.emphasis)) }
+                Text(options.first { $0.0 == value }?.1 ?? "").font(.system(size: TS.body, weight: .medium)).foregroundStyle(K.text)
+                Image(systemName: "chevron.up.chevron.down").font(.system(size: TS.micro, weight: .semibold)).foregroundStyle(K.text2)
             }
             .padding(.horizontal, 12).frame(height: 30)
             .contentShape(Capsule())
@@ -471,15 +486,15 @@ struct PageHeader<Trailing: View>: View {
     var body: some View {
         HStack(alignment: .top, spacing: 14) {
             if let icon {
-                Image(systemName: icon).font(.system(size: 19)).foregroundStyle(K.accent)
+                Image(systemName: icon).font(.system(size: TS.title)).foregroundStyle(K.accent)
                     .frame(width: 44, height: 44).background(RoundedRectangle(cornerRadius: 10).fill(K.accentSoft))
             }
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 10) {
-                    Text(title).font(.system(size: 22, weight: .bold)).kerning(-0.3).foregroundStyle(K.text)
+                    Text(title).font(.system(size: TS.title2, weight: .bold)).kerning(-0.3).foregroundStyle(K.text)
                     if let badge { Badge(icon: badge.0, text: badge.1) }
                 }
-                Text(subtitle).font(.system(size: 12.5)).foregroundStyle(K.text2)
+                Text(subtitle).font(.system(size: TS.body)).foregroundStyle(K.text2)
             }
             Spacer()
             trailing

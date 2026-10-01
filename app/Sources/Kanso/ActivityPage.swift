@@ -79,8 +79,8 @@ struct ActivityPage: View {
                     .transition(Motion.reduced ? .opacity : .opacity.combined(with: .offset(x: 12)))
             } else {
                 VStack(spacing: 8) {
-                    Text("Nothing yet").font(.system(size: 22, design: .serif)).foregroundStyle(K.text)
-                    Text("Everything Kanso does shows up here, with Undo.").font(.system(size: 12.5)).foregroundStyle(K.text2)
+                    Text("Nothing yet").font(.system(size: TS.title2, design: .serif)).foregroundStyle(K.text)
+                    Text("Everything Kanso does shows up here, with Undo.").font(.system(size: TS.body)).foregroundStyle(K.text2)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
@@ -97,17 +97,17 @@ struct ActivityPage: View {
     func listColumn(_ list: [Entry], selected: String?) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
-                Text("\(m.actions.filter { $0.kind != .trashed }.count) actions · \(m.needs.count) need you").font(.system(size: 12)).foregroundStyle(K.text2)
+                Text("\(m.actions.filter { $0.kind != .trashed }.count) actions · \(m.needs.count) need you").font(.system(size: TS.small)).foregroundStyle(K.text2)
                 HStack(spacing: 8) {
-                    Image(systemName: "magnifyingglass").font(.system(size: 12)).foregroundStyle(K.text2)
-                    TextField("Search files and shelves", text: $query).textFieldStyle(.plain).font(.system(size: 12.5))
+                    Image(systemName: "magnifyingglass").font(.system(size: TS.small)).foregroundStyle(K.text2)
+                    TextField("Search files and shelves", text: $query).textFieldStyle(.plain).font(.system(size: TS.body))
                 }
                 .padding(.horizontal, 10).frame(height: 30).background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(K.fill))
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 5) {
                         ForEach(Filter.allCases, id: \.self) { f in
                             Button { withAnimation(Motion.spring(0.3)) { filter = f } } label: {
-                                Text(f.rawValue).font(.system(size: 11.5, weight: .medium)).foregroundStyle(filter == f ? Tint.accent.fg : K.text2)
+                                Text(f.rawValue).font(.system(size: TS.small, weight: .medium)).foregroundStyle(filter == f ? Tint.accent.fg : K.text2)
                                     .padding(.horizontal, 9).frame(height: 24).background(Capsule().fill(filter == f ? Tint.accent.bg : K.fill))
                                     .overlay(Capsule().strokeBorder(filter == f ? Tint.accent.stroke : .clear, lineWidth: 0.75))
                             }
@@ -121,7 +121,7 @@ struct ActivityPage: View {
                         HStack {
                             Text(g.0).eyebrow()
                             Spacer()
-                            if g.0 == "Needs you" { Text("pinned").font(.system(size: 10)).foregroundStyle(K.text2) }
+                            if g.0 == "Needs you" { Text("pinned").font(.system(size: TS.micro)).foregroundStyle(K.text2) }
                         }
                         .padding(.horizontal, 8).padding(.top, 8).padding(.bottom, 2)
                         ForEach(g.1) { e in Button { withAnimation(Motion.spring(0.25)) { m.selectedActivity = e.id } } label: { ListRow(entry: e, selected: e.id == selected) }.buttonStyle(PlainRowStyle()).focusRing(9) }
@@ -204,11 +204,11 @@ struct ListRow: View {
             EmojiTile(emoji: emoji, fill: pending ? K.cardSoft : K.fill)
             VStack(alignment: .leading, spacing: 2) {
                 HStack {
-                    Text(title(entry)).font(.system(size: 12, weight: .semibold)).foregroundStyle(K.text).lineLimit(1).truncationMode(.middle)
+                    Text(title(entry)).font(.system(size: TS.small, weight: .semibold)).foregroundStyle(K.text).lineLimit(1).truncationMode(.middle)
                     Spacer()
-                    Text(entry.ts.listTime).font(.system(size: 10)).foregroundStyle(K.text2)
+                    Text(entry.ts.listTime).font(.system(size: TS.micro)).foregroundStyle(K.text2)
                 }
-                Text(subtitle(entry)).font(.system(size: 11)).foregroundStyle(pending ? tint.fg : K.text2).lineLimit(1)
+                Text(subtitle(entry)).font(.system(size: TS.meta)).foregroundStyle(pending ? tint.fg : K.text2).lineLimit(1)
             }
         }
         .padding(.horizontal, 10).padding(.vertical, 9)
@@ -240,11 +240,11 @@ struct EntryDetail: View {
                                 .help("Move to another shelf")
                         }
                         Spacer()
-                        Text(meta).font(.system(size: 11)).foregroundStyle(K.text2)
+                        Text(meta).font(.system(size: TS.meta)).foregroundStyle(K.text2)
                     }
                     VStack(alignment: .leading, spacing: 6) {
-                        Text(headline).font(.system(size: 22, weight: .bold)).foregroundStyle(K.text).lineLimit(2)
-                        Text(sub).font(.system(size: 13)).foregroundStyle(K.text2).fixedSize(horizontal: false, vertical: true)
+                        Text(headline).font(.system(size: TS.title2, weight: .bold)).foregroundStyle(K.text).lineLimit(2)
+                        Text(sub).font(.system(size: TS.body)).foregroundStyle(K.text2).fixedSize(horizontal: false, vertical: true)
                     }
                     visual
                     decided
@@ -294,7 +294,7 @@ struct EntryDetail: View {
 
     var headline: String {
         switch entry {
-        case .need(.duplicate(let a)): return "Already have \(((a.details["kept"] ?? "") as NSString).lastPathComponent)"
+        case .need(.duplicate(let a)): return "Copy of \(((a.details["kept"] ?? "") as NSString).lastPathComponent) held"
         case .need(.renames(let p, _)): return "\(p.count) files can be renamed"
         case .need(.rule(let r)): return "You moved \(r.files.count) files to \(r.shelf)"
         case .action(let a): return a.kind == .trashed ? (a.details["installer"].map { "Installed \($0)" } ?? "\(a.srcName) is in the Trash") : a.name
@@ -328,27 +328,27 @@ struct EntryDetail: View {
         case .need(.duplicate(let a)), .action(let a) where a.kind == .duplicate:
             HStack(spacing: 14) {
                 previewCard(path: a.details["kept"] ?? "", label: "Kept", meta: "\(shelfName(a.details["kept"] ?? "")) · \(sizeOf(a.details["kept"] ?? ""))", tint: nil)
-                Text("=").font(.system(size: 18)).foregroundStyle(K.text3)
+                Text("=").font(.system(size: TS.heading)).foregroundStyle(K.text3)
                 previewCard(path: a.dst, label: "Extra copy", meta: "🪞 Duplicates · added \(a.ts.relative) · \((Int64(a.details["size"] ?? "") ?? 0).bytes)", tint: .duplicate)
             }
         case .need(.renames(let p, _)):
             VStack(alignment: .leading, spacing: 8) {
                 ForEach(p.prefix(4)) { r in diff(r.name, r.newName) }
-                if p.count > 4 { Text("+ \(p.count - 4) more in the review window").font(.system(size: 11)).foregroundStyle(K.text2) }
+                if p.count > 4 { Text("+ \(p.count - 4) more in the review window").font(.system(size: TS.meta)).foregroundStyle(K.text2) }
             }
             .padding(16).frame(maxWidth: .infinity, alignment: .leading).background(RoundedRectangle(cornerRadius: 12).fill(Tint.rename.bg))
         case .need(.rule(let r)):
             VStack(alignment: .leading, spacing: 10) {
                 RulePreview(condition: r.condition, shelf: r.shelf, emoji: m.settings.emoji(for: r.shelf))
-                Text("Matched: " + r.files.prefix(5).joined(separator: ", ") + (r.files.count > 5 ? " and \(r.files.count - 5) more" : "")).font(.system(size: 11.5)).foregroundStyle(K.text2)
+                Text("Matched: " + r.files.prefix(5).joined(separator: ", ") + (r.files.count > 5 ? " and \(r.files.count - 5) more" : "")).font(.system(size: TS.small)).foregroundStyle(K.text2)
             }
             .padding(16).frame(maxWidth: .infinity, alignment: .leading).background(RoundedRectangle(cornerRadius: 12).fill(Tint.rule.bg))
         case .action(let a) where a.kind == .renamed:
             HStack(spacing: 16) {
                 Thumb(path: a.dst).frame(width: 72, height: 94)
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(a.oldName ?? "").font(.system(size: 12.5)).foregroundStyle(K.text2).strikethrough()
-                    Text(a.name).font(.system(size: 15, weight: .semibold)).foregroundStyle(K.text)
+                    Text(a.oldName ?? "").font(.system(size: TS.body)).foregroundStyle(K.text2).strikethrough()
+                    Text(a.name).font(.system(size: TS.emphasis, weight: .semibold)).foregroundStyle(K.text)
                     if !a.tags.isEmpty { HStack { ForEach(a.tags, id: \.self) { TagPill(name: $0) } } }
                 }
                 Spacer()
@@ -362,9 +362,9 @@ struct EntryDetail: View {
             VStack(spacing: 10) {
                 ForEach(counts, id: \.0) { c in
                     HStack {
-                        Text("\(m.settings.emoji(for: c.0)) \(c.0)").font(.system(size: 12)).foregroundStyle(K.text).frame(width: 150, alignment: .leading)
+                        Text("\(m.settings.emoji(for: c.0)) \(c.0)").font(.system(size: TS.small)).foregroundStyle(K.text).frame(width: 150, alignment: .leading)
                         ProgressBar(value: Double(c.1) / Double(mx))
-                        Text("\(c.1)").font(.system(size: 11)).foregroundStyle(K.text2).frame(width: 28, alignment: .trailing)
+                        Text("\(c.1)").font(.system(size: TS.meta)).foregroundStyle(K.text2).frame(width: 28, alignment: .trailing)
                     }
                 }
             }
@@ -376,9 +376,9 @@ struct EntryDetail: View {
 
     func diff(_ a: String, _ b: String) -> some View {
         HStack(spacing: 10) {
-            Text(a).font(.system(size: 12)).foregroundStyle(K.text2).frame(width: 170, alignment: .leading).lineLimit(1)
-            Image(systemName: "arrow.right").font(.system(size: 10)).foregroundStyle(Tint.rename.fg)
-            Text(b).font(.system(size: 12, weight: .medium)).foregroundStyle(K.text).lineLimit(1)
+            Text(a).font(.system(size: TS.small)).foregroundStyle(K.text2).frame(width: 170, alignment: .leading).lineLimit(1)
+            Image(systemName: "arrow.right").font(.system(size: TS.micro)).foregroundStyle(Tint.rename.fg)
+            Text(b).font(.system(size: TS.small, weight: .medium)).foregroundStyle(K.text).lineLimit(1)
         }
     }
 
@@ -386,8 +386,8 @@ struct EntryDetail: View {
         VStack(alignment: .leading, spacing: 8) {
             Thumb(path: path).frame(maxWidth: .infinity).frame(height: 130).background(RoundedRectangle(cornerRadius: 2).fill(tint?.soft ?? K.fill))   // 12 card − 14 padding: square-ish inner
             Text(label).eyebrow().foregroundStyle(tint?.fg ?? K.text2)
-            Text((path as NSString).lastPathComponent).font(.system(size: 13, weight: .semibold)).foregroundStyle(K.text).lineLimit(1)
-            Text(meta).font(.system(size: 11)).foregroundStyle(K.text2).lineLimit(2)
+            Text((path as NSString).lastPathComponent).font(.system(size: TS.body, weight: .semibold)).foregroundStyle(K.text).lineLimit(1)
+            Text(meta).font(.system(size: TS.meta)).foregroundStyle(K.text2).lineLimit(2)
         }
         .padding(14)
         .frame(maxWidth: .infinity)
@@ -460,18 +460,18 @@ struct EntryDetail: View {
 
     var decided: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text({ if case .need(.duplicate) = entry { return "How Kanso knew" }; return "How Kanso decided" }()).font(.system(size: 13, weight: .semibold)).foregroundStyle(K.text)
+            Text({ if case .need(.duplicate) = entry { return "How Kanso knew" }; return "How Kanso decided" }()).font(.system(size: TS.body, weight: .semibold)).foregroundStyle(K.text)
             VStack(spacing: 0) {
                 ForEach(Array(rows.enumerated()), id: \.offset) { i, r in
                     // Title over value, source on the right: fits the narrow detail column without truncating.
                     HStack(spacing: 12) {
-                        Image(systemName: r.0).font(.system(size: 12)).foregroundStyle(K.text2).frame(width: 18)
+                        Image(systemName: r.0).font(.system(size: TS.small)).foregroundStyle(K.text2).frame(width: 18)
                         VStack(alignment: .leading, spacing: 1) {
-                            Text(r.1).font(.system(size: 12.5, weight: .medium)).foregroundStyle(K.text)
-                            Text(r.2).font(.system(size: 12)).foregroundStyle(K.text2).fixedSize(horizontal: false, vertical: true)
+                            Text(r.1).font(.system(size: TS.body, weight: .medium)).foregroundStyle(K.text)
+                            Text(r.2).font(.system(size: TS.small)).foregroundStyle(K.text2).fixedSize(horizontal: false, vertical: true)
                         }
                         Spacer(minLength: 8)
-                        Text(r.3).font(.system(size: 10.5)).foregroundStyle(r.3.hasPrefix("contents") ? Tint.rename.fg : K.text2).lineLimit(1).fixedSize()
+                        Text(r.3).font(.system(size: TS.meta)).foregroundStyle(r.3.hasPrefix("contents") ? Tint.rename.fg : K.text2).lineLimit(1).fixedSize()
                     }
                     .padding(.horizontal, 14).padding(.vertical, 8)
                     if i < rows.count - 1 { Rectangle().fill(K.separator).frame(height: 0.75) }
@@ -490,12 +490,12 @@ struct EntryDetail: View {
     }
 
     @ViewBuilder var actionBar: some View {
-        HStack(spacing: 8) {
+        FlowLayout(spacing: 8) {   // wraps to a second line instead of truncating a label in the narrow detail column
             switch entry {
             case .need(.duplicate(let a)):
-                Button { m.trash(a.id) } label: { HStack { Text("Move to Trash"); Hint(text: "⌘⌫") } }.buttonStyle(PrimaryStyle(tint: .duplicate)).keyboardShortcut(.delete, modifiers: .command)
+                Button { m.trash(a.id) } label: { HStack { Text("Move copy to Trash"); Hint(text: "⌘⌫") } }.buttonStyle(PrimaryStyle(tint: .duplicate)).keyboardShortcut(.delete, modifiers: .command)
                 Button("Keep both") { m.keepBoth(a.id) }.buttonStyle(SecondaryStyle())
-                Button { m.undo([a.id]) } label: { HStack { Text("Undo"); Text("⌘Z").font(.system(size: 10.5)).foregroundStyle(K.text2) } }.buttonStyle(SecondaryStyle()).keyboardShortcut("z")
+                Button { m.undo([a.id]) } label: { HStack { Text("Undo"); Text("⌘Z").font(.system(size: TS.meta)).foregroundStyle(K.text2) } }.buttonStyle(SecondaryStyle()).keyboardShortcut("z")
             case .need(.renames(let p, _)):
                 Button { Windows.shared.showReview(tab: .renames) } label: { HStack { Text("Review \(p.count) files…"); Hint(text: "↩") } }.buttonStyle(PrimaryStyle(tint: .rename)).keyboardShortcut(.defaultAction)
                 Button("Not now") { m.dismissRenames() }.buttonStyle(SecondaryStyle())
@@ -521,7 +521,6 @@ struct EntryDetail: View {
                 Button("Don't sort this file") { m.keep(w.url) }.buttonStyle(SecondaryStyle())
                 Button("Show in Finder") { m.reveal(w.url.path) }.buttonStyle(SecondaryStyle())
             }
-            Spacer()
             if case .action(let a) = entry, a.kind == .renamed, !a.undone {
                 Button("Don't rename files like this") {
                     if let p = Meaningless.label(((a.oldName ?? "") as NSString).deletingPathExtension) { m.update { $0.disabledPatterns.append(p) } }
@@ -545,7 +544,7 @@ struct PathChips: View {
     var body: some View {
         HStack(spacing: 8) {
             ForEach(Array(parts.enumerated()), id: \.offset) { i, p in
-                Text(p).font(.system(size: 12, weight: .medium)).foregroundStyle(K.text)
+                Text(p).font(.system(size: TS.small, weight: .medium)).foregroundStyle(K.text)
                     .padding(.horizontal, 9).frame(height: 28)
                     .background(RoundedRectangle(cornerRadius: 7).fill(K.card))
                     .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(i == parts.count - 1 ? K.accent : K.separator, lineWidth: i == parts.count - 1 ? 1 : 0.75))

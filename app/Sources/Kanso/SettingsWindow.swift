@@ -18,8 +18,8 @@ struct Option<Trailing: View>: View {
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.system(size: 12.5, weight: .medium)).foregroundStyle(K.text)
-                if let desc { Text(desc).font(.system(size: 11.5)).foregroundStyle(K.text2).fixedSize(horizontal: false, vertical: true) }
+                Text(title).font(.system(size: TS.body, weight: .medium)).foregroundStyle(K.text)
+                if let desc { Text(desc).font(.system(size: TS.small)).foregroundStyle(K.text2).fixedSize(horizontal: false, vertical: true) }
             }
             Spacer(minLength: 8)
             trailing
@@ -69,10 +69,10 @@ struct GeneralPage: View {
             RowGroup {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack(spacing: 14) {
-                        Image(systemName: "capsule.tophalf.filled").font(.system(size: 15)).foregroundStyle(K.text2).frame(width: 20)
+                        Image(systemName: "capsule.tophalf.filled").font(.system(size: TS.emphasis)).foregroundStyle(K.text2).frame(width: 20)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Where the island appears").font(.system(size: 13, weight: .medium)).foregroundStyle(K.text)
-                            Text("Click a preview to choose. \(islandDesc)").font(.system(size: 11.5)).foregroundStyle(K.text2)
+                            Text("Where the island appears").font(.system(size: TS.body, weight: .medium)).foregroundStyle(K.text)
+                            Text("Click a preview to choose. \(islandDesc)").font(.system(size: TS.small)).foregroundStyle(K.text2)
                         }
                     }
                     HStack(alignment: .top, spacing: 12) {
@@ -108,14 +108,14 @@ struct PrivacyPage: View {
     var body: some View {
         PageSection(title: "Model") {
             HStack(spacing: 12) {
-                Image(systemName: "cpu").font(.system(size: 14)).foregroundStyle(Tint.accent.fg).frame(width: 30, height: 30).background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Tint.accent.bg))
+                Image(systemName: "cpu").font(.system(size: TS.emphasis)).foregroundStyle(Tint.accent.fg).frame(width: 30, height: 30).background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Tint.accent.bg))
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("Apple Intelligence").font(.system(size: 13, weight: .semibold)).foregroundStyle(K.text)
-                    Text("Runs on this Mac. Used for unknown file types and naming.").font(.system(size: 11.5)).foregroundStyle(K.text2)
+                    Text("Apple Intelligence").font(.system(size: TS.body, weight: .semibold)).foregroundStyle(K.text)
+                    Text("Runs on this Mac. Used for unknown file types and naming.").font(.system(size: TS.small)).foregroundStyle(K.text2)
                 }
                 Spacer()
                 Dot(on: m.aiReady, size: 6)
-                Text(m.aiReady ? "Ready" : m.ai.status).font(.system(size: 12, weight: .medium)).foregroundStyle(m.aiReady ? Tint.accent.fg : K.text2)
+                Text(m.aiReady ? "Ready" : m.ai.status).font(.system(size: TS.small, weight: .medium)).foregroundStyle(m.aiReady ? Tint.accent.fg : K.text2)
             }
             .padding(.horizontal, 14).padding(.vertical, 12).card(radius: 14)
         }
@@ -123,12 +123,12 @@ struct PrivacyPage: View {
             RowGroup {
                 reads("Renaming", "first page, on this Mac, nothing kept", on: m.settings.renaming)
                 reads("Tagging", "first page, on this Mac, nothing kept", on: m.settings.tagging)
-                HStack { Text("Sorting · Duplicates · Smart Eject").font(.system(size: 13, weight: .medium)).foregroundStyle(K.text); Spacer(); Text("metadata only").font(.system(size: 11.5)).foregroundStyle(K.text2) }
+                HStack { Text("Sorting · Duplicates · Smart Eject").font(.system(size: TS.body, weight: .medium)).foregroundStyle(K.text); Spacer(); Text("metadata only").font(.system(size: TS.small)).foregroundStyle(K.text2) }
                     .padding(.horizontal, 16).frame(height: 38)
             }
             HStack(spacing: 8) {
-                Image(systemName: "lock").font(.system(size: 12)).foregroundStyle(K.text2)
-                Text("Never read: 🔑 Keys, password vaults, 🏠 Manual Shelves and iCloud placeholders.").font(.system(size: 12)).foregroundStyle(K.text2)
+                Image(systemName: "lock").font(.system(size: TS.small)).foregroundStyle(K.text2)
+                Text("Never read: 🔑 Keys, password vaults, 🏠 Manual Shelves and iCloud placeholders.").font(.system(size: TS.small)).foregroundStyle(K.text2)
                 Spacer()
             }
             .padding(.horizontal, 14).frame(height: 38).background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(K.fill))
@@ -136,8 +136,8 @@ struct PrivacyPage: View {
         PageSection(title: "About") {
             HStack(spacing: 10) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Kanso \(Bundle.main.version)").font(.system(size: 17, weight: .regular, design: .serif)).foregroundStyle(K.text)
-                    Text("Open source · GPL-3.0").font(.system(size: 11.5)).foregroundStyle(K.text2)
+                    Text("Kanso \(Bundle.main.version)").font(.system(size: TS.heading, weight: .regular, design: .serif)).foregroundStyle(K.text)
+                    Text("Open source · GPL-3.0").font(.system(size: TS.small)).foregroundStyle(K.text2)
                 }
                 Spacer()
                 Button { NSWorkspace.shared.open(Links.repo) } label: { Label("GitHub", systemImage: "arrow.up.right").labelStyle(TrailingIcon()) }.buttonStyle(CapsuleStyle())
@@ -151,9 +151,9 @@ struct PrivacyPage: View {
 
     func reads(_ name: String, _ detail: String, on: Bool) -> some View {
         HStack(spacing: 10) {
-            Text(name).font(.system(size: 13, weight: .medium)).foregroundStyle(K.text)
+            Text(name).font(.system(size: TS.body, weight: .medium)).foregroundStyle(K.text)
             Spacer()
-            Text(detail).font(.system(size: 11.5)).foregroundStyle(K.text2)
+            Text(detail).font(.system(size: TS.small)).foregroundStyle(K.text2)
             Chip(text: on ? "On" : "Off", tint: on ? .accent : .neutral)
         }
         .padding(.horizontal, 16).frame(height: 38)

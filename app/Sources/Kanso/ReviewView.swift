@@ -27,10 +27,10 @@ struct ReviewView: View {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 6) {
-                        Text(headline).font(.system(size: 18, weight: .bold)).foregroundStyle(K.text)
+                        Text(headline).font(.system(size: TS.heading, weight: .bold)).foregroundStyle(K.text)
                         Text(tab == .renames ? "Uncheck anything you want to keep as is. Original names stay searchable, and every rename can be undone."
                              : "This is the plan for files already in your folders. Uncheck anything that should stay. Everything can be undone.")
-                            .font(.system(size: 12.5)).foregroundStyle(K.text2)
+                            .font(.system(size: TS.body)).foregroundStyle(K.text2)
                     }
                     Spacer()
                     HStack { Image(systemName: "magnifyingglass").foregroundStyle(K.text3); TextField("Filter names", text: $query).textFieldStyle(.plain) }
@@ -79,7 +79,7 @@ struct ReviewView: View {
 
     func segment(_ t: String, _ n: Int, _ v: Windows.ReviewTab) -> some View {
         Button { tab = v } label: {
-            HStack(spacing: 6) { Text(t).font(.system(size: 12, weight: tab == v ? .semibold : .regular)); Text("\(n)").font(.system(size: 11)).foregroundStyle(K.text3) }
+            HStack(spacing: 6) { Text(t).font(.system(size: TS.small, weight: tab == v ? .semibold : .regular)); Text("\(n)").font(.system(size: TS.meta)).foregroundStyle(K.text3) }
                 .foregroundStyle(K.text).padding(.horizontal, 14).frame(height: 26)
                 .background(RoundedRectangle(cornerRadius: 6).fill(tab == v ? K.card : .clear).shadow(color: .black.opacity(tab == v ? 0.08 : 0), radius: 1, y: 0.5))
         }
@@ -105,7 +105,7 @@ struct ReviewView: View {
                         ForEach(sortRows) { p in sortRow(p) }
                     }
                     if ids.isEmpty {
-                        Text(tab == .renames ? "No meaningless names waiting for review." : "Nothing to sort. Your folders are in order.").font(.system(size: 12.5)).foregroundStyle(K.text2).padding(30)
+                        Text(tab == .renames ? "No meaningless names waiting for review." : "Nothing to sort. Your folders are in order.").font(.system(size: TS.body)).foregroundStyle(K.text2).padding(30)
                     }
                 }
             }
@@ -125,18 +125,18 @@ struct ReviewView: View {
         let on = !excluded.contains(r.id)
         return row(id: r.id, on: on) {
             Label { Text(r.name).lineLimit(1).truncationMode(.middle) } icon: { Image(systemName: "doc.text") }
-                .font(.system(size: 12.5)).foregroundStyle(on ? K.text2 : K.text3).frame(maxWidth: .infinity, alignment: .leading)
+                .font(.system(size: TS.body)).foregroundStyle(on ? K.text2 : K.text3).frame(maxWidth: .infinity, alignment: .leading)
             HStack(spacing: 8) {
-                Image(systemName: "arrow.right").font(.system(size: 10)).foregroundStyle(on ? K.text2 : K.text3)
+                Image(systemName: "arrow.right").font(.system(size: TS.micro)).foregroundStyle(on ? K.text2 : K.text3)
                 if on {
                     TextField("", text: Binding(get: { renames.first { $0.id == r.id }?.newName ?? "" }, set: { v in if let i = renames.firstIndex(where: { $0.id == r.id }) { renames[i].newName = v } }))
-                        .textFieldStyle(.plain).font(.system(size: 12.5, weight: .semibold)).foregroundStyle(K.text)
+                        .textFieldStyle(.plain).font(.system(size: TS.body, weight: .semibold)).foregroundStyle(K.text)
                 } else {
-                    Text("Keep “\(r.name)”").font(.system(size: 12.5)).foregroundStyle(K.text3)
+                    Text("Keep “\(r.name)”").font(.system(size: TS.body)).foregroundStyle(K.text3)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            Text("\(m.settings.emoji(for: r.shelf)) \(r.shelf)").font(.system(size: 12)).foregroundStyle(on ? K.text2 : K.text3).frame(width: 130, alignment: .leading)
+            Text("\(m.settings.emoji(for: r.shelf)) \(r.shelf)").font(.system(size: TS.small)).foregroundStyle(on ? K.text2 : K.text3).frame(width: 130, alignment: .leading)
             Pill(text: r.source.replacingOccurrences(of: "contents, page 1", with: "contents, p.1")).opacity(on ? 1 : 0.5).frame(width: 110, alignment: .leading)
         }
     }
@@ -145,15 +145,15 @@ struct ReviewView: View {
         let on = !excluded.contains(p.id)
         let root = p.item.root.lastPathComponent
         return row(id: p.id, on: on) {
-            Label { Text(p.item.name).lineLimit(1).truncationMode(.middle) } icon: { Text(folderEmoji(p.item.root.path)).font(.system(size: 11)) }
-                .font(.system(size: 12.5)).foregroundStyle(on ? K.text : K.text3).frame(maxWidth: .infinity, alignment: .leading).help("\(root)/\(p.item.name)")
+            Label { Text(p.item.name).lineLimit(1).truncationMode(.middle) } icon: { Text(folderEmoji(p.item.root.path)).font(.system(size: TS.meta)) }
+                .font(.system(size: TS.body)).foregroundStyle(on ? K.text : K.text3).frame(maxWidth: .infinity, alignment: .leading).help("\(root)/\(p.item.name)")
             HStack(spacing: 8) {
-                Image(systemName: "arrow.right").font(.system(size: 10)).foregroundStyle(K.text3)
+                Image(systemName: "arrow.right").font(.system(size: TS.micro)).foregroundStyle(K.text3)
                 Text(p.kind == .duplicate ? "Duplicate of \((p.details["kept"].map { ($0 as NSString).lastPathComponent }) ?? "")" : (p.proposedName.map { "Rename later: \($0)" } ?? "Same name"))
-                    .font(.system(size: 12)).foregroundStyle(p.kind == .duplicate ? Tint.duplicate.fg : K.text3).lineLimit(1)
+                    .font(.system(size: TS.small)).foregroundStyle(p.kind == .duplicate ? Tint.duplicate.fg : K.text3).lineLimit(1)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            Text("\(m.settings.emoji(for: p.shelf)) \(p.shelf)").font(.system(size: 12, weight: .medium)).foregroundStyle(on ? K.text : K.text3).frame(width: 130, alignment: .leading)
+            Text("\(m.settings.emoji(for: p.shelf)) \(p.shelf)").font(.system(size: TS.small, weight: .medium)).foregroundStyle(on ? K.text : K.text3).frame(width: 130, alignment: .leading)
             Pill(text: p.source == "metadata only" ? (p.why == "extension" ? "extension" : p.why.hasPrefix("rule") ? "your rule" : p.why) : p.source).opacity(on ? 1 : 0.5).frame(width: 110, alignment: .leading)
         }
     }
@@ -179,7 +179,7 @@ struct ReviewView: View {
             HStack(spacing: 5) { Keycap(key: "⌘⌫"); Text("uncheck") }
             HStack(spacing: 5) { Keycap(key: "↩"); Text("apply") }
             Spacer()
-            Text("\(chosen) of \(total) selected").font(.system(size: 12)).foregroundStyle(K.text2)
+            Text("\(chosen) of \(total) selected").font(.system(size: TS.small)).foregroundStyle(K.text2)
             Button("Cancel") { Windows.shared.closeReview() }.buttonStyle(SecondaryStyle()).keyboardShortcut(.cancelAction)
             Button { apply() } label: { HStack(spacing: 6) { Text(tab == .renames ? "Rename \(chosen) files" : "Sort \(chosen) files"); Hint(text: "↩") } }
                 .buttonStyle(PrimaryStyle(tint: tab == .renames ? .rename : .accent)).keyboardShortcut(.defaultAction).disabled(chosen == 0)
@@ -187,7 +187,7 @@ struct ReviewView: View {
             Button("") { undoUncheck() }.keyboardShortcut("z").hidden().frame(width: 0)
             Button("") { if let s = selection, !excluded.contains(s) { toggle(s) } }.keyboardShortcut(.delete, modifiers: .command).hidden().frame(width: 0)
         }
-        .font(.system(size: 11)).foregroundStyle(K.text2)
+        .font(.system(size: TS.meta)).foregroundStyle(K.text2)
         .padding(.horizontal, 24).frame(height: 60)
         .background(K.neutralBg)
         .overlay(alignment: .top) { Rectangle().fill(K.separator).frame(height: 0.75) }

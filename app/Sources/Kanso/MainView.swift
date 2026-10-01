@@ -69,7 +69,7 @@ struct PageTitle: ToolbarContent {
         }
     }
     var titleText: some View {
-        Text(title).font(.system(size: 15, weight: .bold)).foregroundStyle(K.text)
+        Text(title).font(.system(size: TS.emphasis, weight: .bold)).foregroundStyle(K.text)
             .contentTransition(.opacity).accessibilityAddTraits(.isHeader).padding(.leading, 6)
     }
 }
@@ -83,7 +83,7 @@ struct Sidebar: View {
             ForEach(Array(Page.groups.enumerated()), id: \.offset) { _, g in
                 Section {
                     ForEach(g) { p in
-                        Label { Text(p.title).font(.system(size: 13)) } icon: { Image(systemName: p.icon).font(.system(size: 12)).foregroundStyle(m.page == p ? K.text : K.text2) }
+                        Label { Text(p.title).font(.system(size: TS.body)) } icon: { Image(systemName: p.icon).font(.system(size: TS.small)).foregroundStyle(m.page == p ? K.text : K.text2) }
                             .badge(p == .activity ? m.needs.count : 0)
                             .tag(p)
                     }
@@ -95,7 +95,7 @@ struct Sidebar: View {
         .safeAreaInset(edge: .bottom) {
             VStack(alignment: .leading, spacing: 8) {
                 CoffeeLink()
-                Text("Your files never leave your Mac.").font(.system(size: 11)).foregroundStyle(K.sidebarText2)
+                Text("Your files never leave your Mac.").font(.system(size: TS.meta)).foregroundStyle(K.sidebarText2)
             }
             .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 14).padding(.bottom, 12)
         }
@@ -146,13 +146,13 @@ struct OverviewPage: View {
         var t = m.sortingOn ? "\(m.today.sorted) \(m.today.sorted == 1 ? "file" : "files") placed today" : "Sorting is \(m.sortingStatus.lowercased())"
         if let first, all.sorted > 0 { t += " · \(all.sorted.formatted()) since \(first.formatted(.dateTime.month(.wide)))" }
         t += needs.isEmpty ? ". Your Mac is in order." : needs.count == 1 ? ". One thing could use a minute." : ". \(needs.count) things could use a minute."
-        return Text(t).font(.system(size: 14)).foregroundStyle(K.text2).padding(.horizontal, 4)
+        return Text(t).font(.system(size: TS.emphasis)).foregroundStyle(K.text2).padding(.horizontal, 4)
     }
 
     func needsBlock(_ needs: [Need]) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("Needs you").font(.system(size: 12.5, weight: .semibold)).foregroundStyle(K.text2)
+                Text("Needs you").font(.system(size: TS.body, weight: .semibold)).foregroundStyle(K.text2)
                 Spacer()
                 Button("Open Activity") { m.page = .activity }.buttonStyle(LinkStyle())
             }
@@ -160,10 +160,10 @@ struct OverviewPage: View {
             VStack(spacing: 0) {
                 ForEach(Array(needs.prefix(3).enumerated()), id: \.element.id) { i, n in
                     HStack(spacing: 14) {
-                        Image(systemName: n.icon).font(.system(size: 15)).foregroundStyle(K.text2).frame(width: 26)
+                        Image(systemName: n.icon).font(.system(size: TS.emphasis)).foregroundStyle(K.text2).frame(width: 26)
                         VStack(alignment: .leading, spacing: 1) {
-                            Text(needTitle(n)).font(.system(size: 13.5, weight: .medium)).foregroundStyle(K.text).lineLimit(1)
-                            Text(needSub(n)).font(.system(size: 11.5)).foregroundStyle(K.text2).lineLimit(1)
+                            Text(needTitle(n)).font(.system(size: TS.body, weight: .medium)).foregroundStyle(K.text).lineLimit(1)
+                            Text(needSub(n)).font(.system(size: TS.small)).foregroundStyle(K.text2).lineLimit(1)
                         }
                         Spacer()
                         needAction(n)
@@ -180,9 +180,9 @@ struct OverviewPage: View {
     @ViewBuilder func needAction(_ n: Need) -> some View {
         switch n {
         case .duplicate(let a):
-            Button { m.trash(a.id) } label: { HStack(spacing: 6) { Text("Move to Trash"); Text("⌘⌫").font(.system(size: 10.5)) } }.buttonStyle(PrimaryStyle(tint: .duplicate, small: true))
+            Button { m.trash(a.id) } label: { HStack(spacing: 6) { Text("Move copy to Trash"); Text("⌘⌫").font(.system(size: TS.meta)) } }.buttonStyle(PrimaryStyle(tint: .duplicate, small: true))
         case .renames:
-            Button { Windows.shared.showReview(tab: .renames) } label: { HStack(spacing: 6) { Text("Review…"); Image(systemName: "return").font(.system(size: 10)) } }.buttonStyle(PrimaryStyle(tint: .rename, small: true))
+            Button { Windows.shared.showReview(tab: .renames) } label: { HStack(spacing: 6) { Text("Review…"); Image(systemName: "return").font(.system(size: TS.micro)) } }.buttonStyle(PrimaryStyle(tint: .rename, small: true))
         case .rule(let r):
             Button("Create rule") { m.acceptSuggestion(r.id) }.buttonStyle(PrimaryStyle(tint: .rule, small: true))
         }
@@ -208,9 +208,9 @@ struct OverviewPage: View {
     func since(_ all: Stats) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("Since you started").font(.system(size: 12.5, weight: .semibold)).foregroundStyle(K.text2)
+                Text("Since you started").font(.system(size: TS.body, weight: .semibold)).foregroundStyle(K.text2)
                 Spacer()
-                Text("counted on this Mac").font(.system(size: 11)).foregroundStyle(K.text2)
+                Text("counted on this Mac").font(.system(size: TS.meta)).foregroundStyle(K.text2)
             }
             .padding(.horizontal, 4)
             Grid(horizontalSpacing: 10, verticalSpacing: 10) {   // 2 × 2 in the fixed-size window
@@ -228,7 +228,7 @@ struct OverviewPage: View {
 
     func highlights(_ i: Insights) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("HIGHLIGHTS").font(.system(size: 10.5, weight: .semibold)).kerning(0.6).foregroundStyle(K.text2).padding(.horizontal, 4)
+            Text("HIGHLIGHTS").font(.system(size: TS.meta, weight: .semibold)).kerning(0.6).foregroundStyle(K.text2).padding(.horizontal, 4)
             HStack(alignment: .top, spacing: 12) {
                 InsightCard(icon: "square.3.layers.3d", tag: "Sorting", color: Tint.where.fg, sentence: "Kanso sorts about \(monthlyAverage) files a month", sub: busiest) {
                     BarChart(values: monthly.map(\.1), labels: monthly.map(\.0), highlight: monthly.count - 1, color: Tint.accent.fg)
@@ -237,12 +237,12 @@ struct OverviewPage: View {
                     VStack(spacing: 7) {
                         ForEach(Array(sizes.prefix(4).enumerated()), id: \.offset) { idx, s in
                             HStack(spacing: 8) {
-                                Text("\(m.settings.emoji(for: s.shelf)) \(s.shelf)").font(.system(size: 11.5)).foregroundStyle(K.text).frame(width: 110, alignment: .leading).lineLimit(1)
+                                Text("\(m.settings.emoji(for: s.shelf)) \(s.shelf)").font(.system(size: TS.small)).foregroundStyle(K.text).frame(width: 110, alignment: .leading).lineLimit(1)
                                 ProgressBar(value: Double(s.bytes) / Double(max(sizes.first?.bytes ?? 1, 1)), color: idx == 0 ? Tint.accent.fg : K.text3)
-                                Text(s.bytes.bytes).font(.system(size: 10.5)).foregroundStyle(K.text2).frame(width: 54, alignment: .trailing)
+                                Text(s.bytes.bytes).font(.system(size: TS.meta)).foregroundStyle(K.text2).frame(width: 54, alignment: .trailing)
                             }
                         }
-                        if sizes.isEmpty { Text("Shelves appear with the first sorted file.").font(.system(size: 11.5)).foregroundStyle(K.text2) }
+                        if sizes.isEmpty { Text("Shelves appear with the first sorted file.").font(.system(size: TS.small)).foregroundStyle(K.text2) }
                     }
                 }
             }
@@ -281,16 +281,16 @@ struct PinnedCard: View {
         Button(action: open) {
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: 6) {
-                    Image(systemName: icon).font(.system(size: 11)).foregroundStyle(tint)
-                    Text(label).font(.system(size: 11.5, weight: .medium)).foregroundStyle(K.text2)
+                    Image(systemName: icon).font(.system(size: TS.meta)).foregroundStyle(tint)
+                    Text(label).font(.system(size: TS.small, weight: .medium)).foregroundStyle(K.text2)
                     Spacer()
                     Image(systemName: "chevron.right").font(.system(size: 9, weight: .semibold)).foregroundStyle(K.text3)
                 }
                 Spacer(minLength: 0)
                 HStack(alignment: .bottom) {
                     VStack(alignment: .leading, spacing: 0) {
-                        CountingText(value: appeared ? value : 0, format: format).font(.system(size: 30, weight: .regular, design: .serif)).tracking(-0.6).foregroundStyle(K.text).lineLimit(1).fixedSize()
-                        Text(unit).font(.system(size: 11)).foregroundStyle(K.text2)
+                        CountingText(value: appeared ? value : 0, format: format).font(.system(size: TS.display, weight: .regular, design: .serif)).tracking(-0.6).foregroundStyle(K.text).lineLimit(1).fixedSize()
+                        Text(unit).font(.system(size: TS.meta)).foregroundStyle(K.text2)
                     }
                     Spacer()
                     if let ring {
@@ -370,11 +370,11 @@ struct CoffeeLink: View {
     var body: some View {
         Button { NSWorkspace.shared.open(Links.coffee) } label: {
             VStack(alignment: .leading, spacing: 6) {
-                Image(systemName: "cup.and.saucer").font(.system(size: 13))
+                Image(systemName: "cup.and.saucer").font(.system(size: TS.body))
                 Text("Free and open source. If it saves you time, a coffee keeps it going.")
-                    .font(.system(size: 11)).lineLimit(3).multilineTextAlignment(.leading)
+                    .font(.system(size: TS.meta)).lineLimit(3).multilineTextAlignment(.leading)
                 HStack(spacing: 4) {
-                    Text("Buy Me a Coffee").font(.system(size: 11.5, weight: .semibold))
+                    Text("Buy Me a Coffee").font(.system(size: TS.small, weight: .semibold))
                     Image(systemName: "arrow.up.right").font(.system(size: 8, weight: .bold))
                 }
             }
