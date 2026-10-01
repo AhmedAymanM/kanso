@@ -90,7 +90,7 @@ struct GeneralPage: View {
         }
         PageSection(title: "Notices") {
             RowGroup {
-                Row(icon: "moon", title: "During Focus and full-screen", desc: "Collect notices quietly; the menu bar icon shows a dot.", last: true) { KToggle(on: m.binding(\.collectDuringFocus), label: "Collect quietly") }
+                Row(icon: "moon", title: "Collect notices quietly during Focus and full-screen", desc: "They wait in the menu bar, which shows a dot.", last: true) { KToggle(on: m.binding(\.collectDuringFocus), label: "Collect quietly") }
             }
         }
     }

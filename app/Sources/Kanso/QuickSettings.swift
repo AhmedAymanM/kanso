@@ -80,7 +80,7 @@ struct QuickSettings: View {
                 .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Self.tileOn))
                 .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(K.separator, lineWidth: 0.75))
                 .shadow(color: .black.opacity(0.22), radius: 18, y: 10)
-                .transition(.scale(scale: 0.6, anchor: .top).combined(with: .opacity))
+                .transition(Motion.reduced ? .opacity : .scale(scale: 0.6, anchor: .top).combined(with: .opacity))
                 .zIndex(1)
             }
         }
@@ -104,7 +104,7 @@ struct QuickSettings: View {
             }
             .padding(.horizontal, 14).frame(maxHeight: .infinity).contentShape(Rectangle())
         }
-        .buttonStyle(PlainRowStyle())
+        .buttonStyle(PressStyle())
         .focusRing(16)
         .accessibilityLabel("Sorting, \(on ? "on" : "off")")
         .accessibilityHint("Shows options for turning Sorting off")
@@ -157,7 +157,7 @@ struct HoverRowStyle: ButtonStyle {
     @State private var hover = false
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(hover || configuration.isPressed ? K.rowSelected : .clear))
+            .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(hover || configuration.isPressed ? K.rowSelected : .clear))   // 16 card − 6 padding
             .onHover { hover = $0 }
     }
 }
@@ -189,15 +189,15 @@ struct FeatureTile: View {
                     if on { Circle().fill(Tint.accent.fg).frame(width: 7, height: 7) } else { Circle().strokeBorder(K.text3, lineWidth: 1).frame(width: 7, height: 7) }
                 }
                 VStack(alignment: .leading, spacing: 0) {
-                    Text(name).font(.system(size: 12.5, weight: .semibold)).foregroundStyle(on ? K.text : K.text2)
-                    Text(on ? "On" : "Off").font(.system(size: 10.5)).foregroundStyle(on ? Tint.accent.fg : K.text3)
+                    Text(name).font(.system(size: 12.5, weight: .semibold)).foregroundStyle(K.text)
+                    Text(on ? "On" : "Off").font(.system(size: 10.5)).foregroundStyle(on ? Tint.accent.fg : K.text2)
                 }
             }
             .padding(12).frame(maxWidth: .infinity, minHeight: 80, alignment: .leading)
             .tileBackground(on: on)
             .animation(.spring(response: 0.3, dampingFraction: 0.8), value: on)
         }
-        .buttonStyle(PlainRowStyle())
+        .buttonStyle(PressStyle())
         .focusRing(16)
         .accessibilityLabel("\(name), \(on ? "on" : "off")")
     }

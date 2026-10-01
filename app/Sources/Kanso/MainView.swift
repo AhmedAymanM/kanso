@@ -35,7 +35,7 @@ struct AppWindow: View {
                     .padding(.horizontal, 28).padding(.top, 8).padding(.bottom, 28)
                     .frame(maxWidth: 900).frame(maxWidth: .infinity)
                     .id(m.page)
-                    .transition(.opacity.combined(with: .offset(y: 8)))
+                    .transition(Motion.reduced ? .opacity : .opacity.combined(with: .offset(y: 8)))
             }
             .animation(Motion.spring(0.3), value: m.page)
             .softTopEdge()
@@ -95,7 +95,7 @@ struct Sidebar: View {
         .safeAreaInset(edge: .bottom) {
             VStack(alignment: .leading, spacing: 8) {
                 CoffeeLink()
-                Text("Your files never leave your Mac.").font(.system(size: 11)).foregroundStyle(K.text2)
+                Text("Your files never leave your Mac.").font(.system(size: 11)).foregroundStyle(K.sidebarText2)
             }
             .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 14).padding(.bottom, 12)
         }
@@ -210,7 +210,7 @@ struct OverviewPage: View {
             HStack {
                 Text("Since you started").font(.system(size: 12.5, weight: .semibold)).foregroundStyle(K.text2)
                 Spacer()
-                Text("counted on this Mac").font(.system(size: 11)).foregroundStyle(K.text3)
+                Text("counted on this Mac").font(.system(size: 11)).foregroundStyle(K.text2)
             }
             .padding(.horizontal, 4)
             Grid(horizontalSpacing: 10, verticalSpacing: 10) {   // 2 × 2 in the fixed-size window
@@ -228,7 +228,7 @@ struct OverviewPage: View {
 
     func highlights(_ i: Insights) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("HIGHLIGHTS").font(.system(size: 10.5, weight: .semibold)).kerning(0.6).foregroundStyle(K.text3).padding(.horizontal, 4)
+            Text("HIGHLIGHTS").font(.system(size: 10.5, weight: .semibold)).kerning(0.6).foregroundStyle(K.text2).padding(.horizontal, 4)
             HStack(alignment: .top, spacing: 12) {
                 InsightCard(icon: "square.3.layers.3d", tag: "Sorting", color: Tint.where.fg, sentence: "Kanso sorts about \(monthlyAverage) files a month", sub: busiest) {
                     BarChart(values: monthly.map(\.1), labels: monthly.map(\.0), highlight: monthly.count - 1, color: Tint.accent.fg)
@@ -378,12 +378,11 @@ struct CoffeeLink: View {
                     Image(systemName: "arrow.up.right").font(.system(size: 8, weight: .bold))
                 }
             }
-            .foregroundStyle(hover ? Tint.duplicate.fg : K.text2)
+            .foregroundStyle(hover ? Tint.duplicate.fg : K.sidebarText2)
             .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Tint.duplicate.bg).opacity(hover ? 1 : 0))
             .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(hover ? Tint.duplicate.stroke : K.separator, lineWidth: 0.75))
-            .opacity(hover ? 1 : 0.75)
             .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
         .buttonStyle(.plain)

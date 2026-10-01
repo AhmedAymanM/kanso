@@ -251,7 +251,9 @@ final class Island: ObservableObject {
 
     private func scheduleDismiss() {
         guard !expanded else { dismissAt = .distantFuture; return }
-        dismissAt = Date().addingTimeInterval(notices.contains(where: \.needsYou) ? 8 : 5)
+        // VoiceOver users get four times as long to reach the notice's Undo (it also stays in the overview and Activity).
+        let base: TimeInterval = notices.contains(where: \.needsYou) ? 8 : 5
+        dismissAt = Date().addingTimeInterval(NSWorkspace.shared.isVoiceOverEnabled ? base * 4 : base)
         timer?.invalidate()
         timer = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { _ in
             MainActor.assumeIsolated {

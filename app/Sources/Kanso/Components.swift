@@ -61,7 +61,7 @@ struct ApproachCard: View {
             HStack(spacing: 10) {
                 Circle().strokeBorder(selected ? K.accent : K.text3, lineWidth: selected ? 5 : 1.5).frame(width: 18, height: 18)
                 Text(title).font(.system(size: 16, weight: .semibold))
-                if !selected { Text(badge).font(.system(size: 10, weight: .medium)).foregroundStyle(K.text3).padding(.horizontal, 6).frame(height: 17).background(RoundedRectangle(cornerRadius: 4).fill(K.fill)) }
+                if !selected { Text(badge).font(.system(size: 10, weight: .medium)).foregroundStyle(K.text2).padding(.horizontal, 6).frame(height: 17).background(RoundedRectangle(cornerRadius: 4).fill(K.fill)) }
                 Spacer()
                 if selected { Text(badge).font(.system(size: 11.5, weight: .medium)).foregroundStyle(K.accent) }
             }
@@ -99,6 +99,9 @@ struct RuleRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            // The sentence is a button (keyboard and VoiceOver open the editor); the switch stays its own control.
+            HStack(spacing: 12) {
+                Button(action: toggle) {
             HStack(spacing: 12) {
                 Text(m.settings.emoji(for: rule.dest)).font(.system(size: 20)).frame(width: 30)
                 VStack(alignment: .leading, spacing: 1) {
@@ -108,12 +111,15 @@ struct RuleRow: View {
                 .opacity(rule.enabled ? 1 : 0.45)
                 Spacer()
                 Image(systemName: "chevron.down").font(.system(size: 10, weight: .semibold)).foregroundStyle(K.text2).rotationEffect(.degrees(open ? 180 : 0))
+            }
+            .contentShape(Rectangle())
+                }
+                .buttonStyle(PlainRowStyle()).focusRing(10)
+                .accessibilityHint(open ? "Closes the rule editor" : "Opens the rule editor")
                 KToggle(on: Binding(get: { rule.enabled }, set: { v in m.update { s in if let i = s.rules.firstIndex(where: { $0.id == rule.id }) { s.rules[i].enabled = v } } }), label: "Rule enabled")
             }
             .padding(.horizontal, 16).padding(.vertical, 10)
-            .contentShape(Rectangle())
-            .onTapGesture(perform: toggle)
-            if open, edit != nil { editor.padding(.horizontal, 16).padding(.bottom, 14).transition(.opacity.combined(with: .offset(y: -8))) }
+            if open, edit != nil { editor.padding(.horizontal, 16).padding(.bottom, 14).transition(Motion.reduced ? .opacity : .opacity.combined(with: .offset(y: -8))) }
         }
         .onAppear { if open { edit = rule } }
         .onChange(of: open) { _, o in edit = o ? rule : nil }
@@ -168,7 +174,7 @@ struct RuleRow: View {
                 Text("Matches \(preview) \(preview == 1 ? "file" : "files") in your watched folders now").font(.system(size: 11.5)).foregroundStyle(K.text2)
                 Spacer()
                 Button { m.update { $0.rules.removeAll { $0.id == rule.id } }; close() } label: { Image(systemName: "trash") }.buttonStyle(PlainRowStyle()).foregroundStyle(K.text3).help("Delete rule").accessibilityLabel("Delete rule")
-                Button { close() } label: { HStack(spacing: 6) { Text("Cancel"); Text("esc").font(.system(size: 10.5)).foregroundStyle(K.text3) } }.buttonStyle(SecondaryStyle(small: true)).keyboardShortcut(.cancelAction)
+                Button { close() } label: { HStack(spacing: 6) { Text("Cancel"); Text("esc").font(.system(size: 10.5)).foregroundStyle(K.text2) } }.buttonStyle(SecondaryStyle(small: true)).keyboardShortcut(.cancelAction)
                 Button {
                     let r = b.wrappedValue
                     m.update { s in if let i = s.rules.firstIndex(where: { $0.id == r.id }) { s.rules[i] = r } else { s.rules.append(r) } }
@@ -224,8 +230,11 @@ struct RuleRow: View {
 struct SaveRuleStyle: ButtonStyle {
     @Environment(\.isEnabled) private var enabled
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label.font(.system(size: 12, weight: .semibold)).foregroundStyle(.white).padding(.horizontal, 14).frame(height: 28)
-            .background(Capsule().fill(K.switchOn)).opacity(enabled ? (configuration.isPressed ? 0.85 : 1) : 0.4)
+        // Pastel fill with an ink label (no white-text buttons: white on green measured 2.2:1).
+        configuration.label.font(.system(size: 12, weight: .semibold)).foregroundStyle(Tint.accent.fg).padding(.horizontal, 14).frame(height: 28)
+            .background(Capsule().fill(Tint.accent.bg)).overlay(Capsule().strokeBorder(Tint.accent.stroke, lineWidth: 0.75))
+            .scaleEffect(configuration.isPressed && !Motion.reduced ? 0.96 : 1)
+            .opacity(enabled ? 1 : 0.4)
     }
 }
 
@@ -299,7 +308,7 @@ struct BarChart: View {
                 VStack(spacing: 4) {
                     RoundedRectangle(cornerRadius: 3).fill(i == highlight ? color : color.opacity(0.15))
                         .frame(height: max(6, CGFloat(v) / CGFloat(mx) * 44))
-                    Text(i < labels.count ? labels[i] : "").font(.system(size: 9.5, weight: i == highlight ? .semibold : .regular)).foregroundStyle(i == highlight ? K.text : K.text3)
+                    Text(i < labels.count ? labels[i] : "").font(.system(size: 9.5, weight: i == highlight ? .semibold : .regular)).foregroundStyle(i == highlight ? K.text : K.text2)
                 }
                 .frame(maxWidth: .infinity)
             }
