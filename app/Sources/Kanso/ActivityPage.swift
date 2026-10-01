@@ -27,7 +27,31 @@ enum Entry: Identifiable {
     }
 }
 
-enum Filter: String, CaseIterable { case all = "All", needs = "Needs you", renamed = "Renamed", duplicates = "Duplicates" }
+enum Filter: String, CaseIterable {
+    case all = "All", needs = "Needs you", renamed = "Renamed", tagged = "Tagged", duplicates = "Duplicates", ejected = "Smart Eject", undone = "Undone"
+    var icon: String {
+        switch self {
+        case .all: return "tray.full"
+        case .needs: return "exclamationmark.circle"
+        case .renamed: return "pencil"
+        case .tagged: return "tag"
+        case .duplicates: return "doc.on.doc"
+        case .ejected: return "eject"
+        case .undone: return "arrow.uturn.backward"
+        }
+    }
+    var emptyLine: String {
+        switch self {
+        case .all: return "Everything Kanso does shows up here, with Undo."
+        case .needs: return "Nothing needs you. Duplicates and rename suggestions appear here first."
+        case .renamed: return "No renamed files yet. Kanso renames only meaningless names, like Scan_0012."
+        case .tagged: return "No tagged files yet. Turn on Tagging to add Finder tags from a file's first page."
+        case .duplicates: return "No duplicates. Extra copies wait on the Duplicates shelf when they show up."
+        case .ejected: return "No installers ejected yet. Smart Eject waits until the app is in Applications."
+        case .undone: return "Nothing undone. Every action can be undone from here."
+        }
+    }
+}
 
 struct ActivityPage: View {
     @EnvironmentObject var m: AppModel
@@ -58,9 +82,12 @@ struct ActivityPage: View {
             switch (filter, entry) {
             case (.all, _): passes = true
             case (.needs, .need): passes = true
-            case (.renamed, .action(let a)): passes = a.kind == .renamed
+            case (.renamed, .action(let a)): passes = a.kind == .renamed && !a.undone
             case (.renamed, .need(.renames)): passes = true
-            case (.duplicates, .action(let a)): passes = a.kind == .duplicate || a.kind == .trashed
+            case (.tagged, .action(let a)): passes = !a.tags.isEmpty && !a.undone
+            case (.ejected, .action(let a)): passes = a.kind == .trashed && a.details["installer"] != nil
+            case (.undone, .action(let a)): passes = a.undone
+            case (.duplicates, .action(let a)): passes = (a.kind == .duplicate || (a.kind == .trashed && a.details["installer"] == nil)) && !a.undone
             case (.duplicates, .need(.duplicate)): passes = true
             default: passes = false
             }
@@ -78,13 +105,35 @@ struct ActivityPage: View {
                 EntryDetail(entry: selected, next: next(after: selected, in: list)).id(selected.id)
                     .transition(Motion.reduced ? .opacity : .opacity.combined(with: .offset(x: 12)))
             } else {
-                VStack(spacing: 8) {
-                    Text("Nothing yet").font(.system(size: TS.title2, design: .serif)).foregroundStyle(K.text)
-                    Text("Everything Kanso does shows up here, with Undo.").font(.system(size: TS.body)).foregroundStyle(K.text2)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                emptyState
             }
         }
+        .background { KeyCatcher(up: { move(-1, list, selected?.id) }, down: { move(1, list, selected?.id) }) }
+    }
+
+    /// The three empty states: nothing at all, nothing under this filter, nothing matching the search.
+    var emptyState: some View {
+        let searching = !query.isEmpty
+        let icon = searching ? "magnifyingglass" : filter.icon
+        return VStack(spacing: 10) {
+            Image(systemName: icon).font(.system(size: TS.hero, weight: .light)).foregroundStyle(K.text3).frame(width: 84, height: 84)
+                .liquid(Circle(), tint: Tint.accent.bg.opacity(0.5), interactive: false)
+            Text(searching ? "No matches for “\(query)”" : filter == .all ? "Nothing yet" : "Nothing under \(filter.rawValue)").font(.system(size: TS.title2, design: .serif)).foregroundStyle(K.text)
+            Text(searching ? "Search looks at file names and shelves." : filter.emptyLine).font(.system(size: TS.body)).foregroundStyle(K.text2).multilineTextAlignment(.center).frame(maxWidth: 320)
+            if searching || filter != .all {
+                Button(searching ? "Clear search" : "Show all activity") { withAnimation(Motion.spring(0.3)) { if searching { query = "" } else { filter = .all } } }
+                    .buttonStyle(SecondaryStyle(small: true)).padding(.top, 4)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    /// ↑ ↓ walk the list; after an action removes the selected row the next one is picked.
+    func move(_ d: Int, _ list: [Entry], _ current: String?) {
+        guard !list.isEmpty else { return }
+        let i = list.firstIndex { $0.id == current } ?? 0
+        let n = min(max(i + d, 0), list.count - 1)
+        withAnimation(Motion.spring(0.25)) { m.selectedActivity = list[n].id }
     }
 
     func next(after e: Entry, in list: [Entry]) -> Entry? {
@@ -97,22 +146,36 @@ struct ActivityPage: View {
     func listColumn(_ list: [Entry], selected: String?) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
-                Text("\(m.actions.filter { $0.kind != .trashed }.count) actions · \(m.needs.count) need you").font(.system(size: TS.small)).foregroundStyle(K.text2)
+                HStack(spacing: 6) {
+                    Text("\(m.today.sorted) today").font(.system(size: TS.small, weight: .medium)).foregroundStyle(Tint.accent.fg)
+                        .padding(.horizontal, 8).frame(height: 22).background(Capsule().fill(Tint.accent.bg))
+                    Text(m.needs.isEmpty ? "nothing needs you" : "\(m.needs.count) need you").font(.system(size: TS.small)).foregroundStyle(K.text2)
+                }
                 HStack(spacing: 8) {
                     Image(systemName: "magnifyingglass").font(.system(size: TS.small)).foregroundStyle(K.text2)
                     TextField("Search files and shelves", text: $query).textFieldStyle(.plain).font(.system(size: TS.body))
+                    if !query.isEmpty { Button { query = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(K.text3) }.buttonStyle(.plain).accessibilityLabel("Clear search") }
                 }
-                .padding(.horizontal, 10).frame(height: 30).background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(K.fill))
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 5) {
-                        ForEach(Filter.allCases, id: \.self) { f in
-                            Button { withAnimation(Motion.spring(0.3)) { filter = f } } label: {
-                                Text(f.rawValue).font(.system(size: TS.small, weight: .medium)).foregroundStyle(filter == f ? Tint.accent.fg : K.text2)
-                                    .padding(.horizontal, 9).frame(height: 24).background(Capsule().fill(filter == f ? Tint.accent.bg : K.fill))
+                .padding(.horizontal, 12).frame(height: 32).liquid(Capsule(), tint: nil, fallback: K.fill, interactive: false)
+                do {
+                    glassGroup {
+                        FlowLayout(spacing: 4) {
+                            ForEach(Filter.allCases, id: \.self) { f in
+                                Button { withAnimation(Motion.spring(0.3)) { filter = f } } label: {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: f.icon).font(.system(size: TS.micro, weight: .semibold))
+                                        if filter == f { Text(f.rawValue).font(.system(size: TS.small, weight: .medium)) }
+                                        if f == .needs && !m.needs.isEmpty { Text("\(m.needs.count)").font(.system(size: TS.micro, weight: .bold)) }
+                                    }
+                                    .foregroundStyle(filter == f ? Tint.accent.fg : K.text2)
+                                    .padding(.horizontal, 8).frame(height: 26).contentShape(Capsule())
+                                    .liquid(Capsule(), tint: filter == f ? Tint.accent.bg : nil, fallback: filter == f ? Tint.accent.bg : K.fill)
                                     .overlay(Capsule().strokeBorder(filter == f ? Tint.accent.stroke : .clear, lineWidth: 0.75))
+                                }
+                                .buttonStyle(PlainRowStyle()).help(f.rawValue).accessibilityLabel(f.rawValue)
                             }
-                            .buttonStyle(PlainRowStyle())
                         }
+                        .padding(.vertical, 2)
                     }
                 }
                 LazyVStack(alignment: .leading, spacing: 4) {
@@ -248,13 +311,17 @@ struct EntryDetail: View {
                     }
                     visual
                     decided
+                    if let next { Button("Next: \(nextLabel(next)) ↓") { m.selectedActivity = next.id }.buttonStyle(LinkStyle(color: K.text2)) }
                 }
                 .padding(.horizontal, 28).padding(.top, 8).padding(.bottom, 20)
             }
             .softTopEdge()
             .defaultScrollAnchor(ProcessInfo.processInfo.environment["KANSO_SCROLL"] == "bottom" ? .bottom : .top)   // screenshots of the scrolled state
-            Rectangle().fill(K.separator).frame(height: 0.75).padding(.horizontal, 28)
-            actionBar.padding(.horizontal, 28).padding(.vertical, 14)
+            // The actions float on a glass bar, so the content scrolls beneath them.
+            glassGroup { actionBar.padding(.horizontal, 14).padding(.vertical, 10).frame(maxWidth: .infinity, alignment: .leading)
+                .liquid(RoundedRectangle(cornerRadius: 22, style: .continuous), tint: nil, fallback: K.card, interactive: false)
+                .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(K.separator, lineWidth: 0.75)) }
+                .padding(.horizontal, 20).padding(.bottom, 14).padding(.top, 4)
         }
     }
 
@@ -354,8 +421,25 @@ struct EntryDetail: View {
                 Spacer()
             }
             .padding(16).background(RoundedRectangle(cornerRadius: 12).fill(Tint.rename.bg))
+        case .action(let a) where a.kind == .trashed && a.details["installer"] != nil:
+            HStack(spacing: 14) {
+                step("opticaldisc", a.srcName, "Disk image · \((Int64(a.details["size"] ?? "") ?? 0).bytes)")
+                Image(systemName: "arrow.right").font(.system(size: TS.small)).foregroundStyle(K.text3)
+                step("macwindow", a.details["installer"] ?? "The app", "In Applications")
+                Image(systemName: "arrow.right").font(.system(size: TS.small)).foregroundStyle(K.text3)
+                step("trash", a.undone ? "Put back" : "Installer in Trash", a.undone ? "Restored" : "Put Back any time")
+            }
+        case .action(let a) where a.kind == .sorted && !a.undone:
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Where it went").eyebrow()
+                HStack(spacing: 8) {
+                    PathChips(parts: ["\(folderEmoji(a.root)) \((a.root as NSString).lastPathComponent)"])
+                    Image(systemName: "arrow.right").font(.system(size: TS.small)).foregroundStyle(K.text3)
+                    PathChips(parts: pathParts(a))
+                }
+            }
         case .action:
-            EmptyView()   // a plain sort or a trash record needs no picture: the headline says it
+            EmptyView()   // a trash record or an undone sort needs no picture: the headline says it
         case .batch(_, let actions):
             let counts = Dictionary(grouping: actions, by: \.shelf).map { ($0.key, $0.value.count) }.sorted { $0.1 > $1.1 }
             let mx = counts.first?.1 ?? 1
@@ -372,6 +456,15 @@ struct EntryDetail: View {
         case .waiting:
             EmptyView()
         }
+    }
+
+    func step(_ icon: String, _ title: String, _ sub: String) -> some View {
+        VStack(spacing: 6) {
+            Image(systemName: icon).font(.system(size: TS.emphasis)).foregroundStyle(Tint.accent.fg).frame(width: 40, height: 40).background(Circle().fill(Tint.accent.bg))
+            Text(title).font(.system(size: TS.small, weight: .semibold)).foregroundStyle(K.text).lineLimit(1).truncationMode(.middle)
+            Text(sub).font(.system(size: TS.meta)).foregroundStyle(K.text2).lineLimit(1)
+        }
+        .frame(maxWidth: .infinity).padding(.vertical, 12).card(radius: 14)
     }
 
     func diff(_ a: String, _ b: String) -> some View {
@@ -495,9 +588,10 @@ struct EntryDetail: View {
             case .need(.duplicate(let a)):
                 Button { m.trash(a.id) } label: { HStack { Text("Move copy to Trash"); Hint(text: "⌘⌫") } }.buttonStyle(PrimaryStyle(tint: .duplicate)).keyboardShortcut(.delete, modifiers: .command)
                 Button("Keep both") { m.keepBoth(a.id) }.buttonStyle(SecondaryStyle())
-                Button { m.undo([a.id]) } label: { HStack { Text("Undo"); Text("⌘Z").font(.system(size: TS.meta)).foregroundStyle(K.text2) } }.buttonStyle(SecondaryStyle()).keyboardShortcut("z")
+                Button { m.undo([a.id]) } label: { Image(systemName: "arrow.uturn.backward") }.buttonStyle(SecondaryStyle()).keyboardShortcut("z").help("Undo (⌘Z)").accessibilityLabel("Undo")
             case .need(.renames(let p, _)):
                 Button { Windows.shared.showReview(tab: .renames) } label: { HStack { Text("Review \(p.count) files…"); Hint(text: "↩") } }.buttonStyle(PrimaryStyle(tint: .rename)).keyboardShortcut(.defaultAction)
+                Button { m.applyRenames(p) } label: { HStack { Image(systemName: "wand.and.sparkles"); Text("Rename all"); Hint(text: "⌘↩") } }.buttonStyle(SecondaryStyle()).keyboardShortcut(.return, modifiers: .command)
                 Button("Not now") { m.dismissRenames() }.buttonStyle(SecondaryStyle())
             case .need(.rule(let r)):
                 Button { m.acceptSuggestion(r.id) } label: { HStack { Text("Create rule"); Hint(text: "↩") } }.buttonStyle(PrimaryStyle(tint: .rule)).keyboardShortcut(.defaultAction)
@@ -527,8 +621,6 @@ struct EntryDetail: View {
                     m.undo([a.id])
                 }
                 .buttonStyle(LinkStyle(color: K.text2))
-            } else if let next {
-                Button("Next: \(nextLabel(next)) ↓") { m.selectedActivity = next.id }.buttonStyle(LinkStyle(color: K.text2)).keyboardShortcut(.downArrow, modifiers: [])
             }
         }
     }
@@ -570,5 +662,36 @@ struct Thumb: View {
             let req = QLThumbnailGenerator.Request(fileAt: URL(fileURLWithPath: path), size: CGSize(width: 240, height: 240), scale: 2, representationTypes: .thumbnail)
             if let r = try? await QLThumbnailGenerator.shared.generateBestRepresentation(for: req) { image = r.nsImage }
         }
+    }
+}
+
+
+/// Groups glass children so they blend and morph on macOS 26; a plain container before.
+@ViewBuilder func glassGroup<C: View>(@ViewBuilder _ content: () -> C) -> some View {
+    if #available(macOS 26, *), !Motion.solid { GlassEffectContainer(spacing: 6) { content() } } else { content() }
+}
+
+/// ↑ ↓ for the list without a focused control: a local monitor while the Activity page is on screen.
+struct KeyCatcher: NSViewRepresentable {
+    var up: () -> Void
+    var down: () -> Void
+    func makeNSView(context: Context) -> NSView { context.coordinator.view }
+    func updateNSView(_ v: NSView, context: Context) { context.coordinator.up = up; context.coordinator.down = down }
+    func makeCoordinator() -> Coordinator { Coordinator() }
+    final class Coordinator {
+        let view = NSView()
+        var up: () -> Void = {}, down: () -> Void = {}
+        var monitor: Any?
+        init() {
+            monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] e in
+                guard let self, self.view.window?.isKeyWindow == true, !(self.view.window?.firstResponder is NSText), e.modifierFlags.intersection([.command, .option, .control]).isEmpty else { return e }
+                switch Int(e.keyCode) {
+                case 126: self.up(); return nil
+                case 125: self.down(); return nil
+                default: return e
+                }
+            }
+        }
+        deinit { if let monitor { NSEvent.removeMonitor(monitor) } }
     }
 }
