@@ -109,7 +109,9 @@ enum TS {
     static let title2: CGFloat = 22     // Activity headline
     static let headline: CGFloat = 26   // showcase headline, folder emoji
     static let display: CGFloat = 30    // statements, numerals
-    static let hero: CGFloat = 40       // showcase glyph, big emoji
+    static let statement: CGFloat = 34  // Overview headline
+    static let hero: CGFloat = 40       // showcase glyph, big emoji, month total
+    static let numeral: CGFloat = 52    // Overview hero number
 }
 
 extension View {

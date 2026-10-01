@@ -34,7 +34,7 @@ struct OverviewPage: View {
     func headline(_ needs: [Need]) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(m.sortingOn ? "Your Mac is in order." : "Sorting is \(m.sortingStatus.lowercased()).")
-                .font(.system(size: 34, weight: .regular, design: .serif)).tracking(-0.6).foregroundStyle(K.text)
+                .font(.system(size: TS.statement, weight: .regular, design: .serif)).tracking(-0.6).foregroundStyle(K.text)
             Text("\(m.today.sorted) \(m.today.sorted == 1 ? "file" : "files") placed today. " + (needs.isEmpty ? "Nothing needs you." : needs.count == 1 ? "One thing could use a minute." : "\(needs.count == 2 ? "Two" : "\(needs.count)") things could use a minute."))
                 .font(.system(size: TS.emphasis)).foregroundStyle(K.text2)
         }
@@ -50,8 +50,8 @@ struct OverviewPage: View {
             Spacer(minLength: 6)
             HStack(alignment: .lastTextBaseline, spacing: 6) {
                 CountingText(value: appeared ? Double(all.sorted) : 0, format: { Int($0).formatted() })
-                    .font(.system(size: 52, weight: .regular, design: .serif)).tracking(-1.5).foregroundStyle(Heroes.ink).lineLimit(1).minimumScaleFactor(0.6)
-                Text("files").font(.system(size: TS.body)).foregroundStyle(Heroes.ink.opacity(0.8))
+                    .font(.system(size: TS.numeral, weight: .regular, design: .serif)).tracking(-1.5).foregroundStyle(Heroes.ink).lineLimit(1).minimumScaleFactor(0.6)
+                Text("files").font(.system(size: TS.body)).foregroundStyle(Heroes.ink.opacity(0.9))
             }
             Text("placed on the right shelf\(since). \(stayed)% stayed where Kanso put them.")
                 .font(.system(size: TS.small)).foregroundStyle(Heroes.ink.opacity(0.85)).fixedSize(horizontal: false, vertical: true).padding(.top, 6)
@@ -107,11 +107,11 @@ struct CounterTile: View {
                 HStack {
                     Image(systemName: icon).font(.system(size: TS.emphasis)).foregroundStyle(tint.fg)
                     Spacer()
-                    Image(systemName: "chevron.right").font(.system(size: 9, weight: .semibold)).foregroundStyle(tint.fg.opacity(0.6))
+                    Image(systemName: "chevron.right").font(.system(size: 9, weight: .semibold)).foregroundStyle(tint.fg.opacity(0.85))
                 }
                 Text(value).font(.system(size: TS.display, weight: .regular, design: .serif)).tracking(-0.5).foregroundStyle(tint.fg).lineLimit(1).minimumScaleFactor(0.7).padding(.top, 6)
                 Text(label).font(.system(size: TS.body, weight: .semibold)).foregroundStyle(tint.fg).lineLimit(1).padding(.top, 8)
-                Text(sub).font(.system(size: TS.small)).foregroundStyle(tint.fg.opacity(0.75)).lineLimit(1)
+                Text(sub).font(.system(size: TS.small)).foregroundStyle(tint.fg).lineLimit(1)
             }
             .padding(14).frame(maxWidth: .infinity, alignment: .leading)
             .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(tint.bg))
@@ -235,7 +235,7 @@ struct NeedBody: View {
     @ViewBuilder var actions: some View {
         switch need {
         case .duplicate(let a):
-            Button { m.trash(a.id) } label: { HStack(spacing: 5) { Image(systemName: "trash"); Text("Move copy to Trash"); Text("⌘⌫").font(.system(size: TS.meta)) } }.buttonStyle(PrimaryStyle(tint: .duplicate, small: true)).fixedSize()
+            Button { m.trash(a.id) } label: { HStack(spacing: 5) { Image(systemName: "trash"); Text("Move copy to Trash"); Text("⌘⌫").font(.system(size: TS.meta)) } }.buttonStyle(PrimaryStyle(tint: .duplicate, small: true)).fixedSize().keyboardShortcut(.delete, modifiers: .command)
             Button { m.keepBoth(a.id) } label: { Label("Keep both", systemImage: "doc.on.doc") }.buttonStyle(SecondaryStyle(small: true)).fixedSize()
         case .renames(let p, _):
             Button { Windows.shared.showReview(tab: .renames) } label: { Label("Review names", systemImage: "checklist") }.buttonStyle(PrimaryStyle(tint: .rename, small: true)).fixedSize()
@@ -277,7 +277,7 @@ struct MonthCard: View {
             }
             HStack(alignment: .lastTextBaseline) {
                 HStack(alignment: .lastTextBaseline, spacing: 5) {
-                    Text(total.formatted()).font(.system(size: 40, weight: .regular, design: .serif)).tracking(-1).foregroundStyle(K.text)
+                    Text(total.formatted()).font(.system(size: TS.hero, weight: .regular, design: .serif)).tracking(-1).foregroundStyle(K.text)
                     Text("files").font(.system(size: TS.body)).foregroundStyle(K.text2)
                 }
                 Spacer()

@@ -95,5 +95,8 @@ public enum Stat {
 }
 
 public extension Int64 {
-    var bytes: String { ByteCountFormatter.string(fromByteCount: self, countStyle: .file) }
+    var bytes: String {
+        let f = ByteCountFormatter(); f.countStyle = .file; f.allowsNonnumericFormatting = false   // "0 KB", not "Zero KB"
+        return f.string(fromByteCount: self)
+    }
 }

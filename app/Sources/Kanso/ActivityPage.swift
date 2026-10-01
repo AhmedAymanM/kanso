@@ -172,7 +172,7 @@ struct ActivityPage: View {
                                     .liquid(Capsule(), tint: filter == f ? Tint.accent.bg : nil, fallback: filter == f ? Tint.accent.bg : K.fill)
                                     .overlay(Capsule().strokeBorder(filter == f ? Tint.accent.stroke : .clear, lineWidth: 0.75))
                                 }
-                                .buttonStyle(PlainRowStyle()).help(f.rawValue).accessibilityLabel(f.rawValue)
+                                .buttonStyle(PlainRowStyle()).help(f.rawValue).accessibilityLabel(f.rawValue).accessibilityAddTraits(filter == f ? .isSelected : [])
                             }
                         }
                         .padding(.vertical, 2)
