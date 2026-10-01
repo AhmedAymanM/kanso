@@ -15,6 +15,7 @@ final class EngineTests: XCTestCase {
     let fm = FileManager.default
 
     override func setUp() {
+        Engine.batteryLow = { false }
         tmp = fm.temporaryDirectory.appendingPathComponent("kanso-tests-\(UUID().uuidString)")
         root = tmp.appendingPathComponent("Downloads")
         try! fm.createDirectory(at: root, withIntermediateDirectories: true)
