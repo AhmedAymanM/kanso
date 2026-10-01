@@ -635,6 +635,23 @@ struct OverviewBody: View {
                 .accessibilityElement(children: .combine)
                 .stagger(0)
             }
+            if let c = island.confirmation {
+                HStack(spacing: 8) {
+                    Image(systemName: "checkmark").font(.system(size: TS.small, weight: .semibold)).foregroundStyle(Tint.accent.islandFill)
+                    Text(c.text).font(.system(size: TS.body)).foregroundStyle(IslandInk.text).lineLimit(1).truncationMode(.middle)
+                    Spacer()
+                    if let id = c.undo { Button { m.undo([id]); withAnimation(Motion.spring()) { island.confirmation = nil } } label: { Text("⌘Z undo").font(.system(size: TS.small)).foregroundStyle(IslandInk.text3) }.buttonStyle(.plain) }
+                }
+                .padding(.horizontal, 4).transition(.opacity).accessibilityElement(children: .combine)
+            }
+            if m.needs.isEmpty && island.handled > 0 {
+                HStack(spacing: 10) {
+                    Image(systemName: "checkmark").font(.system(size: TS.meta, weight: .bold)).foregroundStyle(Tint.accent.islandGlyph).frame(width: 24, height: 24).background(Circle().fill(Tint.accent.islandFill))
+                    Text("Nothing else needs you").font(.system(size: TS.emphasis, weight: .semibold)).foregroundStyle(IslandInk.text)
+                    Text("\(island.handled) handled").font(.system(size: TS.small)).foregroundStyle(IslandInk.text3)
+                }
+                .padding(.horizontal, 4).stagger(0)
+            }
             if !m.needs.isEmpty {
                 let i = min(island.card, m.needs.count - 1)
                 HStack(spacing: 8) {
