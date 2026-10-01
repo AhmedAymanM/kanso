@@ -194,24 +194,25 @@ struct IslandLip: View {
     }
 }
 
-/// The lip's buttons share one glass container and union into a single capsule (macOS 26); separate circles before.
+/// The lip's buttons sit in one clear glass capsule (macOS 26); two separate circles before, or with Reduce Transparency.
 struct LipButtons<Content: View>: View {
     @ViewBuilder var content: Content
-    @Namespace private var ns
     var body: some View {
         if #available(macOS 26, *), !Motion.solid {
-            GlassEffectContainer(spacing: 8) { HStack(spacing: 6) { content }.environment(\.lipUnion, ns) }
+            HStack(spacing: 2) { content }.environment(\.inLipCapsule, true).padding(2)
+                .background { Color.clear.glassEffect(.clear, in: Capsule()) }
+                .overlay(Capsule().strokeBorder(LinearGradient(colors: [.white.opacity(0.4), .white.opacity(0.12)], startPoint: .top, endPoint: .bottom), lineWidth: 0.75))
         } else {
             HStack(spacing: 8) { content }
         }
     }
 }
 
-private struct LipUnionKey: EnvironmentKey { static let defaultValue: Namespace.ID? = nil }
+private struct InLipCapsuleKey: EnvironmentKey { static let defaultValue = false }
 extension EnvironmentValues {
-    var lipUnion: Namespace.ID? {
-        get { self[LipUnionKey.self] }
-        set { self[LipUnionKey.self] = newValue }
+    var inLipCapsule: Bool {
+        get { self[InLipCapsuleKey.self] }
+        set { self[InLipCapsuleKey.self] = newValue }
     }
 }
 
@@ -219,18 +220,17 @@ extension EnvironmentValues {
 struct IslandGlassButton: View {
     var symbol: String, label: String
     var action: () -> Void
-    @Environment(\.lipUnion) private var union
+    @Environment(\.inLipCapsule) private var inCapsule
     @State private var hover = false
     var body: some View {
         Button(action: action) {
             Image(systemName: symbol).font(.system(size: TS.emphasis)).foregroundStyle(Color.white.opacity(0.9)).frame(width: 32, height: 32)
                 .background {
-                    if #available(macOS 26, *), !Motion.solid {
-                        if let union { Color.clear.glassEffect(.clear, in: Circle()).glassEffectUnion(id: "lip", namespace: union) }
-                        else { Color.clear.glassEffect(.clear, in: Circle()) }
-                    } else { Circle().fill(IslandInk.control) }
+                    if inCapsule { Color.clear }   // the capsule behind both buttons is the glass
+                    else if #available(macOS 26, *), !Motion.solid { Color.clear.glassEffect(.clear, in: Circle()) }
+                    else { Circle().fill(IslandInk.control) }
                 }
-                .overlay(Circle().strokeBorder(LinearGradient(colors: [.white.opacity(0.4), .white.opacity(0.12)], startPoint: .top, endPoint: .bottom), lineWidth: 0.75))
+                .overlay { if !inCapsule { Circle().strokeBorder(LinearGradient(colors: [.white.opacity(0.4), .white.opacity(0.12)], startPoint: .top, endPoint: .bottom), lineWidth: 0.75) } }
                 .overlay(Circle().fill(Color.white.opacity(hover ? 0.1 : 0)))
         }
         .buttonStyle(PlainRowStyle()).onHover { hover = $0 }

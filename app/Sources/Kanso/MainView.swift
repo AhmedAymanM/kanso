@@ -172,17 +172,7 @@ struct CoffeeLink: View {
 
 struct SoftTopEdge: ViewModifier {
     @State private var scrolled = false
-    /// `KANSO_SYSTEM_EDGE=1` swaps the band for the system scroll-edge effect (macOS 26) to compare them on screen.
-    static let system = ProcessInfo.processInfo.environment["KANSO_SYSTEM_EDGE"] != nil
-    @ViewBuilder func body(content: Content) -> some View {
-        if #available(macOS 26, *), Self.system {
-            content.scrollEdgeEffectStyle(.soft, for: .top)
-        } else {
-            band(content)
-        }
-    }
-
-    func band(_ content: Content) -> some View {
+    func body(content: Content) -> some View {
         content
             .onScrollOffset { scrolled = $0 > 1 }
             .overlay(alignment: .top) {
