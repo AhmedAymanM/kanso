@@ -150,14 +150,14 @@ enum Glass26 {
 }
 
 extension View {
-    /// Interactive Liquid Glass in `shape`, tinted with a pastel; a solid fill where glass can't render.
-    @ViewBuilder func liquid<S: Shape>(_ shape: S, tint: Color? = nil, fallback: Color = K.card, interactive: Bool = true) -> some View {
-        if #available(macOS 26, *), Glass26.on {
-            glassEffect(SwiftUI.Glass.regular.tint(tint).interactive(interactive), in: shape)
-        } else {
-            background(shape.fill(tint ?? fallback)).overlay(shape.stroke(K.separator, lineWidth: 0.75))
-        }
+    /// Interactive Liquid Glass in `shape`, tinted with a pastel; a solid fill where glass can't render,
+    /// and inside another glass surface (`onGlass`), where stacking glass would blur into haze.
+    func liquid<S: Shape>(_ shape: S, tint: Color? = nil, fallback: Color = K.card, interactive: Bool = true) -> some View {
+        modifier(LiquidModifier(shape: shape, tint: tint, fallback: fallback, interactive: interactive))
     }
+
+    /// Marks a subtree as sitting on glass: its `liquid` controls draw solid.
+    func onGlass(_ on: Bool = true) -> some View { environment(\.onGlass, on) }
 }
 
 /// Primary action: a capsule of Liquid Glass tinted with the meaning's pastel, ink label (no white-text buttons).
@@ -549,5 +549,29 @@ extension Date {
         if Calendar.current.isDateInToday(self) { return clock }
         if Calendar.current.isDateInYesterday(self) { return "Yesterday" }
         return formatted(.dateTime.month(.abbreviated).day())
+    }
+}
+
+
+private struct OnGlassKey: EnvironmentKey { static let defaultValue = false }
+extension EnvironmentValues {
+    var onGlass: Bool {
+        get { self[OnGlassKey.self] }
+        set { self[OnGlassKey.self] = newValue }
+    }
+}
+
+struct LiquidModifier<S: Shape>: ViewModifier {
+    var shape: S
+    var tint: Color?
+    var fallback: Color
+    var interactive: Bool
+    @Environment(\.onGlass) private var onGlass
+    func body(content: Content) -> some View {
+        if #available(macOS 26, *), Glass26.on, !onGlass {
+            content.glassEffect(SwiftUI.Glass.regular.tint(tint).interactive(interactive), in: shape)
+        } else {
+            content.background(shape.fill(tint ?? fallback)).overlay(shape.stroke(K.separator, lineWidth: 0.75))
+        }
     }
 }

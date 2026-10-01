@@ -173,8 +173,10 @@ struct IslandLip: View {
         HStack(spacing: 10) {
             Text(hints).font(.system(size: TS.meta)).foregroundStyle(Color.white.opacity(0.5)).lineLimit(1)
             Spacer()
-            IslandGlassButton(symbol: "keyboard", label: "Keyboard shortcuts") { withAnimation(Motion.spring()) { island.shortcuts.toggle() } }.keyboardShortcut("/")
-            IslandGlassButton(symbol: "gearshape", label: "Settings") { island.hide(); Windows.shared.showSettings() }.keyboardShortcut(",")
+            LipButtons {
+                IslandGlassButton(symbol: "keyboard", label: "Keyboard shortcuts") { withAnimation(Motion.spring()) { island.shortcuts.toggle() } }.keyboardShortcut("/")
+                IslandGlassButton(symbol: "gearshape", label: "Settings") { island.hide(); Windows.shared.showSettings() }.keyboardShortcut(",")
+            }
         }
         .padding(.horizontal, 20)
     }
@@ -192,17 +194,41 @@ struct IslandLip: View {
     }
 }
 
+/// The lip's buttons share one glass container and union into a single capsule (macOS 26); separate circles before.
+struct LipButtons<Content: View>: View {
+    @ViewBuilder var content: Content
+    @Namespace private var ns
+    var body: some View {
+        if #available(macOS 26, *), !Motion.solid {
+            GlassEffectContainer(spacing: 8) { HStack(spacing: 6) { content }.environment(\.lipUnion, ns) }
+        } else {
+            HStack(spacing: 8) { content }
+        }
+    }
+}
+
+private struct LipUnionKey: EnvironmentKey { static let defaultValue: Namespace.ID? = nil }
+extension EnvironmentValues {
+    var lipUnion: Namespace.ID? {
+        get { self[LipUnionKey.self] }
+        set { self[LipUnionKey.self] = newValue }
+    }
+}
+
 /// 32 pt clear glass circle.
 struct IslandGlassButton: View {
     var symbol: String, label: String
     var action: () -> Void
+    @Environment(\.lipUnion) private var union
     @State private var hover = false
     var body: some View {
         Button(action: action) {
             Image(systemName: symbol).font(.system(size: TS.emphasis)).foregroundStyle(Color.white.opacity(0.9)).frame(width: 32, height: 32)
                 .background {
-                    if #available(macOS 26, *), !Motion.solid { Color.clear.glassEffect(.clear, in: Circle()) }
-                    else { Circle().fill(IslandInk.control) }
+                    if #available(macOS 26, *), !Motion.solid {
+                        if let union { Color.clear.glassEffect(.clear, in: Circle()).glassEffectUnion(id: "lip", namespace: union) }
+                        else { Color.clear.glassEffect(.clear, in: Circle()) }
+                    } else { Circle().fill(IslandInk.control) }
                 }
                 .overlay(Circle().strokeBorder(LinearGradient(colors: [.white.opacity(0.4), .white.opacity(0.12)], startPoint: .top, endPoint: .bottom), lineWidth: 0.75))
                 .overlay(Circle().fill(Color.white.opacity(hover ? 0.1 : 0)))
@@ -623,7 +649,7 @@ struct OverviewBody: View {
 
     var body: some View {
         let recent = Array(m.done.prefix(3))
-        let cardActs = island.actions().count - recent.count
+        let cardActs = max(0, island.actions().count - recent.count)   // the overview stays on screen while it closes, when actions() is already empty
         VStack(alignment: .leading, spacing: 8) {
             if m.needs.isEmpty && recent.isEmpty {
                 VStack(spacing: 4) {
