@@ -151,24 +151,25 @@ struct ActivityPage: View {
                         .padding(.horizontal, 8).frame(height: 22).background(Capsule().fill(Tint.accent.bg))
                     Text(m.needs.isEmpty ? "nothing needs you" : "\(m.needs.count) need you").font(.system(size: TS.small)).foregroundStyle(K.text2)
                 }
+                // HIG (search fields, pop-up buttons): search at the top of the list column, with a filter menu beside it
+                // (the Mail pattern). One pop-up for mutually exclusive filters scales to any number of them.
                 HStack(spacing: 8) {
-                    Image(systemName: "magnifyingglass").font(.system(size: TS.small)).foregroundStyle(K.text2)
-                    TextField("Search files and shelves", text: $query).textFieldStyle(.plain).font(.system(size: TS.body))
-                    if !query.isEmpty { Button { query = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(K.text3) }.buttonStyle(.plain).accessibilityLabel("Clear search") }
-                }
-                .padding(.horizontal, 12).frame(height: 32).liquid(Capsule(), tint: nil, fallback: K.fill, interactive: false)
-                Picker("Filter", selection: $filter.animation(Motion.spring(0.3))) {
-                    ForEach(Filter.allCases, id: \.self) { f in
-                        Label(f.rawValue, systemImage: f.icon).labelStyle(.iconOnly).help(f.rawValue).tag(f)
+                    HStack(spacing: 8) {
+                        Image(systemName: "magnifyingglass").font(.system(size: TS.small)).foregroundStyle(K.text2)
+                        TextField("Search files and shelves", text: $query).textFieldStyle(.plain).font(.system(size: TS.body))
+                        if !query.isEmpty { Button { query = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(K.text3) }.buttonStyle(.plain).accessibilityLabel("Clear search") }
                     }
+                    .padding(.horizontal, 12).frame(height: 32).liquid(Capsule(), tint: nil, fallback: K.fill, interactive: false)
+                    filterMenu
                 }
-                .pickerStyle(.segmented).labelsHidden().controlSize(.large)
-                .accessibilityLabel("Filter activity")
-                HStack {
-                    Text(filter.rawValue).font(.system(size: TS.small, weight: .medium)).foregroundStyle(K.text2)
-                    if filter == .needs, !m.needs.isEmpty { Text("\(m.needs.count)").font(.system(size: TS.small)).foregroundStyle(K.text3) }
+                if filter != .all {
+                    HStack(spacing: 6) {
+                        Text("Filtered by \(filter.rawValue)").font(.system(size: TS.small)).foregroundStyle(K.text2)
+                        Button { withAnimation(Motion.spring(0.3)) { filter = .all } } label: { Image(systemName: "xmark.circle.fill").font(.system(size: TS.small)).foregroundStyle(K.text3) }
+                            .buttonStyle(.plain).help("Show all activity").accessibilityLabel("Clear filter")
+                    }
+                    .padding(.horizontal, 4)
                 }
-                .padding(.horizontal, 4)
                 LazyVStack(alignment: .leading, spacing: 4) {
                     let groups = group(list)
                     ForEach(groups, id: \.0) { g in
@@ -186,6 +187,25 @@ struct ActivityPage: View {
             .padding(.top, 8).padding(.horizontal, 12)
         }
         .softTopEdge()
+    }
+
+    /// A glass circle with the filter symbol (filled and tinted while a filter is on); opens a menu with a check on the current one.
+    var filterMenu: some View {
+        Menu {
+            Picker("Filter", selection: $filter) {
+                ForEach(Filter.allCases, id: \.self) { f in
+                    Label(f == .needs && !m.needs.isEmpty ? "\(f.rawValue) (\(m.needs.count))" : f.rawValue, systemImage: f.icon).tag(f)
+                }
+            }
+            .pickerStyle(.inline)
+        } label: {
+            Image(systemName: filter == .all ? "line.3.horizontal.decrease" : "line.3.horizontal.decrease.circle.fill")
+                .font(.system(size: TS.body, weight: .medium)).foregroundStyle(filter == .all ? K.text2 : Tint.accent.fg)
+                .frame(width: 32, height: 32).contentShape(Circle())
+                .liquid(Circle(), tint: filter == .all ? nil : Tint.accent.bg, fallback: filter == .all ? K.fill : Tint.accent.bg)
+        }
+        .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden).fixedSize()
+        .help("Filter activity").accessibilityLabel("Filter activity")
     }
 
     func group(_ list: [Entry]) -> [(String, [Entry])] {
