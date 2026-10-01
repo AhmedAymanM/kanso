@@ -317,11 +317,16 @@ struct EntryDetail: View {
             }
             .softTopEdge()
             .defaultScrollAnchor(ProcessInfo.processInfo.environment["KANSO_SCROLL"] == "bottom" ? .bottom : .top)   // screenshots of the scrolled state
-            // The actions float on a glass bar, so the content scrolls beneath them.
-            glassGroup { actionBar.padding(.horizontal, 14).padding(.vertical, 10).frame(maxWidth: .infinity, alignment: .leading)
-                .liquid(RoundedRectangle(cornerRadius: 22, style: .continuous), tint: nil, fallback: K.card, interactive: false)
-                .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(K.separator, lineWidth: 0.75)) }
-                .padding(.horizontal, 20).padding(.bottom, 14).padding(.top, 4)
+        }
+        // The actions float on a glass bar. The scroll view insets for it and, on macOS 26, extends its edge effect beneath it.
+        .floatingBar {
+            glassGroup {
+                actionBar.padding(.horizontal, 14).padding(.vertical, 10).frame(maxWidth: .infinity, alignment: .leading)
+                    .onGlass()   // the buttons inside draw solid: no glass on glass
+                    .liquid(RoundedRectangle(cornerRadius: 22, style: .continuous), tint: nil, fallback: K.card, interactive: false)
+                    .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(K.separator, lineWidth: 0.75))
+            }
+            .padding(.horizontal, 20).padding(.bottom, 14).padding(.top, 4)
         }
     }
 
@@ -693,5 +698,13 @@ struct KeyCatcher: NSViewRepresentable {
             }
         }
         deinit { if let monitor { NSEvent.removeMonitor(monitor) } }
+    }
+}
+
+
+extension View {
+    /// A bar pinned to the bottom edge: `safeAreaBar` on macOS 26 (adds the scroll edge effect), `safeAreaInset` before.
+    @ViewBuilder func floatingBar<B: View>(@ViewBuilder _ bar: () -> B) -> some View {
+        if #available(macOS 26, *) { safeAreaBar(edge: .bottom) { bar() } } else { safeAreaInset(edge: .bottom) { bar() } }
     }
 }
