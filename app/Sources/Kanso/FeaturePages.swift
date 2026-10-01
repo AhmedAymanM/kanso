@@ -8,6 +8,7 @@ import SwiftUI
 struct Showcase: View {
     var tint: Tint
     var icon: String
+    var art: Illustration.Kind? = nil
     var headline: String
     var demo: String
     @State private var shown = Int.max
@@ -17,8 +18,8 @@ struct Showcase: View {
 
     var body: some View {
         HStack(spacing: 28) {
-            Image(systemName: icon).font(.system(size: TS.hero, weight: .light)).foregroundStyle(tint.fg).frame(width: 64)
-                .symbolEffect(.bounce, value: playing)
+            if let art { Illustration(kind: art, tint: tint) }
+            else { Image(systemName: icon).font(.system(size: TS.hero, weight: .light)).foregroundStyle(tint.fg).frame(width: 64).symbolEffect(.bounce, value: playing) }
             VStack(alignment: .leading, spacing: 10) {
                 Text(headline).font(.system(size: TS.headline, weight: .regular, design: .serif)).tracking(-0.4).foregroundStyle(tint.fg)
                 HStack(spacing: 6) {
@@ -193,7 +194,7 @@ struct SortingPage: View {
     var on: Bool { m.sortingOn }
 
     var body: some View {
-        Showcase(tint: .accent, icon: "square.3.layers.3d", headline: "Every new file lands on the right shelf", demo: "Downloads → ✨ My Shelves → 📄 Documents").gated_showcase(on)
+        Showcase(tint: .accent, icon: "square.3.layers.3d", art: .sorting, headline: "Every new file lands on the right shelf", demo: "Downloads → ✨ My Shelves → 📄 Documents").gated_showcase(on)
         FeatureCard(icon: "square.3.layers.3d", title: "Sorting", desc: "Files new downloads and clutter onto shelves in ✨ My Shelves.", reads: false, on: sortingBinding)
         Group {
             PageSection(title: "Watched folders", subtitle: "Kanso sorts new files in these folders.", action: ("Add folder…", { m.addFolders() })) { folders }
@@ -336,7 +337,7 @@ struct RenamingPage: View {
     static let partNames = ["kind": "Kind", "organization": "Organization", "date": "Date"]
 
     var body: some View {
-        Showcase(tint: .rename, icon: "pencil", headline: "Meaningless names become clear ones", demo: "Scan_0012.pdf → Invoice-Vattenfall-2026-03.pdf").gated_showcase(m.settings.renaming)
+        Showcase(tint: .rename, icon: "pencil", art: .renaming, headline: "Meaningless names become clear ones", demo: "Scan_0012.pdf → Invoice-Vattenfall-2026-03.pdf").gated_showcase(m.settings.renaming)
         FeatureCard(icon: "pencil", title: "Renaming", desc: "Gives meaningless names (Scan_0012, IMG_1615) clear ones.", reads: true, on: m.binding(\.renaming))
         Group {
             PageSection(title: "Name format", subtitle: "Drag to reorder. Kanso fills each part from the file.") {
@@ -441,7 +442,7 @@ struct DuplicatesPage: View {
     @State private var held: (files: Int, parts: [(String, Int64)]) = (0, [])
 
     var body: some View {
-        Showcase(tint: .duplicate, icon: "doc.on.doc", headline: "Extra copies wait, never vanish", demo: "invoice (1).pdf → 🪞 Duplicates").gated_showcase(m.settings.duplicates)
+        Showcase(tint: .duplicate, icon: "doc.on.doc", art: .duplicates, headline: "Extra copies wait, never vanish", demo: "invoice (1).pdf → 🪞 Duplicates").gated_showcase(m.settings.duplicates)
         FeatureCard(icon: "doc.on.doc", title: "Duplicates", desc: "Holds extra copies of new downloads on the 🪞 Duplicates shelf.", reads: false, on: m.binding(\.duplicates))
         Group {
             PageSection(title: "Where extra copies go") {
@@ -546,7 +547,7 @@ struct TaggingPage: View {
     var total: Int { m.actions.filter { !$0.undone && !$0.tags.isEmpty }.count }
 
     var body: some View {
-        Showcase(tint: .where, icon: "tag", headline: "Files carry what they are as Finder tags", demo: "Scan_0012.pdf → Invoice, Vattenfall").gated_showcase(m.settings.tagging)
+        Showcase(tint: .where, icon: "tag", art: .tagging, headline: "Files carry what they are as Finder tags", demo: "Scan_0012.pdf → Invoice, Vattenfall").gated_showcase(m.settings.tagging)
         FeatureCard(icon: "tag", title: "Tagging", desc: "Adds Finder tags like Invoice and the company name.", reads: true, on: m.binding(\.tagging))
         Group {
             PageSection(title: "What gets tagged") {
@@ -592,7 +593,7 @@ struct SmartEjectPage: View {
     var ejected: [Action] { m.actions.filter { !$0.undone && $0.kind == .trashed && $0.details["installer"] != nil } }
 
     var body: some View {
-        Showcase(tint: .accent, icon: "eject", headline: "Installed? The installer cleans up after itself", demo: "Figma.dmg → ⏏ ejected → 🗑️ Trash").gated_showcase(m.settings.smartEject)
+        Showcase(tint: .accent, icon: "eject", art: .eject, headline: "Installed? The installer cleans up after itself", demo: "Figma.dmg → ⏏ ejected → 🗑️ Trash").gated_showcase(m.settings.smartEject)
         FeatureCard(icon: "eject", title: "Smart Eject", desc: "After an app is installed, ejects its disk image and moves the installer to the Trash.", reads: false, on: m.binding(\.smartEject))
         Group {
             PageSection(title: "How it decides", subtitle: "Only when all three are true. Otherwise the installer stays where it is.") {
