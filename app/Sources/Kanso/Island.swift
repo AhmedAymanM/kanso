@@ -403,6 +403,7 @@ final class Island: ObservableObject {
     /// A one-line confirmation replaces the head for 3 s; the next card slides in.
     func confirm(_ text: String, undo: UUID?) {
         handled += 1
+        announce(text)
         withAnimation(Motion.spring()) { confirmation = (text, undo) }
         selection = 0
         DispatchQueue.main.asyncAfter(deadline: .now() + 3) { withAnimation(Motion.spring()) { self.confirmation = nil } }
