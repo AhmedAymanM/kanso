@@ -5,7 +5,7 @@ import SwiftUI
 /// effect under it are Liquid Glass on macOS 26. Content stays solid.
 struct AppWindow: View {
     @State private var columns = NavigationSplitViewVisibility.all   // always .all: there is no toggle
-    static let size = CGSize(width: 1170, height: 858)   // 30% larger than the first 900 × 660
+    static let size = CGSize(width: 1170, height: 772)   // 30% wider than the first 900 × 660, 17% taller
     @EnvironmentObject var m: AppModel
 
     var body: some View {
