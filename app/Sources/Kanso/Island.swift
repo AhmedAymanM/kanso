@@ -126,6 +126,7 @@ final class Island: ObservableObject {
     @Published var expanded = false
     @Published var overview = false
     @Published var selection = 0
+    @Published var card = 0            // overview: which needs-you card is showing (one at a time)
     @Published var askText = ""
     @Published var askState = AskState.idle
     @Published var askFocus = false
@@ -242,6 +243,7 @@ final class Island: ObservableObject {
             self.shortcuts = false
             self.fanned = false
             self.index = 0
+            self.card = 0
         }
         if wasNeeds && !overview {   // ignored needs-you notices wait in the overview; the menu bar gets a dot
             AppModel.shared.collected += 1
@@ -367,6 +369,7 @@ final class Island: ObservableObject {
             if case .renamed(let a)? = current { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(a.name, forType: .string); return true }
             return false
         case kVK_Return, kVK_ANSI_KeypadEnter:
+            if cmd { run(key: "⌘↩", acts); return true }
             if askState.isProposal { confirmAsk(trash: false); return true }
             if stacked { withAnimation(Motion.spring()) { fanned = true }; return true }
             if acts.indices.contains(selection), acts[selection].key != "⌘⌫" { acts[selection].run() }   // Return never trashes
@@ -393,7 +396,15 @@ final class Island: ObservableObject {
 
     private func run(key: String, _ acts: [IslandAction]) { acts.first { $0.key == key }?.run() }
 
+    func stepCard(_ d: Int) {
+        let n = AppModel.shared.needs.count
+        guard n > 1 else { return }
+        withAnimation(Motion.spring()) { card = (min(card, n - 1) + d + n) % n }
+        selection = 0
+    }
+
     private func step(_ d: Int) {
+        if overview { stepCard(d); return }
         guard notices.count > 1 else { return }
         index = (index + d + notices.count) % notices.count   // keyboard repeats don't animate
         selection = 0
@@ -420,15 +431,20 @@ final class Island: ObservableObject {
     func actions() -> [IslandAction] {
         let m = AppModel.shared
         if overview {
-            let needs = m.needs.prefix(3).map { n -> IslandAction in
-                switch n {
-                case .duplicate(let a): return IslandAction(label: "Move copy to Trash", key: "⌘⌫", icon: "trash") { m.trash(a.id) }
-                case .renames: return IslandAction(label: "Review…", key: "↩") { self.hide(); Windows.shared.showReview(tab: .renames) }
-                case .rule(let r): return IslandAction(label: "Create rule", key: "↩") { m.acceptSuggestion(r.id) }
+            var needs: [IslandAction] = []
+            if !m.needs.isEmpty {
+                let later = IslandAction(label: "Later", key: "", icon: "arrow.right") { self.stepCard(1) }
+                switch m.needs[min(card, m.needs.count - 1)] {
+                case .duplicate(let a):
+                    needs = [IslandAction(label: "Move copy to Trash", key: "⌘⌫", icon: "trash") { m.trash(a.id) },
+                             IslandAction(label: "Keep both", key: "", icon: "doc.on.doc") { m.keepBoth(a.id) }, later]
+                case .renames(let p, _): needs = [IslandAction(label: "Review names", key: "↩", icon: "checklist") { self.hide(); Windows.shared.showReview(tab: .renames) },
+                                                  IslandAction(label: "Rename all", key: "⌘↩", icon: "wand.and.sparkles") { m.applyRenames(p) }, later]
+                case .rule(let r): needs = [IslandAction(label: "Create rule", key: "↩", icon: "wand.and.stars") { m.acceptSuggestion(r.id) }, later]
                 }
             }
             let recent = m.done.prefix(3).map { a in IslandAction(label: "Show \(a.name)", key: "↩") { m.reveal(a.dst) } }
-            return Array(needs) + Array(recent)
+            return needs + Array(recent)
         }
         guard let n = current else { return [] }
         let done: () -> Void = { self.remove(n) }

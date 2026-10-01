@@ -173,15 +173,8 @@ struct IslandLip: View {
         HStack(spacing: 10) {
             Text(hints).font(.system(size: TS.meta)).foregroundStyle(Color.white.opacity(0.5)).lineLimit(1)
             Spacer()
-            if island.overview && (!m.needs.isEmpty || !m.done.isEmpty) {
-                IslandGlassButton(symbol: "gearshape", label: "Settings") { island.hide(); Windows.shared.showSettings() }.keyboardShortcut(",")
-            } else if island.overview {
-                IslandGlassButton(symbol: "macwindow", label: "Open Kanso") { island.hide(); Windows.shared.showMain() }
-                IslandGlassButton(symbol: "gearshape", label: "Settings") { island.hide(); Windows.shared.showSettings() }.keyboardShortcut(",")
-            } else {
-                IslandGlassButton(symbol: "keyboard", label: "Keyboard shortcuts") { withAnimation(Motion.spring()) { island.shortcuts.toggle() } }.keyboardShortcut("/")
-                IslandGlassButton(symbol: "gearshape", label: "Settings") { island.hide(); Windows.shared.showSettings() }.keyboardShortcut(",")
-            }
+            IslandGlassButton(symbol: "keyboard", label: "Keyboard shortcuts") { withAnimation(Motion.spring()) { island.shortcuts.toggle() } }.keyboardShortcut("/")
+            IslandGlassButton(symbol: "gearshape", label: "Settings") { island.hide(); Windows.shared.showSettings() }.keyboardShortcut(",")
         }
         .padding(.horizontal, 20)
     }
@@ -191,6 +184,7 @@ struct IslandLip: View {
         if island.shortcuts { return "esc back" }
         var parts: [String] = []
         let rows = island.overview ? min(m.needs.count, 3) + min(m.done.count, 3) : (island.fanned || island.stacked ? 0 : island.notices.count)
+        if island.overview && m.needs.count > 1 { parts.append("← → cycle cards") }
         if rows > 1 { parts.append("↑ ↓ select") }
         if island.stacked || (island.fanned && island.notices.count > 1) { parts.append("← → other files") }
         parts.append("esc to close")
@@ -353,6 +347,7 @@ struct Breadcrumb: View {
     var ancestors: [String]
     var current: String
     var emoji: String
+    var leading = false
     var body: some View {
         HStack(spacing: 4) {
             ForEach(Array(ancestors.enumerated()), id: \.offset) { _, a in
@@ -361,7 +356,7 @@ struct Breadcrumb: View {
             }
             Text("\(emoji) \(current)").font(.system(size: TS.meta)).foregroundStyle(Color.white.opacity(0.85)).lineLimit(1).fixedSize()
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, alignment: leading ? .leading : .center)
     }
 }
 
@@ -627,60 +622,57 @@ struct OverviewBody: View {
     @EnvironmentObject var m: AppModel
 
     var body: some View {
-        let needs = Array(m.needs.prefix(m.needs.count > 3 ? 3 : 3))
         let recent = Array(m.done.prefix(3))
+        let cardActs = island.actions().count - recent.count
         VStack(alignment: .leading, spacing: 8) {
-            if needs.isEmpty && recent.isEmpty {
-                HStack(spacing: 10) {
-                    Image(systemName: "checkmark").font(.system(size: TS.meta, weight: .bold)).foregroundStyle(Tint.accent.islandGlyph).frame(width: 22, height: 22).background(Circle().fill(Tint.accent.islandFill))
-                    Text("All quiet · \(Stats.month(m.actions).sorted) files kept in order this month").font(.system(size: TS.body)).foregroundStyle(IslandInk.text)
+            if m.needs.isEmpty && recent.isEmpty {
+                VStack(spacing: 4) {
+                    if let art = AllQuietArt.image { Image(nsImage: art).resizable().aspectRatio(contentMode: .fit).frame(width: 240, height: 130).accessibilityHidden(true) }
+                    Text("All quiet").font(.system(size: TS.heading, weight: .semibold)).foregroundStyle(IslandInk.text)
+                    Text("\(Stats.month(m.actions).sorted) files kept in order this month").font(.system(size: TS.body)).foregroundStyle(IslandInk.text3)
                 }
-                .padding(.vertical, 4)
+                .frame(maxWidth: .infinity)
+                .accessibilityElement(children: .combine)
                 .stagger(0)
             }
-            if !needs.isEmpty {
-                eyebrow("Needs you · \(m.needs.count)").stagger(0)
-                ForEach(Array(needs.enumerated()), id: \.element.id) { i, n in needRow(n, i).stagger(1 + i) }
-                if m.needs.count > 3 {
-                    Button("+ \(m.needs.count - 3) more · Activity") { island.hide(); Windows.shared.showMain(.activity) }.buttonStyle(.plain).font(.system(size: TS.meta)).foregroundStyle(IslandInk.text2)
+            if !m.needs.isEmpty {
+                let i = min(island.card, m.needs.count - 1)
+                HStack(spacing: 8) {
+                    Text("Needs you").font(.system(size: TS.emphasis, weight: .semibold)).foregroundStyle(IslandInk.text)
+                    Text("\(i + 1) of \(m.needs.count)").font(.system(size: TS.small)).foregroundStyle(IslandInk.text3).contentTransition(.numericText())
+                    Spacer()
+                    if m.needs.count > 1 {
+                        HStack(spacing: 4) {
+                            ForEach(0..<min(m.needs.count, 6), id: \.self) { d in
+                                Capsule().fill(Color.white.opacity(d == i ? 0.9 : 0.3)).frame(width: d == i ? 18 : 6, height: 6)
+                            }
+                        }
+                        .accessibilityHidden(true)
+                    }
                 }
+                .padding(.horizontal, 4).stagger(0)
+                NeedCard(need: m.needs[i], actions: Array(island.actions().prefix(cardActs)))
+                    .id(m.needs[i].id).transition(Motion.reduced ? .opacity : .opacity.combined(with: .offset(x: 24)))
+                    .background(alignment: .bottom) {   // the next card peeks out underneath
+                        if m.needs.count > 1 { RoundedRectangle(cornerRadius: 20, style: .continuous).fill(Color(nsColor: NSColor(hex: 0x161618))).padding(.horizontal, 14).offset(y: 6) }
+                    }
+                    .padding(.bottom, m.needs.count > 1 ? 6 : 0)
+                    .stagger(1)
             }
             if !recent.isEmpty {
-                eyebrow("Recently").padding(.top, 4).stagger(1 + needs.count)
-                ForEach(Array(recent.enumerated()), id: \.element.id) { i, a in recentRow(a, needs.count + i).stagger(2 + needs.count + i) }
+                HStack {
+                    eyebrow("Recently")
+                    Spacer()
+                    Button { island.hide(); Windows.shared.showMain(.activity) } label: { Text("All activity ›").font(.system(size: TS.small)).foregroundStyle(IslandInk.text2) }.buttonStyle(.plain)
+                }
+                .padding(.top, 4).stagger(2)
+                ForEach(Array(recent.enumerated()), id: \.element.id) { i, a in recentRow(a, cardActs + i).stagger(3 + i) }
             }
         }
+        .animation(Motion.spring(), value: island.card)
     }
 
     func eyebrow(_ t: String) -> some View { Text(t.uppercased()).font(.system(size: TS.meta, weight: .semibold)).kerning(0.5).foregroundStyle(IslandInk.text3).padding(.horizontal, 4) }
-
-    func needRow(_ n: Need, _ i: Int) -> some View {
-        let sel = island.selection == i
-        let act = island.actions().indices.contains(i) ? island.actions()[i] : nil
-        return HStack(spacing: 10) {
-            Image(systemName: n.icon).font(.system(size: TS.small)).foregroundStyle(n.tint.islandGlyph).frame(width: 26, height: 26).background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(n.tint.islandFill))
-            Text(title(n)).font(.system(size: TS.body, weight: .medium)).foregroundStyle(n.tint.fg).lineLimit(1).truncationMode(.middle).help(title(n))
-            Spacer(minLength: 8)
-            if let act {
-                Button(action: act.run) {
-                    HStack(spacing: 5) {
-                        if act.key != "↩" { Text(act.key).font(.system(size: TS.meta)).foregroundStyle(Color.white.opacity(0.5)) }
-                        Text(act.label).font(.system(size: TS.small, weight: .medium)).foregroundStyle(Color.white.opacity(0.85))
-                        if act.key == "↩" { Image(systemName: "return").font(.system(size: TS.micro)).foregroundStyle(Color.white.opacity(0.5)) }
-                    }
-                    .padding(.horizontal, 10).frame(height: 24).background(Capsule().fill(Color.white.opacity(0.1))).overlay(Capsule().strokeBorder(Color.white.opacity(0.14), lineWidth: 0.75))
-                }
-                .buttonStyle(PressStyle())
-                .accessibilityLabel(act.label)
-            }
-        }
-        .padding(.horizontal, 10).frame(height: 40)
-        .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(Color(nsColor: NSColor(hex: 0x1C1C1E))))
-        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(sel ? Color.white.opacity(0.9) : Color.white.opacity(0.12), lineWidth: sel ? 2 : 1))
-        .contentShape(Rectangle()).onTapGesture { island.selection = i }
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel(title(n))
-    }
 
     func recentRow(_ a: Action, _ row: Int) -> some View {
         let sel = island.selection == row
@@ -699,13 +691,92 @@ struct OverviewBody: View {
         .accessibilityAction { island.selection = row }
         .accessibilityAction(named: "Undo") { m.undo([a.id]) }
     }
+}
 
-    func title(_ n: Need) -> String {
-        switch n {
-        case .duplicate(let a): return "Copy of \(((a.details["kept"] ?? a.name) as NSString).lastPathComponent) held"
+/// One needs-you item: preview with a hover eye, kind, name, why, where, and its own actions.
+struct NeedCard: View {
+    @EnvironmentObject var island: Island
+    @EnvironmentObject var m: AppModel
+    var need: Need
+    var actions: [IslandAction]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+        HStack(alignment: .top, spacing: 16) {
+            preview.frame(width: 90, height: 112)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 8) {
+                    Image(systemName: need.icon).font(.system(size: TS.small)).foregroundStyle(need.tint.islandGlyph).frame(width: 24, height: 24)
+                        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(need.tint.islandFill))
+                    Text(kind).font(.system(size: TS.small)).foregroundStyle(IslandInk.text2)
+                }
+                if let path { NameUnitLeading(name: title, path: path) } else { Text(title).font(.system(size: TS.heading, weight: .bold)).foregroundStyle(IslandInk.text) }
+                Text(why).font(.system(size: TS.small)).foregroundStyle(IslandInk.text3).lineLimit(2)
+                if let a = action { Breadcrumb(ancestors: [(a.root as NSString).lastPathComponent], current: a.shelf, emoji: m.settings.emoji(for: a.shelf), leading: true) }
+            }
+        }
+        HStack(spacing: 8) {
+            ForEach(Array(actions.enumerated()), id: \.element.id) { i, a in SubtleAction(action: a, selected: i == island.selection).fixedSize() }
+        }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(Color(nsColor: NSColor(hex: 0x1C1C1E))))
+        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(Color.white.opacity(0.12), lineWidth: 1))
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("\(kind): \(title)")
+    }
+
+    var action: Action? { if case .duplicate(let a) = need { return a }; return nil }
+    var path: String? {
+        switch need {
+        case .duplicate(let a): return a.dst
+        case .renames(let p, _): return p.first?.path
+        case .rule: return nil
+        }
+    }
+    var kind: String {
+        switch need {
+        case .duplicate(let a): return "Duplicate held · \((Int64(a.details["size"] ?? "") ?? 0).bytes)"
+        case .renames: return "Rename suggestions"
+        case .rule: return "Rule suggestion"
+        }
+    }
+    var title: String {
+        switch need {
+        case .duplicate(let a): return a.name
         case .renames(let p, _): return "\(p.count) files can be renamed"
         case .rule(let r): return "You moved \(r.files.count) files to \(r.shelf)"
         }
+    }
+    var why: String {
+        switch need {
+        case .duplicate(let a): return "Same bytes as \(((a.details["kept"] ?? a.name) as NSString).lastPathComponent)"
+        case .renames: return "Names from contents, page 1. You review every name first."
+        case .rule: return "Make it automatic from now on?"
+        }
+    }
+
+    @ViewBuilder var preview: some View {
+        switch need {
+        case .duplicate(let a): PreviewTile(path: a.dst, size: CGSize(width: 86, height: 112))
+        case .renames(let p, _): PreviewTile(path: p.first?.path ?? "", size: CGSize(width: 86, height: 112), eye: false)
+        case .rule: Image(systemName: need.icon).font(.system(size: TS.display)).foregroundStyle(need.tint.islandGlyph).frame(width: 86, height: 86).background(Circle().fill(need.tint.islandFill))
+        }
+    }
+}
+
+/// Left-aligned name with a hover-only reveal glyph (the card's version of `NameUnit`).
+struct NameUnitLeading: View {
+    var name: String, path: String
+    @State private var hover = false
+    var body: some View {
+        HStack(spacing: 6) {
+            Text(name).font(.system(size: TS.heading, weight: .bold)).foregroundStyle(IslandInk.text).lineLimit(1).truncationMode(.middle).help(name)
+            Button { AppModel.shared.reveal(path) } label: { Image(systemName: "arrow.up.right").font(.system(size: TS.small)).foregroundStyle(Color.white.opacity(0.45)) }
+                .buttonStyle(.plain).opacity(hover ? 1 : 0).help("Show in Finder (⌘R)").accessibilityLabel("Show in Finder")
+        }
+        .onHover { hover = $0 }
     }
 }
 
