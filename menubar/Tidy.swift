@@ -1,4 +1,4 @@
-// Menu bar front end for tidy. All logic lives in the `tidy` CLI; this only calls it.
+// Menu bar front end for Kanso. All logic lives in the `kanso` CLI; this only calls it.
 // Build: ./build.sh
 
 import AppKit
@@ -47,11 +47,11 @@ final class Model: ObservableObject {
     @Published var status = Status()
     @Published var busy = false
     @Published var message = ""
-    private let cli = Bundle.main.object(forInfoDictionaryKey: "TidyCLI") as? String ?? "tidy"
+    private let cli = Bundle.main.object(forInfoDictionaryKey: "TidyCLI") as? String ?? "kanso"
 
     init() { Task { await refresh() } }
 
-    /// Runs `tidy <args>` off the main thread; returns (exit code, stdout).
+    /// Runs `kanso <args>` off the main thread; returns (exit code, stdout).
     private func tidy(_ args: [String]) async -> (Int32, String) {
         let cli = self.cli
         return await Task.detached {
@@ -74,7 +74,7 @@ final class Model: ObservableObject {
             status = s
             UserDefaults.standard.set(s.keep_tag, forKey: "keepTag")  // the Finder service may run before any refresh
         } else {
-            message = "tidy CLI failed: \(out.suffix(200))"
+            message = "kanso CLI failed: \(out.suffix(200))"
         }
     }
 

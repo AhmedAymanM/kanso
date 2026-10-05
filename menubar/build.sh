@@ -1,8 +1,8 @@
 #!/bin/bash
-# Builds menubar/build/Tidy.app, wired to this checkout's `tidy` CLI.
+# Builds menubar/build/Tidy.app, wired to this checkout's `kanso` CLI.
 set -euo pipefail
 cd "$(dirname "$0")"
-CLI="$(cd .. && pwd)/.venv/bin/tidy"
+CLI="$(cd .. && pwd)/.venv/bin/kanso"
 [ -x "$CLI" ] || (cd .. && uv sync)
 
 APP=build/Tidy.app

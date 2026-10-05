@@ -18,8 +18,8 @@ import tomllib
 from datetime import datetime
 from pathlib import Path
 
-from tidy import sorter
-from tidy.brain import Brain, state_for
+from kanso import sorter
+from kanso.brain import Brain, state_for
 
 LABELS = Path(__file__).with_name("bench_labels.json")
 
