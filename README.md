@@ -27,18 +27,33 @@ Keeps `~/Downloads`, `~/Desktop` and `~/Documents` sorted without you thinking a
 
 ## Kanso app
 
-<p align="center"><img src="docs/assets/overview.png" width="720" alt="Overview"></p>
-<p align="center"><img src="docs/assets/sorting.png" width="720" alt="Sorting"></p>
-<p align="center">
-  <img src="docs/assets/island-processing.png" width="300" alt="The island reading a file">
-  <img src="docs/assets/island-renamed.png" width="300" alt="The island after a rename">
-</p>
-<p align="center">
-  <img src="docs/assets/island-recent.png" width="300" alt="The island's recent activity">
-  <img src="docs/assets/quick-settings.png" width="220" alt="Quick settings">
-</p>
+### The app
 
-(Screenshots use mock data.)
+<table>
+<tr>
+<td width="50%"><img src="docs/assets/overview.png" alt="Overview"><br><b>Overview</b><br>What was sorted, what needs you, where files went.</td>
+<td width="50%"><img src="docs/assets/sorting.png" alt="Sorting"><br><b>Sorting</b><br>Watched folders, Recents and how long to wait.</td>
+</tr>
+</table>
+
+### The island
+
+A small panel at the top of the screen that shows what Kanso is doing and lets you undo it.
+
+<table>
+<tr>
+<td width="33%" valign="top"><img src="docs/assets/island-processing.png" alt="The island reading a file"><br><b>Working</b><br>Reading a file to name it.</td>
+<td width="33%" valign="top"><img src="docs/assets/island-renamed.png" alt="The island after a rename"><br><b>Renamed</b><br>The new name, tags and Undo.</td>
+<td width="33%" valign="top"><img src="docs/assets/island-recent.png" alt="The island's recent activity"><br><b>Recent</b><br>The latest actions, one key away (⌥⌘K).</td>
+</tr>
+</table>
+
+### Quick settings
+
+<img src="docs/assets/quick-settings.png" width="260" alt="Quick settings"><br>
+Turn Sorting, Renaming, Tagging, Duplicates and Smart Eject on or off from the menu bar.
+
+<sub>Screenshots use mock data.</sub>
 
 ## Install
 
