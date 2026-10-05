@@ -270,8 +270,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if ProcessInfo.processInfo.environment["KANSO_BACKDROP"] != nil { Self.backdrop() }
             if let n = ProcessInfo.processInfo.environment["KANSO_NOTICE"] {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-                    if n == "reading" { Island.shared.show(.reading("Scan_0044.pdf")) }
-                    else if let r = m.actions.last(where: { $0.kind == .renamed }) { Island.shared.show(.renamed(r)) }
+                    switch n {
+                    case "reading": Island.shared.show(.reading("Scan_0044.pdf"))
+                    case "sortingoff": Island.shared.show(.sortingOff(Date().addingTimeInterval(-90000)))
+                    case "installer":
+                        var a = Action(run: "x", kind: .trashed, src: "/Downloads/My Shelves/Apps/Figma.dmg", dst: "/.Trash/Figma.dmg", root: "/Downloads", shelf: "Trash", why: "installer", source: "Smart Eject")
+                        a.details = ["installer": "Figma", "size": "210000000"]
+                        Island.shared.show(.installer(a))
+                    case "duplicate": if let a = m.actions.last(where: { $0.kind == .duplicate && $0.pending }) { Island.shared.show(.duplicate(a)) }
+                    default: if let r = m.actions.last(where: { $0.kind == .renamed }) { Island.shared.show(.renamed(r)) }
+                    }
                 }
             }
             if !m.settings.onboarded { Windows.shared.showOnboarding() }
@@ -279,6 +287,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 let args = ProcessInfo.processInfo.arguments
                 let page = args.firstIndex(of: "--page").flatMap { i in args.indices.contains(i + 1) ? Page.allCases.first { $0.rawValue.lowercased().hasPrefix(args[i + 1].lowercased()) } : nil }
                 Windows.shared.showMain(page)
+            }
+            if let k = ProcessInfo.processInfo.environment["KANSO_ACTIVITY"] {   // open Activity on one entry (a rule or action kind), for README shots
+                m.page = .activity
+                m.selectedActivity = m.actions.last { $0.kind.rawValue == k && ($0.pending || k != "duplicate") }?.id.uuidString
             }
             if ProcessInfo.processInfo.arguments.contains("--popover") { DispatchQueue.main.asyncAfter(deadline: .now() + 1) { StatusItem.shared.show() } }
             // KANSO_CAPTURE=file.png[:height] grabs the top of the screen (our own windows, glass included) after 3 s and quits; for README shots.

@@ -12,10 +12,7 @@ Keeps `~/Downloads`, `~/Desktop` and `~/Documents` sorted without you thinking a
 
 ```text
 ~/Downloads/
-  My Shelves/     📄 Documents  📊 Reports  📽️ Presentations  📚 Ebooks  🖼️ Images  📸 Screenshots
-                  🎬 Videos  🎵 Audio  🎨 Design  💻 Code  ⚙️ Automations  🗄️ Databases  📐 Diagrams  🧾 JSON
-                  📦 Archives  📲 Apps  🧊 3D Models  🔑 Keys  📅 Calendars  👤 Contacts  🧲 Torrents
-                  🔤 Fonts  ❓ Unsorted  (+ types Apple Intelligence created)
+  My Shelves/     📄 Documents  📊 Reports  🖼️ Images  🎬 Videos  💻 Code  📦 Archives  …
   Manual Shelves/ yours, never touched
   Recents/        symlinks to what was sorted in the last `recent_days`
 ```
@@ -25,35 +22,47 @@ Keeps `~/Downloads`, `~/Desktop` and `~/Documents` sorted without you thinking a
 - `"hold"`: the file itself waits in Recents for `recent_days`, then gets sorted.
 - `"off"`: no Recents at all.
 
-## Kanso app
+## Features
+
+- **Sorting by type.** New files in your watched folders land on a shelf in `My Shelves`, decided by extension. Unknown types go to Apple Intelligence, which picks a shelf or creates one. Only the top level is sorted.
+- **Recents.** Symlinks to what was just sorted, so a new download is never lost.
+- **Renaming.** Meaningless names (`Scan_0044.pdf`) become `Invoice-Vattenfall-2026-09.pdf`, read on this Mac from the first page. Large batches wait for your review, and the old name stays searchable.
+- **Tagging.** Adds Finder tags for the kind of document and the organization.
+- **Duplicates.** Finds copies by size and hash, keeps one, and holds the rest on a shelf or moves them to the Trash.
+- **Smart Eject.** Ejects a mounted `.dmg` and trashes it once the app is installed.
+- **The island.** A small panel at the top of the screen, opened with ⌥⌘K, that shows what Kanso did, what needs you, and an ask field answered on device.
+- **Activity.** Every action is listed with how Kanso decided, and every action can be undone.
+- **Your own rules.** Match by name, extension or download source and send files to the shelf you want. Kanso learns from your corrections.
+- **Private.** File contents are read only on your Mac, a little, and kept nowhere. Keys, vaults and Manual Shelves are never read.
+
+## Screenshots
 
 ### The app
 
 <table>
 <tr>
-<td width="50%"><img src="docs/assets/overview.png" alt="Overview"><br><b>Overview</b><br>What was sorted, what needs you, where files went.</td>
-<td width="50%"><img src="docs/assets/sorting.png" alt="Sorting"><br><b>Sorting</b><br>Watched folders, Recents and how long to wait.</td>
+<td width="50%" valign="top"><img src="docs/assets/overview.png" alt="Overview"><br><b>Overview</b><br>What was sorted, what needs you, where files went.</td>
+<td width="50%" valign="top"><img src="docs/assets/activity.png" alt="Activity"><br><b>Activity</b><br>Every action, how Kanso decided, and Undo.</td>
+</tr>
+<tr>
+<td width="50%" valign="top"><img src="docs/assets/sorting.png" alt="Sorting"><br><b>Sorting</b><br>Watched folders, Recents and how long to wait.</td>
+<td width="50%" valign="top"><img src="docs/assets/quick-settings.png" width="260" alt="Quick settings"><br><b>Quick settings</b><br>Turn each feature on or off from the menu bar.</td>
 </tr>
 </table>
 
 ### The island
 
-A small panel at the top of the screen that shows what Kanso is doing and lets you undo it.
-
 <table>
 <tr>
-<td width="33%" valign="top"><img src="docs/assets/island-processing.png" alt="The island reading a file"><br><b>Working</b><br>Reading a file to name it.</td>
+<td width="33%" valign="top"><img src="docs/assets/island-compact.png" alt="The compact island in four states"><br><b>Compact</b><br>Working, renamed, duplicate held, installer trashed.</td>
 <td width="33%" valign="top"><img src="docs/assets/island-renamed.png" alt="The island after a rename"><br><b>Renamed</b><br>The new name, tags and Undo.</td>
+<td width="33%" valign="top"><img src="docs/assets/island-needs-you.png" alt="The island asking what to do with a duplicate"><br><b>Needs you</b><br>A duplicate waiting for Move to Trash or Keep both.</td>
+</tr>
+<tr>
 <td width="33%" valign="top"><img src="docs/assets/island-recent.png" alt="The island's recent activity"><br><b>Recent</b><br>The latest actions, one key away (⌥⌘K).</td>
+<td></td><td></td>
 </tr>
 </table>
-
-### Quick settings
-
-<img src="docs/assets/quick-settings.png" width="260" alt="Quick settings"><br>
-Turn Sorting, Renaming, Tagging, Duplicates and Smart Eject on or off from the menu bar.
-
-<sub>Screenshots use mock data.</sub>
 
 ## Install
 
