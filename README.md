@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/assets/icon.png" width="128" alt="Kanso"></p>
+
 # tidy
 
 Keeps `~/Downloads`, `~/Desktop` and `~/Documents` sorted without you thinking about it.
@@ -22,6 +24,21 @@ Keeps `~/Downloads`, `~/Desktop` and `~/Documents` sorted without you thinking a
 - `"links"` (the default): sort now and leave a symlink in Recents.
 - `"hold"`: the file itself waits in Recents for `recent_days`, then gets sorted.
 - `"off"`: no Recents at all.
+
+## Kanso app
+
+<p align="center"><img src="docs/assets/overview.png" width="720" alt="Overview"></p>
+<p align="center"><img src="docs/assets/sorting.png" width="720" alt="Sorting"></p>
+<p align="center">
+  <img src="docs/assets/island-processing.png" width="300" alt="The island reading a file">
+  <img src="docs/assets/island-renamed.png" width="300" alt="The island after a rename">
+</p>
+<p align="center">
+  <img src="docs/assets/island-recent.png" width="300" alt="The island's recent activity">
+  <img src="docs/assets/quick-settings.png" width="220" alt="Quick settings">
+</p>
+
+(Screenshots use mock data.)
 
 ## Install
 

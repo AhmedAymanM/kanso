@@ -267,6 +267,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             m.startSmartEject()
             Island.shared.relayout()
             NSApp.mainMenu = mainMenu()
+            if ProcessInfo.processInfo.environment["KANSO_BACKDROP"] != nil { Self.backdrop() }
+            if let n = ProcessInfo.processInfo.environment["KANSO_NOTICE"] {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                    if n == "reading" { Island.shared.show(.reading("Scan_0044.pdf")) }
+                    else if let r = m.actions.last(where: { $0.kind == .renamed }) { Island.shared.show(.renamed(r)) }
+                }
+            }
             if !m.settings.onboarded { Windows.shared.showOnboarding() }
             else if ProcessInfo.processInfo.arguments.contains("--show") {
                 let args = ProcessInfo.processInfo.arguments
@@ -274,8 +281,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 Windows.shared.showMain(page)
             }
             if ProcessInfo.processInfo.arguments.contains("--popover") { DispatchQueue.main.asyncAfter(deadline: .now() + 1) { StatusItem.shared.show() } }
+            // KANSO_CAPTURE=file.png[:height] grabs the top of the screen (our own windows, glass included) after 3 s and quits; for README shots.
+            if let spec = ProcessInfo.processInfo.environment["KANSO_CAPTURE"] {
+                DispatchQueue.main.asyncAfter(deadline: .now() + (Double(ProcessInfo.processInfo.environment["KANSO_DELAY"] ?? "") ?? 3)) { Self.capture(spec); NSApp.terminate(nil) }
+            }
             if ProcessInfo.processInfo.arguments.contains("--island") { DispatchQueue.main.asyncAfter(deadline: .now() + 1) { Island.shared.toggleShortcut() } }
         }
+    }
+
+    /// KANSO_BACKDROP: an opaque wallpaper-like window behind ours, so README shots never include the desktop.
+    static func backdrop() {
+        guard let screen = NSScreen.main else { return }
+        let w = NSWindow(contentRect: screen.frame, styleMask: [.borderless], backing: .buffered, defer: false)
+        w.isReleasedWhenClosed = false
+        w.ignoresMouseEvents = true
+        if ProcessInfo.processInfo.environment["KANSO_BACKDROP"] == "island" { w.level = .mainMenu }   // also hides the menu bar; the island sits above (statusBar)
+        w.contentView = NSHostingView(rootView: LinearGradient(colors: [Color(nsColor: NSColor(hex: 0xC9D8CF)), Color(nsColor: NSColor(hex: 0xE9E3D6))], startPoint: .top, endPoint: .bottom))
+        w.orderFrontRegardless()
+        backdropWindow = w
+    }
+    nonisolated(unsafe) static var backdropWindow: NSWindow?
+
+    static func capture(_ spec: String) {
+        let parts = spec.split(separator: ":").map(String.init)
+        guard let screen = NSScreen.main else { return }
+        let h = parts.count > 1 ? Double(parts[1]) ?? 400 : 400
+        let rect = CGRect(x: 0, y: 0, width: screen.frame.width, height: h)
+        guard let img = CGWindowListCreateImage(rect, .optionOnScreenOnly, kCGNullWindowID, [.bestResolution]) else { return }
+        try? NSBitmapImageRep(cgImage: img).representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: parts[0]))
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
