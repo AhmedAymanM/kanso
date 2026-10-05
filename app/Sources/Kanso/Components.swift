@@ -336,11 +336,11 @@ struct HBars: View {
 }
 
 enum Links {
-    static let repo = URL(string: "https://github.com/ahmedayman/kanso")!
+    static let repo = URL(string: "https://github.com/AhmedAymanM/kanso")!
     static let coffee = URL(string: "https://buymeacoffee.com/kanso")!
     static func feedback() -> URL {
         let info = "Kanso \(Bundle.main.version) (\(Bundle.main.build)) · macOS \(ProcessInfo.processInfo.operatingSystemVersionString)"
-        var c = URLComponents(string: "https://github.com/ahmedayman/kanso/issues/new")!
+        var c = URLComponents(string: "https://github.com/AhmedAymanM/kanso/issues/new")!
         c.queryItems = [URLQueryItem(name: "title", value: ""), URLQueryItem(name: "body", value: "**What happened?**\n\n\n**What did you expect?**\n\n\n---\n\(info)")]
         return c.url!
     }
