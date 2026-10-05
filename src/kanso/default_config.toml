@@ -1,4 +1,4 @@
-# Kanso config: ~/.config/tidy/config.toml
+# Kanso config: ~/.config/kanso/config.toml
 # Edit freely; the agent reads it on every run.
 
 # Folders Kanso watches. Only their top level is sorted (it never digs into subfolders).
@@ -26,7 +26,7 @@ min_confidence = 0.4
 rule_threshold = 0.7
 # Files are sorted by type (extension), never by guessed content. Models only run for unknown
 # types and folders: Apple Intelligence picks a type or creates a new one (remembered per extension
-# in ~/.config/tidy/learned.json); von picks an existing type. Anything still unclear goes to Unsorted.
+# in ~/.config/kanso/learned.json); von picks an existing type. Anything still unclear goes to Unsorted.
 # Apple Intelligence needs macOS 26+ with it switched on, and Xcode 26+ to install the SDK.
 apple_intelligence = true
 # Also move folders (off: only files and app/document bundles move). Folders with a .git inside never move.
@@ -34,7 +34,7 @@ sort_folders = false
 # Add Finder tags to sorted files.
 tag = true
 # Items carrying this Finder tag are never moved. `kanso undo` adds it to whatever it restores,
-# and Finder's right-click "Don't Sort with Tidy" / "Allow Tidy to Sort" toggle it.
+# and Finder's right-click "Don't Sort with Kanso" / "Allow Kanso to Sort" toggle it.
 keep_tag = "Keep"
 notify = true
 

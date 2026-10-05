@@ -79,7 +79,7 @@ Then open **System Settings → Privacy & Security → Full Disk Access** and ad
 ### Menu bar app
 
 ```bash
-menubar/build.sh    # builds, installs to ~/Applications/Tidy.app and launches it
+menubar/build.sh    # builds, installs to ~/Applications/Kanso.app and launches it
 ```
 
 From the menu bar you can turn auto-sort on or off, add or remove folders to sort, sort new files now, sort everything, undo the last sort, edit rules, and set up folder access. The app only calls the `kanso` CLI in this folder. Sorting happens in the background agent, even when the app is closed.
@@ -89,7 +89,7 @@ From the menu bar you can turn auto-sort on or off, add or remove folders to sor
 | `kanso run [--all] [--dry-run]` | sort now |
 | `kanso undo` | revert the last run and remove its Recents links; restored items get the `Keep` tag, so Kanso leaves them alone |
 | `kanso status` | agent state, and whether Apple Intelligence is in use |
-| `kanso config` | open `~/.config/tidy/config.toml` |
+| `kanso config` | open `~/.config/kanso/config.toml` |
 | `kanso uninstall` | remove the agent (config and journal stay) |
 | `kanso roots DIR...` | set the folders to sort |
 
@@ -120,7 +120,7 @@ from = "github.com"                    # text in the download URL
 dest = "~/Developer/Downloads"
 ```
 
-Types are config too: `[categories.<Type>]` with `emoji`, `description` and `match` (extensions). Models read the descriptions when they classify unknown types. Types created by Apple Intelligence are kept in `~/.config/tidy/learned.json`. You can edit or delete that file to reset them.
+Types are config too: `[categories.<Type>]` with `emoji`, `description` and `match` (extensions). Models read the descriptions when they classify unknown types. Types created by Apple Intelligence are kept in `~/.config/kanso/learned.json`. You can edit or delete that file to reset them.
 
 `[context]` holds the old content-based subfolders (Finance, Work, Personal…). Nothing uses it yet; it's reserved for AI tagging, renaming and context-aware sorting.
 
@@ -130,10 +130,10 @@ Default rules send JSON exports of automation workflows to Automations when they
 
 - Only the top level of each root is touched. Kanso never looks inside subfolders, including `My Shelves`, `Manual Shelves` and `Recents`.
 - Folders stay where they are unless you set `sort_folders = true`. Folders containing `.git` never move. App and document bundles (`.app`, `.key`…) count as files.
-- To exclude one file, right-click it in Finder → **Don't Sort with Tidy** (**Allow Tidy to Sort** reverses it). This sets the `Keep` Finder tag. In some macOS versions these items are under Quick Actions or Services.
+- To exclude one file, right-click it in Finder → **Don't Sort with Kanso** (**Allow Kanso to Sort** reverses it). This sets the `Keep` Finder tag. In some macOS versions these items are under Quick Actions or Services.
 - It skips hidden files, partial downloads (`.crdownload`, `.download`, `.part`), Office lock files, and anything still changing.
 - Name clashes become `name 2.ext`. Nothing is overwritten.
-- Every move is journaled (`~/.config/tidy/journal.jsonl`) before Kanso moves on.
+- Every move is journaled (`~/.config/kanso/journal.jsonl`) before Kanso moves on.
 - **iCloud Drive:** add `~/Library/Mobile Documents/com~apple~CloudDocs` to `roots`. File contents are never read, so files that aren't downloaded stay that way.
 
 ## Tests

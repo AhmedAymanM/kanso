@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 HOME = Path.home()
-CONFIG_DIR = HOME / ".config" / "tidy"
+CONFIG_DIR = HOME / ".config" / "kanso"
 CONFIG = CONFIG_DIR / "config.toml"
 JOURNAL = CONFIG_DIR / "journal.jsonl"
 STATE = CONFIG_DIR / "state.json"

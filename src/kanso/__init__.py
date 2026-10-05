@@ -78,7 +78,7 @@ def cmd_install(args, cfg):
 def cmd_uninstall(args, cfg):
     subprocess.run(["launchctl", "bootout", f"gui/{os.getuid()}", str(PLIST)], capture_output=True)
     PLIST.unlink(missing_ok=True)
-    print("agent removed (config and journal kept in ~/.config/tidy)")
+    print("agent removed (config and journal kept in ~/.config/kanso)")
 
 
 def enabled():
