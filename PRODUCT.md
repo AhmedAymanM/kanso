@@ -7,7 +7,7 @@ Decided in the grilling session on 2026-09-25. This file is the source of truth 
 - **Name: Kanso** (簡素): the Zen principle of simplicity by removing clutter.
   - Rejected: **Tidy** (the same-concept [Tidy](https://tidymacapp.com/) Mac app exists), **Sortie** (sounds like [Sorty](https://github.com/sorty-organizer/Sorty), an open-source AI organizer, and every domain is taken), and Tidsworth, Sortbird, Kempt and Sheen (runners-up).
   - Before launch: register `kanso.app` (it looked unregistered) and search USPTO and EUIPO trademarks.
-  - The Python CLI is `kanso` (renamed 2026-10-05). Its settings still live in `~/.config/tidy` so existing config and journal keep working.
+  - The Python CLI is `kanso` (renamed 2026-10-05). Its settings live in `~/.config/kanso`.
 - **Positioning: calm and trustworthy, with open source as the proof.** We don't compete with Sparkle on AI cleverness.
   - Pitch: *"Kanso quietly keeps your Mac simple. Your files never leave your Mac, Kanso only reads inside them for the features you turn on, and you can read every line of code."*
 - **Standing principles** (apply to every feature):
