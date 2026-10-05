@@ -1,12 +1,12 @@
 <p align="center"><img src="docs/assets/icon.png" width="128" alt="Kanso"></p>
 
-# tidy
+# Kanso
 
 Keeps `~/Downloads`, `~/Desktop` and `~/Documents` sorted without you thinking about it.
 
 - Files are sorted by **type**, using the extension (and the screenshot flag), into `My Shelves/<Type>`. Each type folder gets a Finder icon with its emoji.
 - New arrivals also show up in `Recents` as symlinks for a week, so you can still find what you just downloaded.
-- `Manual Shelves` is yours: tidy never moves anything in or out of it.
+- `Manual Shelves` is yours: Kanso never moves anything in or out of it.
 - **Models only run for unknown types.** Apple Intelligence (the on-device Foundation Model) picks a type or creates a new one with its own emoji (for example 🔑 Certificates for `.p12`). The choice is remembered for that extension, so the next file like it skips the model. Anything still unclear goes to `Unsorted`.
 - Models see only **metadata**: the file name, type, download URL and screenshot flag. File contents are never opened, and nothing leaves your Mac.
 
@@ -68,32 +68,32 @@ Keeps `~/Downloads`, `~/Desktop` and `~/Documents` sorted without you thinking a
 
 ```bash
 uv sync
-uv run tidy run --all --dry-run   # preview what it would do with what's already there
-uv run tidy install               # start the background agent
+uv run kanso run --all --dry-run   # preview what it would do with what's already there
+uv run kanso install               # start the background agent
 ```
 
 Then open **System Settings → Privacy & Security → Full Disk Access** and add the Python path that `install` prints. Without it, macOS blocks background access to Desktop, Documents and Downloads.
 
-`install` only affects items that arrive after it runs. Run `tidy run --all` to clean up what's already there.
+`install` only affects items that arrive after it runs. Run `kanso run --all` to clean up what's already there.
 
 ### Menu bar app
 
 ```bash
-menubar/build.sh    # builds, installs to ~/Applications/Tidy.app and launches it
+menubar/build.sh    # builds, installs to ~/Applications/Kanso.app and launches it
 ```
 
-From the menu bar you can turn auto-sort on or off, add or remove folders to sort, sort new files now, sort everything, undo the last sort, edit rules, and set up folder access. The app only calls the `tidy` CLI in this folder. Sorting happens in the background agent, even when the app is closed.
+From the menu bar you can turn auto-sort on or off, add or remove folders to sort, sort new files now, sort everything, undo the last sort, edit rules, and set up folder access. The app only calls the `kanso` CLI in this folder. Sorting happens in the background agent, even when the app is closed.
 
 | command | |
 |---|---|
-| `tidy run [--all] [--dry-run]` | sort now |
-| `tidy undo` | revert the last run and remove its Recents links; restored items get the `Keep` tag, so tidy leaves them alone |
-| `tidy status` | agent state, and whether Apple Intelligence is in use |
-| `tidy config` | open `~/.config/tidy/config.toml` |
-| `tidy uninstall` | remove the agent (config and journal stay) |
-| `tidy roots DIR...` | set the folders to sort |
+| `kanso run [--all] [--dry-run]` | sort now |
+| `kanso undo` | revert the last run and remove its Recents links; restored items get the `Keep` tag, so Kanso leaves them alone |
+| `kanso status` | agent state, and whether Apple Intelligence is in use |
+| `kanso config` | open `~/.config/kanso/config.toml` |
+| `kanso uninstall` | remove the agent (config and journal stay) |
+| `kanso roots DIR...` | set the folders to sort |
 
-A launchd agent (`WatchPaths`) runs tidy when a watched folder changes, and hourly to expire Recents. Nothing stays resident, and models load only when a file has an unknown type. The log is at `~/Library/Logs/tidy.log`.
+A launchd agent (`WatchPaths`) runs Kanso when a watched folder changes, and hourly to expire Recents. Nothing stays resident, and models load only when a file has an unknown type. The log is at `~/Library/Logs/tidy.log`.
 
 ## Apple Intelligence
 
@@ -120,7 +120,7 @@ from = "github.com"                    # text in the download URL
 dest = "~/Developer/Downloads"
 ```
 
-Types are config too: `[categories.<Type>]` with `emoji`, `description` and `match` (extensions). Models read the descriptions when they classify unknown types. Types created by Apple Intelligence are kept in `~/.config/tidy/learned.json`. You can edit or delete that file to reset them.
+Types are config too: `[categories.<Type>]` with `emoji`, `description` and `match` (extensions). Models read the descriptions when they classify unknown types. Types created by Apple Intelligence are kept in `~/.config/kanso/learned.json`. You can edit or delete that file to reset them.
 
 `[context]` holds the old content-based subfolders (Finance, Work, Personal…). Nothing uses it yet; it's reserved for AI tagging, renaming and context-aware sorting.
 
@@ -128,12 +128,12 @@ Default rules send JSON exports of automation workflows to Automations when they
 
 ## Safety
 
-- Only the top level of each root is touched. tidy never looks inside subfolders, including `My Shelves`, `Manual Shelves` and `Recents`.
+- Only the top level of each root is touched. Kanso never looks inside subfolders, including `My Shelves`, `Manual Shelves` and `Recents`.
 - Folders stay where they are unless you set `sort_folders = true`. Folders containing `.git` never move. App and document bundles (`.app`, `.key`…) count as files.
-- To exclude one file, right-click it in Finder → **Don't Sort with Tidy** (**Allow Tidy to Sort** reverses it). This sets the `Keep` Finder tag. In some macOS versions these items are under Quick Actions or Services.
+- To exclude one file, right-click it in Finder → **Don't Sort with Kanso** (**Allow Kanso to Sort** reverses it). This sets the `Keep` Finder tag. In some macOS versions these items are under Quick Actions or Services.
 - It skips hidden files, partial downloads (`.crdownload`, `.download`, `.part`), Office lock files, and anything still changing.
 - Name clashes become `name 2.ext`. Nothing is overwritten.
-- Every move is journaled (`~/.config/tidy/journal.jsonl`) before tidy moves on.
+- Every move is journaled (`~/.config/kanso/journal.jsonl`) before Kanso moves on.
 - **iCloud Drive:** add `~/Library/Mobile Documents/com~apple~CloudDocs` to `roots`. File contents are never read, so files that aren't downloaded stay that way.
 
 ## Tests

@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 HOME = Path.home()
-CONFIG_DIR = HOME / ".config" / "tidy"
+CONFIG_DIR = HOME / ".config" / "kanso"
 CONFIG = CONFIG_DIR / "config.toml"
 JOURNAL = CONFIG_DIR / "journal.jsonl"
 STATE = CONFIG_DIR / "state.json"
@@ -92,7 +92,7 @@ def set_roots(paths, path=CONFIG):
 
 
 def since(state=STATE):
-    """Auto mode only touches items that arrived after tidy was first set up."""
+    """Auto mode only touches items that arrived after Kanso was first set up."""
     try:
         return json.loads(state.read_text())["since"]
     except (OSError, ValueError, KeyError):
@@ -252,7 +252,7 @@ def unique(path):
 
 
 def icons(cfg):
-    """{folder name: emoji} for every folder tidy creates, or {} when folder_icons is off."""
+    """{folder name: emoji} for every folder Kanso creates, or {} when folder_icons is off."""
     if not cfg["folder_icons"]:
         return {}
     out = {n: c["emoji"] for n, c in cfg["categories"].items() if c.get("emoji")}
@@ -349,7 +349,7 @@ def apply(moves, journal=JOURNAL, icons=None):
 
 
 def undo(keep_tag, journal=JOURNAL, recents_dir="Recents"):
-    """Revert the most recent run. Restored items get the keep tag so tidy leaves them alone."""
+    """Revert the most recent run. Restored items get the keep tag so Kanso leaves them alone."""
     if not journal.exists():
         return []
     entries = [json.loads(l) for l in journal.read_text().splitlines() if l.strip()]
@@ -372,5 +372,5 @@ def undo(keep_tag, journal=JOURNAL, recents_dir="Recents"):
 
 
 def notify(text):
-    script = f'display notification {json.dumps(text)} with title "tidy"'
+    script = f'display notification {json.dumps(text)} with title "Kanso"'
     subprocess.run(["/usr/bin/osascript", "-e", script], capture_output=True)

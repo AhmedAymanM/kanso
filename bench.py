@@ -2,7 +2,7 @@
 
     uv run python bench.py [ROOT ...] >> BENCHMARKS.md      # default roots: Downloads, Desktop, Documents
 
-Uses the shipped default config (not ~/.config/tidy), with recent_days=0 so every file gets classified.
+Uses the shipped default config (not ~/.config/kanso), with recent_days=0 so every file gets classified.
 Accuracy is scored against bench_labels.json ({"Downloads/file.pdf": "Documents/Finance"}) when present.
 To benchmark a new approach, add it to APPROACHES.
 """
@@ -18,8 +18,8 @@ import tomllib
 from datetime import datetime
 from pathlib import Path
 
-from tidy import sorter
-from tidy.brain import Brain, state_for
+from kanso import sorter
+from kanso.brain import Brain, state_for
 
 LABELS = Path(__file__).with_name("bench_labels.json")
 

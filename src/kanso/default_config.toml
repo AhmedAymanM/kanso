@@ -1,12 +1,12 @@
-# tidy config: ~/.config/tidy/config.toml
+# Kanso config: ~/.config/kanso/config.toml
 # Edit freely; the agent reads it on every run.
 
-# Folders tidy watches. Only their top level is sorted (it never digs into subfolders).
+# Folders Kanso watches. Only their top level is sorted (it never digs into subfolders).
 roots = ["~/Downloads", "~/Desktop", "~/Documents"]
 # iCloud Drive works too; files that aren't downloaded are sorted by name only, never fetched:
 # roots = ["~/Downloads", "~/Desktop", "~/Documents", "~/Library/Mobile Documents/com~apple~CloudDocs"]
 
-# Each root gets three folders: tidy sorts into "My Shelves/<Type>", never touches "Manual Shelves"
+# Each root gets three folders: Kanso sorts into "My Shelves/<Type>", never touches "Manual Shelves"
 # (yours to organize by hand), and keeps new arrivals visible in "Recents".
 library = "My Shelves"
 manual_library = "Manual Shelves"
@@ -16,7 +16,7 @@ recents_dir = "Recents"
 #          "off"   = sort right away, no Recents.
 recents = "links"
 recent_days = 7
-# Seconds a file must stay unchanged before tidy touches it (lets downloads/copies finish).
+# Seconds a file must stay unchanged before Kanso touches it (lets downloads/copies finish).
 settle_seconds = 10
 # Give each folder a Finder icon with its emoji.
 folder_icons = true
@@ -26,15 +26,15 @@ min_confidence = 0.4
 rule_threshold = 0.7
 # Files are sorted by type (extension), never by guessed content. Models only run for unknown
 # types and folders: Apple Intelligence picks a type or creates a new one (remembered per extension
-# in ~/.config/tidy/learned.json); von picks an existing type. Anything still unclear goes to Unsorted.
+# in ~/.config/kanso/learned.json); von picks an existing type. Anything still unclear goes to Unsorted.
 # Apple Intelligence needs macOS 26+ with it switched on, and Xcode 26+ to install the SDK.
 apple_intelligence = true
 # Also move folders (off: only files and app/document bundles move). Folders with a .git inside never move.
 sort_folders = false
 # Add Finder tags to sorted files.
 tag = true
-# Items carrying this Finder tag are never moved. `tidy undo` adds it to whatever it restores,
-# and Finder's right-click "Don't Sort with Tidy" / "Allow Tidy to Sort" toggle it.
+# Items carrying this Finder tag are never moved. `kanso undo` adds it to whatever it restores,
+# and Finder's right-click "Don't Sort with Kanso" / "Allow Kanso to Sort" toggle it.
 keep_tag = "Keep"
 notify = true
 
@@ -158,7 +158,7 @@ description = "Items whose type could not be determined"
 match = []
 
 # Reserved for AI tagging, renaming and context-aware organization (not used yet).
-# Content-based subfolders from the first version of tidy, judged from the file name and source only.
+# Content-based subfolders from the first version of Kanso, judged from the file name and source only.
 [context]
 enabled = false
 [context.Documents]

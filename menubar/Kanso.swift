@@ -1,4 +1,4 @@
-// Menu bar front end for tidy. All logic lives in the `tidy` CLI; this only calls it.
+// Menu bar front end for Kanso. All logic lives in the `kanso` CLI; this only calls it.
 // Build: ./build.sh
 
 import AppKit
@@ -12,7 +12,7 @@ struct Status: Decodable {
     var keep_tag = "Keep"
 }
 
-/// Finder right-click → "Don't Sort with Tidy" / "Allow Tidy to Sort" (declared as NSServices in Info.plist).
+/// Finder right-click → "Don't Sort with Kanso" / "Allow Kanso to Sort" (declared as NSServices in Info.plist).
 /// Toggles the keep tag, which the sorter already skips.
 final class Services: NSObject {
     @objc func skipFiles(_ pboard: NSPasteboard, userData: String?, error: AutoreleasingUnsafeMutablePointer<NSString?>) {
@@ -47,12 +47,12 @@ final class Model: ObservableObject {
     @Published var status = Status()
     @Published var busy = false
     @Published var message = ""
-    private let cli = Bundle.main.object(forInfoDictionaryKey: "TidyCLI") as? String ?? "tidy"
+    private let cli = Bundle.main.object(forInfoDictionaryKey: "KansoCLI") as? String ?? "kanso"
 
     init() { Task { await refresh() } }
 
-    /// Runs `tidy <args>` off the main thread; returns (exit code, stdout).
-    private func tidy(_ args: [String]) async -> (Int32, String) {
+    /// Runs `kanso <args>` off the main thread; returns (exit code, stdout).
+    private func kanso(_ args: [String]) async -> (Int32, String) {
         let cli = self.cli
         return await Task.detached {
             let p = Process()
@@ -69,19 +69,19 @@ final class Model: ObservableObject {
     }
 
     func refresh() async {
-        let (code, out) = await tidy(["status", "--json"])
+        let (code, out) = await kanso(["status", "--json"])
         if code == 0, let s = try? JSONDecoder().decode(Status.self, from: Data(out.utf8)) {
             status = s
             UserDefaults.standard.set(s.keep_tag, forKey: "keepTag")  // the Finder service may run before any refresh
         } else {
-            message = "tidy CLI failed: \(out.suffix(200))"
+            message = "kanso CLI failed: \(out.suffix(200))"
         }
     }
 
     private func perform(_ args: [String], summary: @escaping (String) -> String = { $0 }) {
         busy = true
         Task {
-            let (code, out) = await tidy(args)
+            let (code, out) = await kanso(args)
             let last = out.split(separator: "\n").last.map(String.init) ?? ""
             message = code == 0 ? summary(last) : "Failed: \(last)"
             busy = false
@@ -138,7 +138,7 @@ final class Model: ObservableObject {
             NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: status.python)])
         }
         let alert = NSAlert()
-        alert.messageText = "Allow tidy to reach your folders"
+        alert.messageText = "Allow Kanso to reach your folders"
         alert.informativeText = "In Full Disk Access, click + and add the highlighted Python file (or drag it from Finder into the list):\n\n\(status.python)"
         NSApp.activate(ignoringOtherApps: true)
         alert.runModal()
@@ -146,12 +146,12 @@ final class Model: ObservableObject {
 }
 
 @main
-struct TidyApp: App {
+struct KansoApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     @StateObject private var model = Model()
 
     var body: some Scene {
-        MenuBarExtra("tidy", systemImage: model.busy ? "arrow.triangle.2.circlepath" : (model.status.enabled ? "tray.full.fill" : "tray")) {
+        MenuBarExtra("Kanso", systemImage: model.busy ? "arrow.triangle.2.circlepath" : (model.status.enabled ? "tray.full.fill" : "tray")) {
             Toggle("Auto-Sort", isOn: Binding(get: { model.status.enabled }, set: { model.setEnabled($0) }))
             if !model.message.isEmpty { Text(model.message) }
             Divider()
