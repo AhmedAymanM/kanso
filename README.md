@@ -28,6 +28,7 @@ Keeps `~/Downloads`, `~/Desktop` and `~/Documents` sorted without you thinking a
 ## Kanso app
 
 <p align="center"><img src="docs/assets/overview.png" width="720" alt="Overview"></p>
+<p align="center"><img src="docs/assets/sorting.png" width="720" alt="Sorting"></p>
 <p align="center">
   <img src="docs/assets/island-processing.png" width="300" alt="The island reading a file">
   <img src="docs/assets/island-renamed.png" width="300" alt="The island after a rename">
