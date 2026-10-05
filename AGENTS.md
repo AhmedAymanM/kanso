@@ -6,6 +6,8 @@ tidy is an automatic macOS file sorter, Sparkle-style. It sorts the top level of
 - **Apple Intelligence** (on-device Foundation Model through `apple-fm-sdk`) handles unknown extensions and folders. It picks a type, creates a new one (name, emoji and description, only for files that have an extension), or answers unsure, which goes to `Unsorted`.
 - **von** ([wfzyx/von](https://github.com/wfzyx/von), local ModernBERT, about 1.5 GB in `~/.cache/huggingface`) is the fallback. It only picks existing types.
 
+**Git workflow (2026-10-05):** never commit or push to `main` directly. Every change goes on a feature branch (`feat/…`, `fix/…`, `chore/…`, `docs/…`) and lands through a pull request.
+
 User decisions:
 - **Generative models run locally:** Apple's Foundation Models, or open models that earned their place in `bench.py`. Cloud models are strictly opt-in and a last resort. (Reworded 2026-09-25; it used to be Apple-only.)
 - Models see **metadata only** (name, type, download URL, screenshot flag) in the type approach. Content reading (text, OCR) is allowed only in opt-in features and only on-device; see Product decisions.
