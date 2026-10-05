@@ -1,7 +1,7 @@
 [project]
-name = "tidy"
+name = "kanso"
 version = "0.1.0"
-description = "Automatic macOS file sorter: Apple on-device model looks, von decides."
+description = "Automatic macOS file sorter: Apple on-device model sorts what the extension table cannot."
 readme = "README.md"
 authors = [
     { name = "Ahmed Ayman", email = "535126+AhmedAymanM@users.noreply.github.com" }
@@ -12,7 +12,7 @@ dependencies = [
 ]
 
 [project.scripts]
-tidy = "tidy:main"
+kanso = "kanso:main"
 
 [project.optional-dependencies]
 apple = [

@@ -1,9 +1,9 @@
-"""tidy: keeps Downloads, Desktop and Documents sorted, automatically.
+"""Kanso: keeps Downloads, Desktop and Documents sorted, automatically.
 
 Items are sorted by file type into <root>/My Shelves/<Type>; new arrivals also show
 up in <root>/Recents for a while, and <root>/Manual Shelves is never touched. A launchd
-agent wakes tidy whenever a watched folder changes (and hourly, to expire Recents).
-Models only run for unknown types. Every move is journaled so `tidy undo` can put it back.
+agent wakes kanso whenever a watched folder changes (and hourly, to expire Recents).
+Models only run for unknown types. Every move is journaled so `kanso undo` can put it back.
 """
 
 import argparse
@@ -16,9 +16,9 @@ import time
 
 from . import sorter
 
-LABEL = "com.tidy.agent"
+LABEL = "com.kanso.agent"
 PLIST = sorter.HOME / "Library" / "LaunchAgents" / f"{LABEL}.plist"
-LOG = sorter.HOME / "Library" / "Logs" / "tidy.log"
+LOG = sorter.HOME / "Library" / "Logs" / "kanso.log"
 
 
 def cmd_run(args, cfg):
@@ -52,13 +52,13 @@ def cmd_undo(args, cfg):
 
 
 def cmd_install(args, cfg):
-    sorter.since()  # everything already there is left alone; `tidy run --all` sorts it
+    sorter.since()  # everything already there is left alone; `kanso run --all` sorts it
     PLIST.parent.mkdir(parents=True, exist_ok=True)
     LOG.parent.mkdir(parents=True, exist_ok=True)
     with PLIST.open("wb") as f:
         plistlib.dump({
             "Label": LABEL,
-            "ProgramArguments": [sys.executable, "-m", "tidy", "run"],
+            "ProgramArguments": [sys.executable, "-m", "kanso", "run"],
             "WatchPaths": [str(r) for r in cfg["roots"]] + [str(r / cfg["recents_dir"]) for r in cfg["roots"]],
             "StartInterval": 3600,
             "ThrottleInterval": 15,
@@ -70,7 +70,7 @@ def cmd_install(args, cfg):
     domain = f"gui/{os.getuid()}"
     subprocess.run(["launchctl", "bootout", domain, str(PLIST)], capture_output=True)
     subprocess.run(["launchctl", "bootstrap", domain, str(PLIST)], check=True)
-    print(f"tidy is watching {', '.join(map(str, cfg['roots']))}\n"
+    print(f"Kanso is watching {', '.join(map(str, cfg['roots']))}\n"
           f"Grant Full Disk Access to {os.path.realpath(sys.executable)} in System Settings > "
           f"Privacy & Security, or macOS will block the background agent.\nLog: {LOG}")
 
@@ -78,7 +78,7 @@ def cmd_install(args, cfg):
 def cmd_uninstall(args, cfg):
     subprocess.run(["launchctl", "bootout", f"gui/{os.getuid()}", str(PLIST)], capture_output=True)
     PLIST.unlink(missing_ok=True)
-    print("agent removed (config and journal kept in ~/.config/tidy)")
+    print("agent removed (config and journal kept in ~/.config/kanso)")
 
 
 def enabled():
@@ -116,7 +116,7 @@ def cmd_config(args, cfg):
 
 
 def main():
-    p = argparse.ArgumentParser(prog="tidy", description=__doc__.splitlines()[0])
+    p = argparse.ArgumentParser(prog="kanso", description=__doc__.splitlines()[0])
     sub = p.add_subparsers(dest="cmd", required=True)
     r = sub.add_parser("run", help="sort new items now")
     r.add_argument("--all", action="store_true", help="also sort items that were there before install")

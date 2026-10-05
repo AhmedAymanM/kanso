@@ -8,8 +8,8 @@ import unittest
 from pathlib import Path
 from types import SimpleNamespace as NS
 
-from tidy import sorter
-from tidy.brain import Brain
+from kanso import sorter
+from kanso.brain import Brain
 
 
 def config(root, **over):
@@ -54,7 +54,7 @@ class FakeAI(Brain):
         return self.pick and NS(folder=self.pick, name=self.new[0], emoji=self.new[1], description=self.new[2])
 
 
-class TidyTest(unittest.TestCase):
+class KansoTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.root = Path(self.tmp.name) / "Downloads"

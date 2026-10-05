@@ -1,6 +1,6 @@
 # AGENTS.md
 
-tidy is an automatic macOS file sorter, Sparkle-style. It sorts the top level of watched folders (default: `~/Downloads`, `~/Desktop`, `~/Documents`) by **file type** into `<root>/My Shelves/<Type>`. `<root>/Manual Shelves` is the user's own and is never touched. `<root>/Recents` shows new arrivals as symlinks.
+Kanso is an automatic macOS file sorter, Sparkle-style. It sorts the top level of watched folders (default: `~/Downloads`, `~/Desktop`, `~/Documents`) by **file type** into `<root>/My Shelves/<Type>`. `<root>/Manual Shelves` is the user's own and is never touched. `<root>/Recents` shows new arrivals as symlinks.
 
 - **The extension table (plus the screenshot xattr flag) decides known types with no model.**
 - **Apple Intelligence** (on-device Foundation Model through `apple-fm-sdk`) handles unknown extensions and folders. It picks a type, creates a new one (name, emoji and description, only for files that have an extension), or answers unsure, which goes to `Unsorted`.
@@ -32,10 +32,10 @@ User decisions:
 ```bash
 uv sync --extra apple --group bench                  # install everything (plain `uv sync` REMOVES apple-fm-sdk and the bench models)
 uv run python -m unittest discover tests -v          # all tests (~0.2 s, models are faked)
-uv run python -m unittest tests.test_tidy.TidyTest.test_apple_intelligence_decides_without_von
-uv run tidy run --all --dry-run                      # preview with the user's config; moves nothing
+uv run python -m unittest tests.test_kanso.KansoTest.test_apple_intelligence_decides_without_von
+uv run kanso run --all --dry-run                      # preview with the user's config; moves nothing
 uv run python bench.py >> BENCHMARKS.md              # compare approaches on real folders (dry run)
-menubar/build.sh                                     # build + install ~/Applications/Tidy.app, register Finder services, relaunch
+menubar/build.sh                                     # build + install ~/Applications/Kanso.app, register Finder services, relaunch
 ```
 
 CLI: `run [--all] [--dry-run]`, `undo`, `install` / `uninstall` (launchd agent), `status [--json]`, `roots DIR...`, `config`.
@@ -43,9 +43,9 @@ CLI: `run [--all] [--dry-run]`, `undo`, `install` / `uninstall` (launchd agent),
 Try the CLI on real folders without touching the user's config: point `HOME` at a temp dir and keep the model cache. (`bench.py` doesn't need this, because it uses the shipped default config directly.)
 
 ```bash
-S=$(mktemp -d); mkdir -p $S/.config/tidy
-sed 's#^roots = .*#roots = ["~/Desktop"]#' src/tidy/default_config.toml > $S/.config/tidy/config.toml
-HOME=$S HF_HOME=~/.cache/huggingface uv run tidy run --all --dry-run   # without HF_HOME von re-downloads 1.5 GB
+S=$(mktemp -d); mkdir -p $S/.config/kanso
+sed 's#^roots = .*#roots = ["~/Desktop"]#' src/kanso/default_config.toml > $S/.config/kanso/config.toml
+HOME=$S HF_HOME=~/.cache/huggingface uv run kanso run --all --dry-run   # without HF_HOME von re-downloads 1.5 GB
 ```
 
 ## Swift app (`app/`, Kanso v1)
@@ -90,21 +90,21 @@ Both `BENCHMARKS.md` and the labels file contain real personal file names, so ke
 
 ## Architecture
 
-- `src/tidy/sorter.py`: all file logic, no models.
+- `src/kanso/sorter.py`: all file logic, no models.
   - Config: `load_config()` merges `learned.json` into `categories`; `learn()` writes to it.
   - Scanning: `candidates()`, then `inspect()` (xattr metadata only).
   - Deciding: `decide()` checks rules, then the screenshot flag, then the `Brain`.
   - Acting: `plan()` builds `Move`s (with `link` in links mode) and `apply()` moves, links, journals and tags. Also `undo()`, `clean_recents()`, `prepare_roots()`, `make_dir()` (creates a folder and sets its emoji icon) and `set_folder_icon()` (a JXA script via `osascript`).
-- `src/tidy/brain.py`: the only place that touches models, and they load lazily.
+- `src/kanso/brain.py`: the only place that touches models, and they load lazily.
   - `classify()` returns the type immediately when the extension is known, unless natural-language `when` rules exist.
   - For unknowns, `folder_options()` offers every type except Unsorted and Screenshots.
   - `_fm_choose()` does guided generation of `Pick{folder anyOf [types…, "new"?, "unsure"], name, emoji, description}`.
   - `_von_classify()` makes one `system_one` call, with a p1 − p2 confidence check.
   - Picks for extensions are remembered with `sorter.learn()`.
   - `state_for()` is the only input either model gets.
-- `src/tidy/__init__.py`: the CLI, and it writes the launchd agent `com.tidy.agent`. The agent uses `WatchPaths` on the roots and `Recents/`, plus `StartInterval` 3600 so Recents links expire and held files age out. Nothing stays resident.
-- `src/tidy/default_config.toml`: copied to `~/.config/tidy/config.toml` on first load. It defines categories (`match` extensions, `sub` subfolders with descriptions the models choose between) and user `[[rules]]` (`glob`, `ext`, `from`, `when`). An existing user config does **not** pick up later default changes.
-- `menubar/Tidy.swift`: a SwiftUI `MenuBarExtra` with no logic of its own. It shells out to the `.venv/bin/tidy` path baked into Info.plist (`TidyCLI`) by `build.sh`. It also provides the Finder services **Don't Sort with Tidy** / **Allow Tidy to Sort**, declared as `NSServices` and working by toggling the Keep tag.
+- `src/kanso/__init__.py`: the CLI, and it writes the launchd agent `com.kanso.agent`. The agent uses `WatchPaths` on the roots and `Recents/`, plus `StartInterval` 3600 so Recents links expire and held files age out. Nothing stays resident.
+- `src/kanso/default_config.toml`: copied to `~/.config/kanso/config.toml` on first load. It defines categories (`match` extensions, `sub` subfolders with descriptions the models choose between) and user `[[rules]]` (`glob`, `ext`, `from`, `when`). An existing user config does **not** pick up later default changes.
+- `menubar/Kanso.swift`: a SwiftUI `MenuBarExtra` with no logic of its own. It shells out to the `.venv/bin/kanso` path baked into Info.plist (`KansoCLI`) by `build.sh`. It also provides the Finder services **Don't Sort with Kanso** / **Allow Kanso to Sort**, declared as `NSServices` and working by toggling the Keep tag.
 - `bench.py`: runs each entry of `APPROACHES` through `sorter.plan()` and prints markdown. Model output goes to stderr.
 
 Pipeline for an item:
@@ -117,32 +117,32 @@ Pipeline for an item:
 
 ### Non-obvious behavior
 
-- **Arrival time is `st_ctime`,** which changes when an item is moved or renamed in. Auto mode ignores anything with a ctime before the `since` value in `~/.config/tidy/state.json`, which is set on first run or install, so pre-existing clutter is only touched with `--all`.
+- **Arrival time is `st_ctime`,** which changes when an item is moved or renamed in. Auto mode ignores anything with a ctime before the `since` value in `~/.config/kanso/state.json`, which is set on first run or install, so pre-existing clutter is only touched with `--all`.
 - **Metadata comes from xattrs via `/usr/bin/xattr -px`, never `mdls`.** `mdls` returns "could not find" in sandboxed and background processes. `kMDItemWhereFroms`, `kMDItemIsScreenCapture` and `_kMDItemUserTags` are binary plists.
 - **Keep tag** (`keep_tag`, default `Keep`): items with this tag are never moved. `undo` adds it to restored items, because otherwise their new ctime would make them get re-sorted immediately.
 - **Folders don't move** unless `sort_folders = true`. Folders containing `.git` never move. Bundles whose extension matches a category (`.app`, `.key`…) count as files.
 - **Relative destinations** (types, rule `dest`) resolve inside `<root>/My Shelves/`. Absolute or `~` destinations are used as-is.
 - **Unsure goes to `Unsorted`.** That happens when Apple Intelligence answers `unsure` or proposes a catch-all name (`CATCH_ALL`, like "Unknown Files"), or when von's confidence (p1 − p2) is below `min_confidence` 0.4.
-- **Learned types** (`~/.config/tidy/learned.json`, `{ext: {type, emoji, description}}`) make an extension "known" from then on. That's also true when the model picked an existing type, so a bad pick sticks until the entry is deleted. Extensionless files and folders are never learned and can't create types.
+- **Learned types** (`~/.config/kanso/learned.json`, `{ext: {type, emoji, description}}`) make an extension "known" from then on. That's also true when the model picked an existing type, so a bad pick sticks until the entry is deleted. Extensionless files and folders are never learned and can't create types.
 - **Apple Intelligence** leaned toward existing types (`.ics`, `.vcf` and `.kdbx` went to Documents) even with instructions that name `new`. `.torrent` and `.p12` did get new types.
 - **Recents links** expire by the symlink's own mtime. Real files in Recents are left alone in links mode. `undo` deletes the run's links (the journal entry has a `link` key).
-- **Folder icons** come from `set_folder_icon`, which draws the system folder icon with the emoji on top and writes `Icon\r`. They're set only when tidy creates the folder, so existing folders (for example Sparkle's) keep their icon. Tests patch this function out.
-- **Journal:** every move is appended to `~/.config/tidy/journal.jsonl` as it happens. `undo` reverts the last run id.
+- **Folder icons** come from `set_folder_icon`, which draws the system folder icon with the emoji on top and writes `Icon\r`. They're set only when Kanso creates the folder, so existing folders (for example Sparkle's) keep their icon. Tests patch this function out.
+- **Journal:** every move is appended to `~/.config/kanso/journal.jsonl` as it happens. `undo` reverts the last run id.
 - **Tests:**
   - `FakeVon` is injected through `brain._von`. `FakeAI` subclasses `Brain`, overriding `_fm_choose` (it returns a `NS(folder, name, emoji, description)`) and setting `_fm = True`.
   - `setUp` patches `sorter.set_folder_icon` and `sorter.LEARNED`.
   - Real torch and the SDK are never imported.
   - The real `_fm_choose` is smoke-tested by hand against the real SDK (see BENCHMARKS.md 2026-09-25).
 - **Finder services** only register from an installed app, which is why `build.sh` copies it to `~/Applications` and runs `pbs -update`.
-- **Full Disk Access:** the background agent needs it granted to the real Python binary (`tidy status --json` → `python`), otherwise macOS blocks Desktop, Documents and Downloads.
+- **Full Disk Access:** the background agent needs it granted to the real Python binary (`kanso status --json` → `python`), otherwise macOS blocks Desktop, Documents and Downloads.
 
-## Environment facts (verified 2026-09-24; updated 2026-09-25: Xcode 27.0 installed, `apple-fm-sdk` builds, `tidy status` shows apple intelligence on)
+## Environment facts (verified 2026-09-24; updated 2026-09-25: Xcode 27.0 installed, `apple-fm-sdk` builds, `kanso status` shows apple intelligence on)
 
 - **Machine:** Apple M2 with 8 GB RAM. The benchmark reports macOS 27.0. Xcode 27.0 is installed and selected, with the license accepted.
-- **Apple Intelligence works.** `uv sync --extra apple --group bench` builds `apple-fm-sdk` 0.2.1, and `tidy status` shows apple intelligence on. A call takes about 1.2 s warm and about 6 s for the first one. Note that a plain `uv sync` removes the apple extra and the bench group.
+- **Apple Intelligence works.** `uv sync --extra apple --group bench` builds `apple-fm-sdk` 0.2.1, and `kanso status` shows apple intelligence on. A call takes about 1.2 s warm and about 6 s for the first one. Note that a plain `uv sync` removes the apple extra and the bench group.
 - **Without Xcode:** the `shortcuts` CLI exists, and on macOS 26 the Shortcuts app has a "Use Model" action. That's a possible bridge (`shortcuts run NAME -i FILE`), but the user chose the SDK route.
 - **Sparkle is not installed** (the user confirmed this on 2026-09-25). `~/Desktop/My Shelves` and `~/Desktop/Recents` are leftovers from it. Kanso's own names differ except for `Recents`, which Kanso reuses.
-- **`~/.config/tidy/config.toml`** was replaced with the type-based default on 2026-09-25 and refreshed after the new types were added. It's identical to the shipped default. The old one is `config.toml.bak`; it had default roots and no rules.
+- **`~/.config/kanso/config.toml`** was replaced with the type-based default on 2026-09-25 and refreshed after the new types were added. It's identical to the shipped default. The old one is `config.toml.bak`; it had default roots and no rules.
 
 ## Status
 
@@ -182,6 +182,6 @@ Not yet exercised:
    Only models under about 2 GB. A winner becomes "Kanso Local+" in the v2 picker.
 3. **Kanso Local model for v1:** check that laya-multilingual (or a smaller typed-decision model) converts to Core ML or ONNX, for tagging and unknown types on macOS 14–15.
 4. **By purpose research** (for the release after v1): the content-reading pipeline within the agreed limits, adopting existing folder names, earned-trust thresholds, and a benchmark with content labels. Earlier findings: name-only tops out around 60–66%, and laya-multilingual handles German well.
-5. **Personal use now:** `tidy install` with the Python agent (grant Full Disk Access) until the Swift app exists.
+5. **Personal use now:** `kanso install` with the Python agent (grant Full Disk Access) until the Swift app exists.
 
-Reading file contents was dropped on 2026-09-24 and re-opened on 2026-09-25 for the opt-in context approach, renaming, tagging and dedupe, local only. The PDFKit/Vision "tidy-see" prototype from the first BENCHMARKS.md table is the starting point.
+Reading file contents was dropped on 2026-09-24 and re-opened on 2026-09-25 for the opt-in context approach, renaming, tagging and dedupe, local only. The PDFKit/Vision "Kanso-see" prototype from the first BENCHMARKS.md table is the starting point.
