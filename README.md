@@ -7,7 +7,7 @@ Keeps `~/Downloads`, `~/Desktop` and `~/Documents` sorted without you thinking a
 - Files are sorted by **type**, using the extension (and the screenshot flag), into `My Shelves/<Type>`. Each type folder gets a Finder icon with its emoji.
 - New arrivals also show up in `Recents` as symlinks for a week, so you can still find what you just downloaded.
 - `Manual Shelves` is yours: tidy never moves anything in or out of it.
-- **Models only run for unknown types.** Apple Intelligence (the on-device Foundation Model) picks a type or creates a new one with its own emoji (for example 🔑 Certificates for `.p12`). The choice is remembered for that extension, so the next file like it skips the model. **[von](https://github.com/wfzyx/von)** is the fallback and only picks existing types. Anything still unclear goes to `Unsorted`.
+- **Models only run for unknown types.** Apple Intelligence (the on-device Foundation Model) picks a type or creates a new one with its own emoji (for example 🔑 Certificates for `.p12`). The choice is remembered for that extension, so the next file like it skips the model. Anything still unclear goes to `Unsorted`.
 - Models see only **metadata**: the file name, type, download URL and screenshot flag. File contents are never opened, and nothing leaves your Mac.
 
 ```text
@@ -79,7 +79,7 @@ Needs macOS 26, Apple Intelligence turned on, and **Xcode 26** to build Apple's 
 uv sync --extra apple              # add --group bench to keep the benchmark models installed
 ```
 
-Without it, von picks an existing type for unknown files, from the same metadata. See `BENCHMARKS.md` for how each approach scores on real folders.
+Without it, unknown files go to `Unsorted`.
 
 ## Your own rules
 
@@ -94,11 +94,6 @@ tags = ["Invoice"]
 [[rules]]
 from = "github.com"                    # text in the download URL
 dest = "~/Developer/Downloads"
-
-[[rules]]
-when = "a university lecture, assignment or exam"   # plain English, judged by von
-dest = "Documents/University"
-tags = ["Uni"]
 ```
 
 Types are config too: `[categories.<Type>]` with `emoji`, `description` and `match` (extensions). Models read the descriptions when they classify unknown types. Types created by Apple Intelligence are kept in `~/.config/tidy/learned.json`. You can edit or delete that file to reset them.
