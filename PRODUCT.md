@@ -35,7 +35,9 @@ Decided in the grilling session on 2026-09-25. This file is the source of truth 
   - **Generative models run locally:** Apple's Foundation Models, or open models that earned their place in the benchmark. (This rule was Apple-only until 2026-09-25.)
   - **Classification needs confidence:** a generated answer has no confidence score (Apple FM never said "unsure" in the bench). Any generative classifier must score the options by probability, so earned trust keeps working.
   - **v1 model picker:** Apple Intelligence (26+) and one downloadable **Kanso Local** model. The full picker (more local models, BYOK, cloud) comes in v2, Handy/FluidVoice-style.
+  - **No von.** The von classifier (local ModernBERT) is no longer part of the product (decided 2026-10-05). Unknown types go to Apple Intelligence or Kanso Local; when neither can answer, the file goes to ❓ Unsorted.
   - Small local LLMs (≤2 GB) get benchmarked later; a winner becomes "Kanso Local+".
+- **Docs state only current facts:** the README and the product docs describe what Kanso does today. Retired components, dropped ideas and stale references are deleted, not kept as history (git has the history).
 
 ## 4. Folders
 
