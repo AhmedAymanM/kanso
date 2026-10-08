@@ -7,7 +7,7 @@ let package = Package(
     targets: [
         .target(
             name: "KansoCore",
-            linkerSettings: [.unsafeFlags(["-weak_framework", "FoundationModels"])]  // Apple Intelligence exists only on macOS 26+
+            linkerSettings: [.unsafeFlags(["-Xlinker", "-weak_framework", "-Xlinker", "FoundationModels"])]  // Apple Intelligence exists only on macOS 26+
         ),
         // SwiftPM stamps the binary with the deployment target as its SDK version, which makes macOS 26+ run the app
         // in compatibility mode (no Liquid Glass). Stamp the real SDK so AppKit and SwiftUI use the current design.
