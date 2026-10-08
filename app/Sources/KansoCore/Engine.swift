@@ -396,10 +396,13 @@ public final class Engine: @unchecked Sendable {
             ensureLibrary(for: m.dest)
             makeDir(m.dest)
             let dst = Engine.unique(m.dest.appendingPathComponent(name))
-            do { try fm.moveItem(at: src, to: dst) } catch { continue }
             var a = Action(run: run, kind: m.kind, src: src.path, dst: dst.path, root: m.item.root.path, shelf: m.shelf, why: m.why, source: m.source)
             a.trigger = trigger
             a.details = m.details
+            // Write-ahead: the origin is on disk before the file moves. A crash mid-move leaves a record undo can
+            // handle (it skips entries whose dst is missing); a failed move discards it.
+            store.append(a)
+            do { try fm.moveItem(at: src, to: dst) } catch { store.discard(a.id); continue }
             if let k = a.details["kept"], let moved = movedTo[k] { a.details["kept"] = moved }
             movedTo[src.path] = dst.path
             if m.newName != nil {
