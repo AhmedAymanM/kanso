@@ -35,7 +35,7 @@ jobs:
         continue-on-error: true
         run: |
           mkdir -p qa/recordings
-          KANSO_HOME="$RUNNER_TEMP/k2" open -a app/build/Kanso.app --args --popover
+          open --env KANSO_HOME="$RUNNER_TEMP/k2" "$PWD/app/build/Kanso.app" --args --popover || true
           sleep 3
           screencapture -V 6 qa/recordings/popover.mov || true
           screencapture -x qa/recordings/desktop.png || true
