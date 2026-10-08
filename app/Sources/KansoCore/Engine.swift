@@ -384,11 +384,11 @@ public final class Engine: @unchecked Sendable {
             if m.dest.standardizedFileURL == src.deletingLastPathComponent().standardizedFileURL && name == m.item.name { continue }
             if m.kind == .duplicate && s.duplicatesToTrash {
                 // The user chose "extra copies go to the Trash" (ADR 0002 amendment); journaled, one ⌘Z away.
-                var result: NSURL?
-                guard (try? fm.trashItem(at: src, resultingItemURL: &result)) != nil, let t = result as URL? else { continue }
-                var a = Action(run: run, kind: .duplicate, src: src.path, dst: t.path, root: m.item.root.path, shelf: "Trash", why: m.why + " · moved to Trash (your setting)", source: m.source)
+                var a = Action(run: run, kind: .duplicate, src: src.path, dst: "", root: m.item.root.path, shelf: "Trash", why: m.why + " · moved to Trash (your setting)", source: m.source)
                 a.trigger = trigger
                 a.details = m.details
+                guard let t = trashJournaled(src, &a) else { continue }
+                a.dst = t.path
                 store.append(a)
                 done.append(a)
                 continue
@@ -518,15 +518,24 @@ public final class Engine: @unchecked Sendable {
 
     // MARK: Duplicates
 
+    /// Write-ahead trash: the origin is journaled before the file leaves (the Trash path isn't known until it has),
+    /// so a crash mid-trash leaves a record. Undo skips entries with no dst; a failed trash discards the record.
+    private func trashJournaled(_ url: URL, _ a: inout Action) -> URL? {
+        store.append(a)
+        var result: NSURL?
+        guard (try? fm.trashItem(at: url, resultingItemURL: &result)) != nil, let t = result as URL? else { store.discard(a.id); return nil }
+        return t
+    }
+
     /// Move a held copy to the Trash. Only ever called from a user action.
     @discardableResult
     public func trash(_ id: UUID) -> Action? {
         guard let a = store.actions.first(where: { $0.id == id }) else { return nil }
         let url = URL(fileURLWithPath: a.dst)
-        var result: NSURL?
-        guard (try? fm.trashItem(at: url, resultingItemURL: &result)) != nil, let t = result as URL? else { return nil }
-        var tr = Action(run: String(UUID().uuidString.prefix(8)).lowercased(), kind: .trashed, src: a.dst, dst: t.path, root: a.root, shelf: "Trash", why: "moved to Trash by you", source: "size + hash")
+        var tr = Action(run: String(UUID().uuidString.prefix(8)).lowercased(), kind: .trashed, src: a.dst, dst: "", root: a.root, shelf: "Trash", why: "moved to Trash by you", source: "size + hash")
         tr.trigger = "menu"
+        guard let t = trashJournaled(url, &tr) else { return nil }
+        tr.dst = t.path
         tr.details = ["size": a.details["size"] ?? String(Stat.size(t)), "action": a.id.uuidString]
         store.append(tr)
         store.modify([id]) { $0.pending = false }
@@ -566,11 +575,11 @@ public final class Engine: @unchecked Sendable {
         let run = String(UUID().uuidString.prefix(8)).lowercased()
         let pendingByPath = Dictionary(store.actions.filter { $0.kind == .duplicate && !$0.undone }.map { ($0.dst, $0.id) }, uniquingKeysWith: { _, b in b })
         for url in duplicateFiles() {
-            var result: NSURL?
             let size = Stat.size(url)
-            guard (try? fm.trashItem(at: url, resultingItemURL: &result)) != nil, let t = result as URL? else { continue }
-            var tr = Action(run: run, kind: .trashed, src: url.path, dst: t.path, root: rootFor(url)?.path ?? "", shelf: "Trash", why: "moved to Trash by you", source: "size + hash")
+            var tr = Action(run: run, kind: .trashed, src: url.path, dst: "", root: rootFor(url)?.path ?? "", shelf: "Trash", why: "moved to Trash by you", source: "size + hash")
             tr.trigger = "menu"
+            guard let t = trashJournaled(url, &tr) else { continue }
+            tr.dst = t.path
             tr.details = ["size": String(size)]
             if let id = pendingByPath[url.path] { tr.details["action"] = id.uuidString; store.modify([id]) { $0.pending = false } }
             store.append(tr)
@@ -590,9 +599,9 @@ public final class Engine: @unchecked Sendable {
             let url = URL(fileURLWithPath: a.dst)
             let opened = (try? url.resourceValues(forKeys: [.contentAccessDateKey]).contentAccessDate) ?? .distantPast
             guard now.timeIntervalSince(max(a.ts, opened)) >= limit else { continue }
-            var result: NSURL?
-            guard (try? fm.trashItem(at: url, resultingItemURL: &result)) != nil, let t = result as URL? else { continue }
-            var tr = Action(run: run, kind: .trashed, src: a.dst, dst: t.path, root: a.root, shelf: "Trash", why: "held \(s.autoTrashDays) days untouched (your setting)", source: "size + hash")
+            var tr = Action(run: run, kind: .trashed, src: a.dst, dst: "", root: a.root, shelf: "Trash", why: "held \(s.autoTrashDays) days untouched (your setting)", source: "size + hash")
+            guard let t = trashJournaled(url, &tr) else { continue }
+            tr.dst = t.path
             tr.details = ["size": a.details["size"] ?? String(Stat.size(t)), "action": a.id.uuidString]
             store.append(tr)
             store.modify([a.id]) { $0.pending = false }
