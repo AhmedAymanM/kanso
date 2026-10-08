@@ -1,0 +1,53 @@
+<!doctype html>
+<meta charset="utf-8"><title>Kanso preview prototype (communication artifact, not shipping code)</title>
+<style>
+:root{--win:#F4F2EE;--card:#fff;--text:#1D1D1F;--t2:#6E6E73;--sep:rgba(0,0,0,.1);--mint:#CFE8D8;--mintInk:#2E5A4B;--lav:#E5DCF7;--lavInk:#5A4687;--amb:#F7E4B5;--ambInk:#7E531B;--stone:#ECEAE5}
+@media(prefers-color-scheme:dark){:root{--win:#1C1C1E;--card:#2C2C2E;--text:#F5F5F7;--t2:#A1A1A6;--sep:rgba(255,255,255,.12);--mint:#2D3A37;--mintInk:#CFE8D8;--lav:#3A3449;--lavInk:#E5DCF7;--amb:#453828;--ambInk:#F7E4B5;--stone:#343437}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+body{margin:0;font:13px -apple-system,system-ui,sans-serif;background:var(--win);color:var(--text);display:grid;grid-template-columns:320px 1fr;height:100vh}
+aside{border-right:1px solid var(--sep);padding:12px;overflow:auto}h4{margin:4px 4px 8px;font-size:12px;color:var(--t2);letter-spacing:.04em}
+.rule{display:flex;gap:8px;padding:8px;border-radius:6px;cursor:pointer;min-height:40px}.rule:hover{background:rgba(128,128,128,.12)}.rule.sel{background:rgba(128,128,128,.2)}
+.n{flex:none;width:18px;height:18px;border-radius:9px;background:var(--lav);color:var(--lavInk);font-size:11px;text-align:center;line-height:18px}
+.sub{font-size:12px;color:var(--t2)}.sub.warn{color:var(--ambInk)}.rule.off{opacity:.55}
+main{display:flex;flex-direction:column;min-width:0}header{height:56px;padding:0 16px;display:flex;flex-direction:column;justify-content:center;border-bottom:1px solid var(--sep);transition:opacity .2s}
+header b{font-size:17px}.row{display:grid;grid-template-columns:28px 1fr 150px 1fr;align-items:center;height:32px;padding:0 16px}
+.grp{height:28px;font-weight:600;padding:0 16px;display:flex;align-items:center;gap:6px;cursor:pointer;border-top:1px solid var(--sep)}.grp span{margin-left:auto;font-weight:400;color:var(--t2)}
+.list{overflow:auto;flex:1}.badge{font-size:10px;background:var(--amb);color:var(--ambInk);border-radius:9px;padding:1px 7px;margin-left:6px}
+.dim{color:var(--t2)}footer{height:52px;border-top:1px solid var(--sep);display:flex;align-items:center;padding:0 16px;gap:12px}
+button{font:inherit;padding:4px 14px;border-radius:6px;border:1px solid var(--sep);background:var(--card);color:var(--text)}button.p{background:#0A64D8;color:#fff;border:0}
+.chip{margin:8px 16px 0;background:var(--lav);color:var(--lavInk);border-radius:9px;padding:2px 10px;align-self:flex-start;cursor:pointer}
+label.ed{display:flex;gap:6px;align-items:center;font-size:12px;color:var(--t2);margin:6px 4px}input{width:56px}
+</style>
+<aside><h4>RULES</h4><div id="rules"></div>
+<h4 style="margin-top:16px">TRY IT</h4>
+<label class="ed">Rule ② older than <input id="days" type="number" value="30" min="1"> days</label>
+<label class="ed"><input id="r1" type="checkbox" checked> Rule ① on</label>
+<label class="ed"><input id="seed" type="checkbox"> Pre-existing “report.pdf” in Documents/PDFs (collision)</label>
+<p class="sub">Click a rule to filter the preview to its files. Click a group to collapse it. Uncheck a file to skip it.</p></aside>
+<main><header id="sum"></header><div id="chip"></div><div class="list" id="list"></div><footer><span id="sel" class="sub"></span><span style="margin-left:auto"></span><button id="undo" hidden>Undo</button><button class="p" id="apply">Apply</button></footer></main>
+<script>
+const day=864e5, now=Date.now();
+const F=[["Invoice-03.pdf",3],["report.pdf",2],["Receipt (1).pdf",40],["IMG_0412.jpg",90],["IMG_0413.jpg",5],["Screenshot 2026-10-01.png",7],["Screenshot 2026-09-02.png",36],["notes.txt",12],["Setup.dmg",1],["Report Q3.docx",20]].map(([n,a])=>({n,age:a,ex:true,done:false}));
+const ext=n=>n.split('.').pop().toLowerCase();
+const rules=[{id:1,t:"PDFs",dest:"Documents/PDFs",on:true,m:f=>ext(f.n)=="pdf"},
+{id:2,t:()=>`Images added over ${+days.value} days ago`,dest:"Archive/Images",on:true,m:f=>["jpg","png"].includes(ext(f.n))&&f.age>+days.value},
+{id:3,t:"Names starting “Screenshot”",dest:"Screenshots",on:true,m:f=>f.n.startsWith("Screenshot")}];
+let sel=null,closed=new Set(),applied=false;
+const $=id=>document.getElementById(id);
+function plan(){rules[0].on=$("r1").checked;const used=new Set(),res=[];
+ rules.forEach(r=>{r.matched=0;r.shadow=0});
+ F.forEach(f=>{const hits=rules.filter(r=>r.on&&r.m(f));if(!hits.length){res.push({f,stay:true});return}
+  hits.slice(1).forEach(r=>r.shadow++);const r=hits[0];r.matched++;
+  let name=f.n,key=r.dest+"/"+name;if((key=="Documents/PDFs/report.pdf"&&$("seed").checked)||used.has(key)){name=name.replace(/(\.[^.]+)$/," 2$1");}
+  used.add(r.dest+"/"+name);res.push({f,r,name,renamed:name!=f.n})});return res}
+function render(){const p=plan(),mv=p.filter(x=>!x.stay),inc=mv.filter(x=>x.f.ex),ren=inc.filter(x=>x.renamed).length;
+ $("rules").innerHTML=rules.map((r,i)=>`<div class="rule ${r.on?'':'off'} ${sel==r.id?'sel':''}" onclick="sel=sel==${r.id}?null:${r.id};render()"><div class="n">${i+1}</div><div><div>${typeof r.t=="function"?r.t():r.t} → ${r.dest}</div><div class="sub ${r.matched||!r.on?'':'warn'}">${!r.on?'Off':r.matched?r.matched+(r.matched==1?' file':' files'):r.shadow?'Covered by an earlier rule':'No files match'}</div></div></div>`).join("");
+ $("sum").innerHTML=applied?`<b>Moved ${inc.length} files</b><span class="dim">Undo puts them all back.</span>`:mv.length?`<b>Kanso will move ${inc.length} of ${F.length} files</b><span class="dim">${p.length-mv.length} stay put${ren?` · ${ren} will be renamed to avoid a clash`:''}</span>`:`<b>Nothing to move</b><span class="dim">None of the ${F.length} files match your rules.</span>`;
+ $("chip").innerHTML=sel?`<div class="chip" onclick="sel=null;render()">Showing rule ${sel} ✕</div>`:"";
+ const groups={};p.filter(x=>!sel||(x.r&&x.r.id==sel)).forEach(x=>{const g=x.stay?"Stays in Downloads":x.r.dest;(groups[g]??=[]).push(x)});
+ $("list").innerHTML=Object.keys(groups).sort((a,b)=>a.startsWith("Stays")-b.startsWith("Stays")||a.localeCompare(b)).map(g=>`<div class="grp" onclick="closed.has('${g}')?closed.delete('${g}'):closed.add('${g}');render()">${closed.has(g)?'▸':'▾'} ${g}<span>${groups[g].length} files</span></div>`+(closed.has(g)?'':groups[g].map(x=>`<div class="row ${x.stay?'dim':''}">${x.stay?'<span></span>':`<input type=checkbox ${x.f.ex?'checked':''} ${applied?'disabled':''} onchange="F[${F.indexOf(x.f)}].ex=this.checked;render()">`}<span>📄 ${x.f.n}${x.renamed?'<span class=badge>Renamed</span>':''}</span><span>${x.stay?'—':`<span class=n>${x.r.id}</span> ${typeof x.r.t=='function'?'Images':x.r.t.split(' ')[0]}`}</span><span class="dim">${x.stay?'No rule matched':x.f.ex?'…/'+x.r.dest+(x.renamed?'/'+x.name:''):'Skipped by you'}</span></div>`).join(''))).join("");
+ $("sel").textContent=`${inc.length} selected`;$("apply").textContent=inc.length<mv.length?`Apply ${inc.length} Moves`:"Apply";$("apply").disabled=!inc.length||applied;$("undo").hidden=!applied}
+$("apply").onclick=()=>{applied=true;render()};$("undo").onclick=()=>{applied=false;render()};
+["days","r1","seed"].forEach(i=>$(i).oninput=()=>{$("sum").style.opacity=.6;setTimeout(()=>{$("sum").style.opacity=1;render()},150)});
+render();
+</script>
