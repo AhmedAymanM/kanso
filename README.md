@@ -1,5 +1,8 @@
 <p align="center"><img src="docs/assets/icon.png" width="128" alt="Kanso"></p>
 
+
+## *KANSO IS STILL IN EARLY DEVELOPMENT STAGE*
+
 # Kanso
 
 Keeps `~/Downloads`, `~/Desktop` and `~/Documents` sorted without you thinking about it.
