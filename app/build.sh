@@ -1,7 +1,12 @@
 #!/bin/bash
-# Builds app/build/Kanso.app (release, ad-hoc signed). Run it with: open app/build/Kanso.app
+# Builds app/build/Kanso.app (release). Ad-hoc signed unless SIGN_IDENTITY is set (a "Developer ID Application: ..." name or
+# SHA-1), in which case it is signed with the hardened runtime + secure timestamp that notarization requires.
+# KANSO_VERSION / KANSO_BUILD override the Info.plist version strings. Run it with: open app/build/Kanso.app
 # Finder's "Don't Sort with Kanso" service appears once the app is in /Applications or ~/Applications.
 set -euo pipefail
+SIGN_IDENTITY="${SIGN_IDENTITY:--}"
+VERSION="${KANSO_VERSION:-1.0}"
+BUILD="${KANSO_BUILD:-1}"
 cd "$(dirname "$0")"
 swift build -c release
 BIN=$(swift build -c release --show-bin-path)
@@ -32,8 +37,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleExecutable</key><string>Kanso</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>1.0</string>
-  <key>CFBundleVersion</key><string>1</string>
+  <key>CFBundleShortVersionString</key><string>$VERSION</string>
+  <key>CFBundleVersion</key><string>$BUILD</string>
   <key>LSMinimumSystemVersion</key><string>14.0</string>
   <key>LSApplicationCategoryType</key><string>public.app-category.productivity</string>
   <key>LSUIElement</key><true/>
@@ -62,6 +67,11 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 </plist>
 PLIST
 
-codesign --force --sign - "$APP/Contents/Helpers/kanso-cli"
-codesign --force --sign - "$APP"
+if [ "$SIGN_IDENTITY" = "-" ]; then
+  CS=(codesign --force --sign -)
+else
+  CS=(codesign --force --sign "$SIGN_IDENTITY" --options runtime --timestamp)
+fi
+"${CS[@]}" "$APP/Contents/Helpers/kanso-cli"
+"${CS[@]}" --entitlements ../release/entitlements.plist "$APP"
 echo "built $(pwd)/$APP"

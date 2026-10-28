@@ -4,6 +4,8 @@ on:
   pull_request:
   push:
     branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
 
 jobs:
   test:
@@ -12,5 +14,107 @@ jobs:
       - uses: actions/checkout@v4
       - name: Toolchain
         run: swift --version && xcodebuild -version
+      - uses: actions/cache@v4
+        with:
+          path: app/.build
+          key: spm-${{ runner.os }}-${{ hashFiles('app/Package.swift', 'app/Package.resolved') }}
+      - name: Resolve dependencies
+        run: cd app && swift package resolve
       - name: swift test
-        run: cd app && swift test
+        run: cd app && swift test 2>&1 | tee ../test.log
+      - name: Release build (ad-hoc)
+        run: app/build.sh
+      # QA stand-in until a Mac is at hand: every screen, light + dark, rendered by the app itself.
+      - name: Render UI snapshots
+        run: |
+          mkdir -p qa/snapshots
+          KANSO_HOME="$RUNNER_TEMP/k" app/build/Kanso.app/Contents/MacOS/Kanso --snapshot qa/snapshots
+          ls qa/snapshots | wc -l
+      # Best effort: the runner may lack Screen Recording permission, so this never fails the job.
+      - name: Screen recording of the live app
+        continue-on-error: true
+        run: |
+          mkdir -p qa/recordings
+          open --env KANSO_HOME="$RUNNER_TEMP/k2" "$PWD/app/build/Kanso.app" --args --popover || true
+          sleep 3
+          screencapture -V 6 qa/recordings/popover.mov || true
+          screencapture -x qa/recordings/desktop.png || true
+          pkill -x Kanso || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qa-snapshots-and-recordings
+          path: qa/
+          if-no-files-found: warn
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-log
+          path: test.log
+          if-no-files-found: ignore
+
+  # Signs, notarizes, staples and verifies the DMG when the Apple secrets exist (see RELEASE.md).
+  # With no secrets configured the signing steps are skipped and an unsigned (ad-hoc) DMG is still uploaded,
+  # so the workflow stays green. Adding all secrets below is what flips signing + notarization on.
+  package:
+    needs: test
+    if: github.event_name != 'pull_request'
+    runs-on: macos-latest
+    env:
+      # Secrets cannot be read in `if:`, so presence is computed here once.
+      HAVE_APPLE_SECRETS: ${{ secrets.APPLE_TEAM_ID != '' && secrets.APPLE_DEVELOPER_ID_CERT_P12 != '' && secrets.APPLE_DEVELOPER_ID_CERT_PASSWORD != '' && secrets.APPLE_API_KEY_ID != '' && secrets.APPLE_API_ISSUER_ID != '' && secrets.APPLE_API_PRIVATE_KEY != '' }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+      APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
+      APPLE_API_PRIVATE_KEY: ${{ secrets.APPLE_API_PRIVATE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Version
+        id: v
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then V="${GITHUB_REF#refs/tags/v}"; else V="0.0.0-ci"; fi
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+      - name: Import Developer ID certificate
+        if: env.HAVE_APPLE_SECRETS == 'true'
+        env:
+          CERT_P12: ${{ secrets.APPLE_DEVELOPER_ID_CERT_P12 }}
+          CERT_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_CERT_PASSWORD }}
+        run: |
+          KC="$RUNNER_TEMP/release.keychain-db"; KCPW=$(uuidgen)
+          echo "$CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$KCPW" "$KC"
+          security set-keychain-settings -lut 3600 "$KC"
+          security unlock-keychain -p "$KCPW" "$KC"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KC" -P "$CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KCPW" "$KC"
+          security list-keychains -d user -s "$KC" login.keychain-db
+          rm "$RUNNER_TEMP/cert.p12"
+          ID=$(security find-identity -v -p codesigning "$KC" | grep "Developer ID Application" | grep "($APPLE_TEAM_ID)" | head -1 | sed -E 's/.*"(.*)"/\1/')
+          [ -n "$ID" ] || { echo "no Developer ID Application identity for team $APPLE_TEAM_ID" >&2; exit 1; }
+          echo "SIGN_IDENTITY=$ID" >> "$GITHUB_ENV"
+      - name: Build, sign, package
+        env:
+          KANSO_VERSION: ${{ steps.v.outputs.version }}
+          KANSO_BUILD: ${{ github.run_number }}
+        run: |
+          app/build.sh
+          scripts/make-dmg.sh "app/build/Kanso-$KANSO_VERSION.dmg"
+      - name: Notarize and staple
+        if: env.HAVE_APPLE_SECRETS == 'true'
+        run: scripts/notarize.sh "app/build/Kanso-${{ steps.v.outputs.version }}.dmg"
+      - name: Verify (codesign, spctl, stapler)
+        if: env.HAVE_APPLE_SECRETS == 'true'
+        run: scripts/verify-release.sh "app/build/Kanso-${{ steps.v.outputs.version }}.dmg"
+      - name: Note unsigned build
+        if: env.HAVE_APPLE_SECRETS != 'true'
+        run: |
+          echo "::notice::Apple secrets not configured, DMG is ad-hoc signed and NOT notarized (see RELEASE.md)."
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Kanso-dmg-${{ env.HAVE_APPLE_SECRETS == 'true' && 'notarized' || 'unsigned' }}
+          path: app/build/Kanso-*.dmg
+      - name: Attach to GitHub release
+        if: env.HAVE_APPLE_SECRETS == 'true' && startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" app/build/Kanso-*.dmg --generate-notes --draft
