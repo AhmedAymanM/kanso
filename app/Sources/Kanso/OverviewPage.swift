@@ -13,18 +13,30 @@ struct OverviewPage: View {
         let all = Stats.of(m.actions, in: DateInterval(start: .distantPast, end: Date().addingTimeInterval(1)))
         VStack(alignment: .leading, spacing: 14) {
             headline(needs)
-            HStack(alignment: .top, spacing: 14) {
-                hero(all).frame(width: 236)
-                NeedsCard(card: $card).frame(maxWidth: .infinity)
+            if needs.isEmpty {
+                // Nothing to do: the card shrinks to one line and the chart rises into the space.
+                QuietLine()
+                HStack(alignment: .top, spacing: 14) {
+                    hero(all).frame(width: 236)
+                    MonthCard().frame(maxWidth: .infinity)
+                }
+                .fixedSize(horizontal: false, vertical: true)
+                ShelvesCard().frame(maxWidth: .infinity)
+            } else {
+                HStack(alignment: .top, spacing: 14) {
+                    hero(all).frame(width: 236)
+                    NeedsCard(card: $card).frame(maxWidth: .infinity)
+                }
+                .fixedSize(horizontal: false, vertical: true)
+                HStack(alignment: .top, spacing: 14) {
+                    MonthCard().frame(maxWidth: .infinity)
+                    ShelvesCard().frame(width: 236)
+                }
+                .fixedSize(horizontal: false, vertical: true)
             }
-            .fixedSize(horizontal: false, vertical: true)
-            HStack(alignment: .top, spacing: 14) {
-                MonthCard().frame(maxWidth: .infinity)
-                ShelvesCard().frame(width: 236)
-            }
-            .fixedSize(horizontal: false, vertical: true)
             counters(all)
         }
+        .animation(Motion.spring(), value: needs.isEmpty)
         .task {
             guard !Motion.reduced else { return }
             withAnimation(.spring(response: 0.6, dampingFraction: 1)) { appeared = true }
@@ -237,6 +249,20 @@ struct NeedBody: View {
 
 // MARK: The month, day by day
 
+/// The Needs-you card when it is empty: a 56 pt line.
+struct QuietLine: View {
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "checkmark").font(.system(size: TS.body, weight: .bold)).foregroundStyle(Tint.accent.fg).frame(width: 28, height: 28).background(Circle().fill(Tint.accent.bg))
+            Text("Nothing needs you").font(.system(size: TS.body, weight: .semibold)).foregroundStyle(K.text)
+            Text("Duplicates and rename suggestions show up here.").font(.system(size: TS.small)).foregroundStyle(K.text2)
+            Spacer()
+        }
+        .padding(.horizontal, 16).frame(height: 56).card()
+        .accessibilityElement(children: .combine)
+    }
+}
+
 struct MonthCard: View {
     @EnvironmentObject var m: AppModel
 
@@ -278,7 +304,7 @@ struct MonthCard: View {
             HStack(alignment: .bottom, spacing: 2) {
                 ForEach(0..<days, id: \.self) { d in
                     ZStack(alignment: .bottom) {
-                        RoundedRectangle(cornerRadius: 2).fill(K.fill)
+                        if d + 1 <= today { RoundedRectangle(cornerRadius: 2).fill(K.fill) }   // elapsed days only
                         RoundedRectangle(cornerRadius: 2).fill(d + 1 == today ? Tint.accent.fg : K.text).frame(height: counts[d] == 0 ? 0 : max(5, CGFloat(counts[d]) / CGFloat(mx) * 60))
                     }
                     .help("\(counts[d]) files")
