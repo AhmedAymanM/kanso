@@ -1,0 +1,98 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Kanso · Proposal B · Glass Shelf</title><style>:root{--bg:linear-gradient(135deg,#dfe8e4,#e9e4f2 55%,#f1e8d8);--card:rgba(255,255,255,.55);--sep:rgba(255,255,255,.7);--text:#18181B;--text2:#5C5C63;--mintbg:#CFE8D8;--mintfg:#2E5A4B;--butterbg:#F7E4B5;--butterfg:#7E531B;--peribg:#D9E0FA;--perifg:#3C509A;--glass:rgba(255,255,255,.5);--shadow:0 10px 36px rgba(40,50,60,.16);}[data-theme=dark]{--bg:linear-gradient(135deg,#16201d,#1d1b29 55%,#262015);--card:rgba(255,255,255,.07);--sep:rgba(255,255,255,.14);--text:#F5F5F7;--text2:#A6A6AD;--mintbg:#2D3A37;--mintfg:#BFE3D0;--butterbg:#453828;--butterfg:#F3D79B;--peribg:#31374E;--perifg:#C9D3FF;--glass:rgba(40,40,44,.5);--shadow:0 10px 36px rgba(0,0,0,.5);}@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:linear-gradient(135deg,#16201d,#1d1b29 55%,#262015);--card:rgba(255,255,255,.07);--sep:rgba(255,255,255,.14);--text:#F5F5F7;--text2:#A6A6AD;--mintbg:#2D3A37;--mintfg:#BFE3D0;--butterbg:#453828;--butterfg:#F3D79B;--peribg:#31374E;--perifg:#C9D3FF;--glass:rgba(40,40,44,.5);--shadow:0 10px 36px rgba(0,0,0,.5);}}:root{--sans:-apple-system,"SF Pro Display",system-ui,sans-serif;--isl-r:38px;--ask-r:22px;--dur:360ms;--ease:cubic-bezier(.3,.9,.3,1)}
+*{box-sizing:border-box;margin:0}
+body{font:13px/1.4 var(--sans);background:var(--bg);color:var(--text);padding:28px;-webkit-font-smoothing:antialiased}
+h1{font:600 12px var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--text2);margin:34px 0 14px}
+button{font:inherit;color:inherit;cursor:pointer}
+kbd{font:600 11px var(--sans);opacity:.6;margin-left:6px}
+.dim{color:var(--text2)}
+.bar{display:flex;gap:12px;align-items:center;margin-bottom:6px}.bar b{font:600 15px var(--sans)}
+.bar button{margin-left:auto;border:1px solid var(--sep);background:var(--card);padding:5px 12px;border-radius:99px}
+.cap{font-size:11px;color:var(--text2);margin-top:10px;text-align:center}
+.stage{display:flex;flex-direction:column;align-items:center;margin:0 0 26px}
+.ic{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:7px;font-size:12px}
+.mint{background:var(--mintbg);color:var(--mintfg)}.butter{background:var(--butterbg);color:var(--butterfg)}.peri{background:var(--peribg);color:var(--perifg)}
+.notch{background:#000;color:#fff;border-radius:0 0 var(--isl-r) var(--isl-r);padding:14px 18px 12px;position:relative}
+.notch .dim{color:rgba(255,255,255,.62)}
+.notch.compact{width:360px;display:flex;align-items:center;gap:10px;min-height:44px}
+.notch.compact .t{flex:1;text-align:center;font-weight:600}
+.notch.compact kbd{background:rgba(255,255,255,.12);padding:2px 6px;border-radius:6px;opacity:1}
+.notch.expanded,.notch.tray{width:460px}
+.notch .head{display:flex;gap:6px;align-items:center;margin-bottom:12px}.notch .head b{font-weight:600}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:12px}.pair div{display:flex;flex-direction:column}.pair strong{font:600 16px var(--sans)}
+.acts{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.notch button{background:rgba(255,255,255,.12);border:0;border-radius:99px;padding:6px 12px;color:#fff}
+.notch button.go{background:var(--mintbg);color:var(--mintfg);font-weight:600}
+.ask{border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.05);border-radius:var(--ask-r);padding:9px 12px;color:rgba(255,255,255,.62);display:flex;justify-content:space-between;margin-bottom:12px}
+.lip{display:flex;justify-content:space-between;align-items:center;font-size:11px;padding-top:2px}
+.lipbtns{display:flex;gap:6px}.lipbtns i{font-style:normal;background:rgba(255,255,255,.14);border-radius:99px;padding:3px 9px}
+.capsule{display:flex;gap:10px;align-items:center;padding:8px 16px 8px 10px;border-radius:99px;background:var(--glass);border:1px solid var(--sep);backdrop-filter:blur(24px) saturate(1.4);box-shadow:var(--shadow)}
+.traygrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(480px,1fr));gap:26px 18px;justify-items:center}
+figure{display:flex;flex-direction:column;align-items:center}figcaption{font-size:11px;color:var(--text2);margin-top:10px}
+.well{border:1.5px dashed rgba(255,255,255,.28);border-radius:var(--ask-r);padding:26px;text-align:center;display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+.well small{color:rgba(255,255,255,.55)}.well.on{border-color:var(--mintbg);background:rgba(207,232,216,.12)}
+.items{list-style:none;padding:0;margin-bottom:12px;display:flex;flex-direction:column;gap:2px}
+.items li{display:grid;grid-template-columns:22px 1fr auto auto;gap:8px;align-items:center;padding:7px 8px;border-radius:10px}.items li:hover{background:rgba(255,255,255,.07)}
+.items u{text-decoration:none;opacity:.5}.items em{font-style:normal;font-size:10px;background:var(--peribg);color:var(--perifg);padding:1px 6px;border-radius:99px;margin-left:4px}
+.dest{font-weight:600}.conf{font-size:10px;color:rgba(255,255,255,.55);text-align:right}
+.items li:has(.dest){grid-template-columns:22px 1fr auto 88px}
+@media (prefers-reduced-motion:no-preference){.notch{transition:all var(--dur) var(--ease)}}
+
+body{background:var(--bg);background-attachment:fixed;min-height:100vh}
+.win{max-width:980px;margin:0 auto;display:grid;grid-template-columns:200px 1fr;gap:16px}
+.side,.main{border-radius:30px;background:var(--card);border:1px solid var(--sep);backdrop-filter:blur(28px) saturate(1.5);box-shadow:var(--shadow)}
+.side{padding:20px 12px}.side p{padding:8px 12px;border-radius:99px}.side p.on{background:var(--mintbg);color:var(--mintfg);font-weight:600}
+.main{padding:30px}.main h2{font:700 34px/1.1 var(--sans);letter-spacing:-.02em}.sub{color:var(--text2);font-size:15px;margin:6px 0 22px}
+.glassc{border-radius:26px;background:var(--card);border:1px solid var(--sep);padding:20px;backdrop-filter:blur(20px)}
+.g2{display:grid;grid-template-columns:1.1fr 1fr;gap:14px}.big{font:700 72px/1 var(--sans);letter-spacing:-.04em}
+.pillrow{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}.pillrow span{padding:6px 14px;border-radius:99px;background:var(--mintbg);color:var(--mintfg);font-weight:600}
+.pillrow span.s{background:var(--butterbg);color:var(--butterfg)}.pillrow span.r{background:var(--peribg);color:var(--perifg)}
+.strip{display:flex;height:12px;border-radius:99px;overflow:hidden;margin:14px 0 8px}.strip i{display:block}
+.legend{display:flex;gap:14px;color:var(--text2);font-size:12px;flex-wrap:wrap}
+.glassbtn{display:inline-block;margin-top:12px;padding:7px 16px;border-radius:99px;background:var(--glass);border:1px solid var(--sep);backdrop-filter:blur(12px);font-weight:600}
+</style></head><body><div class="bar"><b>Proposal B · Glass Shelf</b><span class="dim">Liquid Glass forward: neutral content on a wallpaper, chrome and cards as glass, tint only as meaning.</span><button data-t>Light / Dark</button></div>
+<h1>Overview</h1>
+<div class="win"><div class="side"><p class="on">Overview</p><p>Activity</p><p style="margin-top:14px">Sorting</p><p>Renaming</p><p>Duplicates</p><p>Tagging</p><p>Smart Eject</p></div>
+<div class="main"><h2>Your Mac is in order.</h2><p class="sub">14 files placed today. Nothing needs you.</p>
+<div class="g2"><div class="glassc"><span class="dim">Kept in order</span><div class="big">56</div><p class="dim">files placed since October, all still where Kanso put them.</p></div>
+<div class="glassc"><b>Needs you · 1</b><p style="margin-top:8px"><b>Copy of assets.zip</b><br><span class="dim">Held on Duplicates. Same content as assets.zip.</span></p><span class="glassbtn">Move copy to Trash</span> <span class="glassbtn">Keep both</span></div></div>
+<div class="glassc" style="margin-top:14px"><b>Where 58 files went this month</b><div class="strip"><i style="width:30%;background:#7FB89C"></i><i style="width:30%;background:#9DB0E8"></i><i style="width:18%;background:#E8C879"></i><i style="width:22%;background:#B8A8E0"></i></div><div class="legend"><span>📄 Documents 11</span><span>🖼️ Images 11</span><span>📽️ Presentations 7</span><span>📊 Reports 6</span></div>
+<div class="pillrow"><span class="r">3 renamed</span><span>3 tagged</span><span class="s">168 MB held</span></div></div></div></div>
+<h1>Island</h1>
+<div class="stage">
+  <div class="notch compact"><span class="ic peri">✎</span><span class="t">Renamed Contract-Telia-2026-08.pdf</span><kbd>⌥⌘K</kbd></div>
+  <p class="cap">Compact island · notch skin · never takes focus</p>
+</div>
+<div class="stage">
+  <div class="notch expanded">
+    <div class="head"><span class="ic butter">⧉</span><b>Copy of assets.zip held</b><span class="dim"> · 59 min ago</span></div>
+    <div class="pair"><div><span class="dim">Kept</span><strong>assets.zip</strong><span class="dim">Archives</span></div><div><span class="dim">Extra copy · 120 MB</span><strong>assets (1).zip</strong><span class="dim">Duplicates</span></div></div>
+    <div class="acts"><button>Undo <kbd>⌘Z</kbd></button><button>Move copy to Trash <kbd>⌘⌫</kbd></button><button>Keep both</button></div>
+    <div class="ask">✦ Ask about these files… <kbd>Tab</kbd></div>
+    <div class="lip"><span class="dim">esc to close</span><span class="lipbtns"><i>⌨</i><i>⚙</i></span></div>
+  </div>
+  <p class="cap">Expanded island · needs-you card · ask field · lip</p>
+</div>
+<div class="stage">
+  <div class="capsule"><span class="ic mint">✓</span><span class="t">Nothing needs you · 14 handled</span></div>
+  <p class="cap">Capsule skin (no notch / below-the-notch mode) · Liquid Glass on macOS 26, material before, solid with Reduce Transparency</p>
+</div><h1>Tray (v2)</h1>
+<div class="traygrid">
+ <figure><div class="notch tray empty"><div class="head"><b>Tray</b><span class="dim">Nothing carried yet</span></div>
+   <div class="well"><span>Drop files, links or text here</span><small>or paste with ⌘V</small></div>
+   <div class="lip"><span class="dim">esc to close</span><span class="lipbtns"><i>⌨</i><i>⚙</i></span></div></div>
+   <figcaption>1 · Empty (opened with the Tray button or ⌘T)</figcaption></figure>
+ <figure><div class="notch tray hover"><div class="head"><b>Tray</b><span class="dim">Release to keep 3 things</span></div>
+   <div class="well on"><span>Release to add to the Tray</span><small>2 files · 1 link</small></div>
+   <div class="lip"><span class="dim">Nothing moves until you Organize</span></div></div>
+   <figcaption>2 · Drag over (the island grows toward the pointer)</figcaption></figure>
+ <figure><div class="notch tray full"><div class="head"><b>Tray</b><span class="dim">Carrying 4</span><button class="go">Organize <kbd>↩</kbd></button></div>
+   <ul class="items"><li><i>📄</i><b>Lease-2026.pdf</b><span class="dim">file · Downloads</span><u>✕</u></li><li><i>🖼️</i><b>moodboard.png</b><span class="dim">file · Desktop</span><u>✕</u></li><li><i>🔗</i><b>apple.com/newsroom</b><span class="dim">link</span><u>✕</u></li><li><i>📝</i><b>“Call Marta re: keys…”</b><span class="dim">snippet</span><u>✕</u></li></ul>
+   <div class="ask">✦ Ask about the Tray… <kbd>Tab</kbd></div>
+   <div class="lip"><span class="dim">Files stay where they are until you Organize</span><span class="lipbtns"><i>⌨</i><i>⚙</i></span></div></div>
+   <figcaption>3 · Carrying (items are references; ✕ forgets, never deletes)</figcaption></figure>
+ <figure><div class="notch tray plan"><div class="head"><b>Organize 4 things</b><span class="dim">Reviewed by you · moves only</span></div>
+   <ul class="items"><li><i>📄</i><b>Lease-2026.pdf</b><span class="dest">→ 📄 Documents</span><span class="conf">metadata</span></li><li><i>🖼️</i><b>moodboard.png</b><span class="dest">→ 🖼️ Images</span><span class="conf">metadata</span></li><li><i>🔗</i><b>apple.com/newsroom</b><span class="dest">→ 🔗 Links <em>new</em></span><span class="conf">asks Apple Intelligence</span></li><li><i>📝</i><b>Call Marta…</b><span class="dest">→ 📝 Notes <em>new</em></span><span class="conf">reads text on this Mac</span></li></ul>
+   <div class="acts"><button class="go">Move 4 <kbd>↩</kbd></button><button>Change a shelf…</button><button>Not now <kbd>esc</kbd></button></div>
+   <div class="lip"><span class="dim">Undo ⌘Z after. Nothing is trashed.</span></div></div>
+   <figcaption>4 · Organize plan (a preview, then one undoable run)</figcaption></figure>
+</div><script>document.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{const r=document.documentElement;r.dataset.theme=(r.dataset.theme==='dark'||(!r.dataset.theme&&matchMedia('(prefers-color-scheme:dark)').matches))?'light':'dark'})</script></body></html>
