@@ -43,7 +43,6 @@ struct OnboardingView: View {
         .frame(minWidth: 600, maxWidth: .infinity, minHeight: 540, maxHeight: .infinity)
         .background(K.window)
         .ignoresSafeArea()
-        .focusEffectDisabled()
         .onAppear { if chosen.isEmpty { chosen = Set(m.settings.roots) } }
     }
 
@@ -60,7 +59,7 @@ struct OnboardingView: View {
         VStack(alignment: .leading, spacing: 22) {
             title("Kanso needs to open \(folderCount).", "")
             VStack(alignment: .leading, spacing: 8) {
-                ForEach([("square.3.layers.3d", "Only the top level is sorted; shelves go inside the same folder."), ("laptopcomputer", "Nothing leaves this Mac."), ("checkmark.shield", "macOS asks once per folder. Uncheck one to leave it out.")], id: \.1) { b in
+                ForEach([("square.3.layers.3d", "Only the top level is sorted; shelves go inside the same folder."), ("laptopcomputer", "Your files never leave this Mac. The only network use is a daily update check (switch it off in Settings)."), ("checkmark.shield", "macOS asks once per folder. Uncheck one to leave it out.")], id: \.1) { b in
                     Label { Text(b.1).font(.system(size: TS.body)).foregroundStyle(K.text2) } icon: { Image(systemName: b.0).foregroundStyle(Tint.accent.fg).frame(width: 18) }
                 }
             }
@@ -151,7 +150,7 @@ struct OnboardingView: View {
                     Button("Open System Settings") { NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Siri-Settings.extension")!) }.buttonStyle(SecondaryStyle(small: true))
                 }
             }
-            Text("Nothing leaves this Mac either way. You can change this later in Settings → Privacy & AI.").font(.system(size: TS.small)).foregroundStyle(K.text2)
+            Text("Your files never leave this Mac either way. You can change this later in Settings → Privacy & AI.").font(.system(size: TS.small)).foregroundStyle(K.text2)
         }
     }
 

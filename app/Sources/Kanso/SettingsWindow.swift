@@ -75,7 +75,7 @@ struct GeneralPage: View {
                 }
                 Row(icon: "menubar.rectangle", title: "Menu bar icon", desc: "When hidden, open Kanso from the island's gear or \(m.settings.islandShortcut.display).") { KToggle(on: m.binding(\.showMenuBarIcon), label: "Menu bar icon") }
                 Row(icon: "power", title: "Open at login", desc: loginDesc) { KToggle(on: m.binding(\.openAtLogin), label: "Open at login") }
-                Row(icon: "arrow.triangle.2.circlepath", title: "Auto update", desc: "Checks GitHub Releases once a day. Only the app version is sent.", last: true) { KToggle(on: m.binding(\.updateChecks), label: "Auto update") }
+                Row(icon: "arrow.triangle.2.circlepath", title: "Auto update", desc: "Checks GitHub Releases once a day. Sends only the app version; GitHub sees your IP address.", last: true) { KToggle(on: m.binding(\.updateChecks), label: "Auto update") }
             }
         }
         PageSection(title: "Island") {
@@ -145,6 +145,14 @@ struct PrivacyPage: View {
                 Spacer()
             }
             .padding(.horizontal, 14).frame(height: 38).background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(K.fill))
+        }
+        PageSection(title: "Network") {
+            HStack(spacing: 8) {
+                Image(systemName: "network").font(.system(size: TS.small)).foregroundStyle(K.text2)
+                Text(m.settings.updateChecks ? "Your files never leave this Mac. The only network use is a daily check of GitHub Releases for a new version." : "Your files never leave this Mac. Kanso only goes online when you press Check for updates.").font(.system(size: TS.small)).foregroundStyle(K.text2)
+                Spacer()
+            }
+            .padding(.horizontal, 14).frame(minHeight: 38).background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(K.fill))
         }
         PageSection(title: "About") {
             HStack(spacing: 10) {
