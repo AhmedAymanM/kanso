@@ -9,12 +9,14 @@ enum Need: Identifiable, Equatable {
     case duplicate(Action)
     case renames([RenameProposal], Date)
     case rule(RuleSuggestion)
+    case shelf(ShelfSuggestion)
 
     var id: String {
         switch self {
         case .duplicate(let a): return a.id.uuidString
         case .renames: return "renames"
         case .rule(let r): return r.id.uuidString
+        case .shelf(let s): return s.id
         }
     }
     var ts: Date {
@@ -22,13 +24,14 @@ enum Need: Identifiable, Equatable {
         case .duplicate(let a): return a.ts
         case .renames(_, let d): return d
         case .rule(let r): return r.ts
+        case .shelf(let s): return s.ts
         }
     }
     var tint: Tint {
         switch self {
         case .duplicate: return .duplicate
         case .renames: return .rename
-        case .rule: return .rule
+        case .rule, .shelf: return .rule
         }
     }
     var label: String {
@@ -36,6 +39,7 @@ enum Need: Identifiable, Equatable {
         case .duplicate: return "Duplicate"
         case .renames: return "Rename review"
         case .rule: return "Rule suggestion"
+        case .shelf: return "Shelf suggestion"
         }
     }
     var icon: String {
@@ -43,6 +47,7 @@ enum Need: Identifiable, Equatable {
         case .duplicate: return "doc.on.doc"
         case .renames: return "pencil.line"
         case .rule: return "wand.and.stars"
+        case .shelf: return "square.stack.3d.up"
         }
     }
 }
@@ -108,6 +113,8 @@ final class AppModel: ObservableObject {
     @Published private(set) var inaccessibleRoots: [String] = []
     @Published private(set) var actions: [Action] = []
     @Published private(set) var pending = Pending()
+    /// New shelves proposed for what piles up in Unsorted (found by counting, applied only on Accept).
+    @Published private(set) var shelfSuggestions: [ShelfSuggestion] = []
     @Published var waiting: [Waiting] = []   // set by the sort run; snapshots set it too
     @Published private(set) var busy = false
     @Published private(set) var duplicatesBytes: Int64 = 0
@@ -158,6 +165,7 @@ final class AppModel: ObservableObject {
         settings = store.settings
         actions = store.actions
         pending = store.pending
+        shelfSuggestions = engine.suggestedShelves()
         duplicatesBytes = engine.duplicatesSize()
     }
 
@@ -203,6 +211,7 @@ final class AppModel: ObservableObject {
         var out: [Need] = actions.filter { $0.kind == .duplicate && $0.pending && !$0.undone && FileManager.default.fileExists(atPath: $0.dst) }.map { .duplicate($0) }
         if !pending.renames.isEmpty { out.append(.renames(pending.renames, pending.renamesFound ?? Date())) }
         out += pending.suggestions.map { .rule($0) }
+        out += shelfSuggestions.map { .shelf($0) }
         return out.sorted { $0.ts > $1.ts }
     }
 
@@ -330,6 +339,8 @@ final class AppModel: ObservableObject {
         if announce, let b = Batch.summary(done, trigger: "review") { Island.shared.show(.batch(run: b.run, text: b.text)) }
     }
     func dismissRenames() { engine.dismissRenames(); refresh() }
+    func acceptShelf(_ id: String) { engine.acceptShelfSuggestion(id); refresh() }
+    func dismissShelf(_ id: String) { engine.dismissShelfSuggestion(id); refresh() }
     func acceptSuggestion(_ id: UUID) { engine.acceptSuggestion(id); refresh() }
     func dismissSuggestion(_ id: UUID) { engine.dismissSuggestion(id); refresh() }
     /// "+ Add tag" on a sorted or renamed file: a Finder tag (with a Finder colour label) on the file, remembered on the action.
