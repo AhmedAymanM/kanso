@@ -152,10 +152,10 @@ final class RuleDraftTests: XCTestCase {
         for dest in ["../x", "/etc", "~/x", "Manual Shelves", "Keys", "Trash"] {
             var r = Rule([Condition(.name, "*a*")], dest: dest)
             r.automatic = true
-            let before = store.settings.rules.count
+            let before = store.settings.rules.count, types = store.settings.types.count
             XCTAssertFalse(engine.saveDraft(r, newShelf: NewShelf(name: dest, emoji: "📁", description: "")), dest)
             XCTAssertEqual(store.settings.rules.count, before)
-            XCTAssertNil(store.settings.type(named: dest))
+            XCTAssertEqual(store.settings.types.count, types)
         }
     }
 }
