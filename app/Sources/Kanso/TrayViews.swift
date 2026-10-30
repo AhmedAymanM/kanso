@@ -25,6 +25,7 @@ struct TrayBody: View {
             else if let n = tray.note { line(n, icon: "checkmark.circle", color: IslandInk.text2).stagger(2) }
             footer.stagger(3)
         }
+        .padding(.top, island.skin == .capsule ? 10 : 2)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Tray, \(tray.count) \(tray.count == 1 ? "item" : "items")")
     }
@@ -108,7 +109,7 @@ struct TrayBody: View {
                 }
             }
         }
-        .frame(maxHeight: 6 * 46)
+        .frame(height: min(CGFloat(tray.entries.count), 6) * 46)
     }
 
     var plan: some View {
@@ -117,7 +118,7 @@ struct TrayBody: View {
                 ForEach(tray.plan?.rows ?? []) { row in TrayPlanRow(row: row) }
             }
         }
-        .frame(maxHeight: 6 * 46)
+        .frame(height: min(CGFloat(tray.plan?.rows.count ?? 0), 6) * 46)
     }
 
     func line(_ text: String, icon: String, color: Color) -> some View {
