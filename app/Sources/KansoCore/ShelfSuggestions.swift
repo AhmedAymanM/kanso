@@ -34,7 +34,7 @@ public extension Engine {
             // A symlinked Unsorted (or My Shelves) would point suggestions at files outside the library.
             guard !Stat.isSymlink(dir), !Stat.isSymlink(dir.deletingLastPathComponent()) else { continue }
             guard let names = try? fm.contentsOfDirectory(atPath: dir.path) else { continue }
-            for n in names where !n.hasPrefix(".") {
+            for n in names where !n.hasPrefix(".") && n != "Icon\r" {
                 let u = dir.appendingPathComponent(n)
                 guard !isDir(u), !Stat.isSymlink(u), !Tags.read(u).contains(settings.keepTag) else { continue }
                 files.append(UFile(path: u.path, name: n, ext: (n as NSString).pathExtension.lowercased()))
@@ -137,7 +137,7 @@ public extension Engine {
             let roots = Set(s.activeRoots.map(\.path) + store.actions.filter { $0.run == a.run }.map(\.root).filter { !$0.isEmpty })
             let occupied = roots.contains { r in
                 let dir = resolve(URL(fileURLWithPath: r), name)
-                return ((try? fm.contentsOfDirectory(atPath: dir.path)) ?? []).contains { !$0.hasPrefix(".") }
+                return ((try? fm.contentsOfDirectory(atPath: dir.path)) ?? []).contains { !$0.hasPrefix(".") && $0 != "Icon\r" }   // Finder's folder-icon file is not content
             }
             if occupied { continue }
             retractCreatedShelf(name: name, ext: a.details[Engine.createdExtKey], rule: a.details[Engine.createdRuleKey].flatMap(UUID.init))

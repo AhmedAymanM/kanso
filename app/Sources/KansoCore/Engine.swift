@@ -89,6 +89,7 @@ public final class Engine: @unchecked Sendable {
 
     public let store: Store
     public let classifier: Classifier
+    public let tray: TrayStore
     public var setIcon: (URL, String) -> Void = FolderIcon.set
     public var reading: @Sendable (String, Bool) -> Void = { _, _ in }   // (file name, started): lets the island show a slow read
     let fm = FileManager.default
@@ -96,6 +97,7 @@ public final class Engine: @unchecked Sendable {
     public init(store: Store, classifier: Classifier = AppleIntelligence()) {
         self.store = store
         self.classifier = classifier
+        self.tray = TrayStore(dir: store.dir)
     }
 
     var s: Settings { store.settings }
@@ -861,8 +863,10 @@ public final class Engine: @unchecked Sendable {
     /// Files the user moved from one shelf to another teach Kanso; repeated moves become rule suggestions.
     public func detectCorrections(now: Date = Date()) {
         guard s.learnCorrections else { return }
+        // A file Kanso itself moved on (an accepted shelf suggestion, a later run) is not the user moving it.
+        let movedOn = Set(store.actions.filter { !$0.undone }.map(\.src))
         let recent = store.actions.filter { [.sorted, .renamed].contains($0.kind) && !$0.undone && $0.details["corrected"] == nil
-            && now.timeIntervalSince($0.ts) < 30 * 86400 && !fm.fileExists(atPath: $0.dst) && !$0.root.isEmpty }
+            && now.timeIntervalSince($0.ts) < 30 * 86400 && !fm.fileExists(atPath: $0.dst) && !$0.root.isEmpty && !movedOn.contains($0.dst) }
         var found: [UUID: Correction] = [:]
         for a in recent {
             let lib = URL(fileURLWithPath: a.root).appendingPathComponent(Library.mine)

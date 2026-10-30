@@ -13,18 +13,31 @@ struct OverviewPage: View {
         let all = Stats.of(m.actions, in: DateInterval(start: .distantPast, end: Date().addingTimeInterval(1)))
         VStack(alignment: .leading, spacing: 14) {
             headline(needs)
-            HStack(alignment: .top, spacing: 14) {
-                hero(all).frame(width: 236)
-                NeedsCard(card: $card).frame(maxWidth: .infinity)
+            if needs.isEmpty {
+                // Nothing to do: the card shrinks to one line and the chart rises into the space.
+                QuietLine()
+                HStack(alignment: .top, spacing: 14) {
+                    hero(all).frame(width: 236)
+                    MonthCard().frame(maxWidth: .infinity)
+                }
+                .fixedSize(horizontal: false, vertical: true)
+                ShelvesCard().frame(maxWidth: .infinity)
+            } else {
+                HStack(alignment: .top, spacing: 14) {
+                    hero(all).frame(width: 236)
+                    NeedsCard(card: $card).frame(maxWidth: .infinity)
+                }
+                .fixedSize(horizontal: false, vertical: true)
+                HStack(alignment: .top, spacing: 14) {
+                    MonthCard().frame(maxWidth: .infinity)
+                    ShelvesCard().frame(width: 236)
+                }
+                .fixedSize(horizontal: false, vertical: true)
             }
-            .fixedSize(horizontal: false, vertical: true)
-            HStack(alignment: .top, spacing: 14) {
-                MonthCard().frame(maxWidth: .infinity)
-                ShelvesCard().frame(width: 236)
-            }
-            .fixedSize(horizontal: false, vertical: true)
             counters(all)
+            sortEverythingRow
         }
+        .animation(Motion.spring(), value: needs.isEmpty)
         .task {
             guard !Motion.reduced else { return }
             withAnimation(.spring(response: 0.6, dampingFraction: 1)) { appeared = true }
@@ -34,11 +47,25 @@ struct OverviewPage: View {
     func headline(_ needs: [Need]) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(m.sortingOn ? "Your Mac is in order." : "Sorting is \(m.sortingStatus.lowercased()).")
-                .font(.system(size: TS.statement, weight: .regular, design: .serif)).tracking(-0.6).foregroundStyle(K.text)
+                .font(.system(size: TS.display, weight: .regular, design: .serif)).tracking(-0.6).foregroundStyle(K.text)
             Text("\(m.today.sorted) \(m.today.sorted == 1 ? "file" : "files") placed today. " + (needs.isEmpty ? "Nothing needs you." : needs.count == 1 ? "One thing could use a minute." : "\(needs.count == 2 ? "Two" : "\(needs.count)") things could use a minute."))
                 .font(.system(size: TS.emphasis)).foregroundStyle(K.text2)
         }
         .padding(.horizontal, 4).padding(.top, 6)
+    }
+
+    /// Sort everything: files already in the watched folders. Always a preview first (previewSortEverything); one undoable run after.
+    var sortEverythingRow: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Sort everything already in your folders").font(.system(size: TS.body, weight: .semibold)).foregroundStyle(K.text)
+                Text("You see a preview first. Nothing moves until you confirm, and the whole run can be undone.").font(.system(size: TS.small)).foregroundStyle(K.text2)
+            }
+            Spacer(minLength: 12)
+            Button { m.previewSortEverything() } label: { Label("Preview…", systemImage: "square.stack.3d.up") }
+                .buttonStyle(SecondaryStyle(small: true)).fixedSize().disabled(m.busy || !m.settings.onboarded)
+        }
+        .padding(.horizontal, 16).padding(.vertical, 12).card()
     }
 
     func hero(_ all: Stats) -> some View {
@@ -51,36 +78,33 @@ struct OverviewPage: View {
             HStack(alignment: .lastTextBaseline, spacing: 6) {
                 CountingText(value: appeared ? Double(all.sorted) : 0, format: { Int($0).formatted() })
                     .font(.system(size: TS.numeral, weight: .regular, design: .serif)).tracking(-1.5).foregroundStyle(Heroes.ink).lineLimit(1).minimumScaleFactor(0.6)
-                Text("files").font(.system(size: TS.body)).foregroundStyle(Heroes.ink.opacity(0.9))
+                Text("files").font(.system(size: TS.body)).foregroundStyle(Heroes.ink.opacity(0.85))
             }
-            Text("placed on the right shelf\(since). \(stayed)% stayed where Kanso put them.")
+            Text(all.sorted == 0 ? "Nothing sorted yet. New files are placed on a shelf as they arrive, and you can undo any of it." : "placed on the right shelf\(since). \(stayed)% stayed where Kanso put them.")
                 .font(.system(size: TS.small)).foregroundStyle(Heroes.ink.opacity(0.85)).fixedSize(horizontal: false, vertical: true).padding(.top, 6)
         }
         .padding(16).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background {
-            ZStack {
-                RoundedRectangle(cornerRadius: 24, style: .continuous).fill(Heroes.fill)
-                Stripes().stroke(Color.white.opacity(0.06), lineWidth: 0.75).clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-            }
-        }
+        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Heroes.fill))
         .accessibilityElement(children: .combine)
     }
 
+    /// One quiet line instead of four tinted tiles: pastels mean an action kind and are never counters.
     func counters(_ all: Stats) -> some View {
         let tagged = m.actions.filter { !$0.undone && !$0.tags.isEmpty }.count
         let ejected = m.actions.filter { !$0.undone && $0.kind == .trashed && $0.details["installer"] != nil }.count
-        return HStack(spacing: 12) {
-            CounterTile(icon: "pencil", tint: .rename, value: all.renamed.formatted(), label: "Renamed", sub: "from contents, page 1") { m.page = .renaming }
-            CounterTile(icon: "tag", tint: .where, value: tagged.formatted(), label: "Tagged", sub: "Finder tags added") { m.page = .tagging }
-            CounterTile(icon: "doc.on.doc", tint: .duplicate, value: all.duplicateBytes.bytes, label: "Copies held", sub: "waiting in Duplicates") { m.page = .duplicates }
-            CounterTile(icon: "shippingbox", tint: .accent, value: ejected.formatted(), label: "Installers ejected", sub: "provably spent") { m.page = .smartEject }
+        return HStack(alignment: .top, spacing: 12) {
+            CountCell(value: all.renamed.formatted(), label: "Renamed") { m.page = .renaming }
+            CountCell(value: tagged.formatted(), label: "Tagged") { m.page = .tagging }
+            CountCell(value: all.duplicateBytes.bytes, label: "Copies held") { m.page = .duplicates }
+            CountCell(value: ejected.formatted(), label: "Installers ejected") { m.page = .smartEject }
         }
+        .padding(16).card()
     }
 }
 
 enum Heroes {
-    static let fill = Color.dyn(0x2E5A4B, 0x24463A)
-    static let ink = Color(nsColor: NSColor(hex: 0xCFE8D8))
+    static let fill = K.hero
+    static let ink = K.heroText
 }
 
 /// Thin diagonal hatching, the Kanso paper texture.
@@ -97,30 +121,21 @@ struct Stripes: Shape {
     }
 }
 
-struct CounterTile: View {
-    var icon: String, tint: Tint
-    var value: String, label: String, sub: String
+struct CountCell: View {
+    var value: String, label: String
     var open: () -> Void
     var body: some View {
         Button(action: open) {
-            VStack(alignment: .leading, spacing: 0) {
-                HStack {
-                    Image(systemName: icon).font(.system(size: TS.emphasis)).foregroundStyle(tint.fg)
-                    Spacer()
-                    Image(systemName: "chevron.right").font(.system(size: 9, weight: .semibold)).foregroundStyle(tint.fg.opacity(0.85))
-                }
-                Text(value).font(.system(size: TS.display, weight: .regular, design: .serif)).tracking(-0.5).foregroundStyle(tint.fg).lineLimit(1).minimumScaleFactor(0.7).padding(.top, 6)
-                Text(label).font(.system(size: TS.body, weight: .semibold)).foregroundStyle(tint.fg).lineLimit(1).padding(.top, 8)
-                Text(sub).font(.system(size: TS.small)).foregroundStyle(tint.fg).lineLimit(1)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(value).font(.system(size: TS.title, weight: .regular, design: .serif)).foregroundStyle(K.text).lineLimit(1).minimumScaleFactor(0.7)
+                Text(label).font(.system(size: TS.small)).foregroundStyle(K.text2).lineLimit(1)
             }
-            .padding(14).frame(maxWidth: .infinity, alignment: .leading)
-            .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(tint.bg))
-            .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(tint.stroke, lineWidth: 0.75))
+            .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(Rectangle())
         }
-        .buttonStyle(PlainRowStyle()).focusRing(20)
+        .buttonStyle(PlainRowStyle()).focusRing(8)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(label): \(value), \(sub)")
+        .accessibilityLabel("\(label): \(value)")
     }
 }
 
@@ -249,11 +264,25 @@ struct NeedBody: View {
             Button("Create \(s.name)") { m.acceptShelf(s.id) }.buttonStyle(PrimaryStyle(tint: .rule, small: true)).fixedSize()
             Button("Dismiss") { m.dismissShelf(s.id) }.buttonStyle(SecondaryStyle(small: true)).fixedSize()
         }
-        if m.needs.count > 1 { Button { next() } label: { HStack(spacing: 4) { Text("Later"); Image(systemName: "arrow.right").font(.system(size: TS.micro)) } }.buttonStyle(SecondaryStyle(small: true)).fixedSize() }
+        if m.needs.count > 1 { Button { next() } label: { HStack(spacing: 4) { Text("Later"); Image(systemName: "arrow.right").font(.system(size: TS.meta)) } }.buttonStyle(SecondaryStyle(small: true)).fixedSize() }
     }
 }
 
 // MARK: The month, day by day
+
+/// The Needs-you card when it is empty: a 56 pt line.
+struct QuietLine: View {
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "checkmark").font(.system(size: TS.body, weight: .bold)).foregroundStyle(Tint.accent.fg).frame(width: 28, height: 28).background(Circle().fill(Tint.accent.bg))
+            Text("Nothing needs you").font(.system(size: TS.body, weight: .semibold)).foregroundStyle(K.text)
+            Text("Duplicates and rename suggestions show up here.").font(.system(size: TS.small)).foregroundStyle(K.text2)
+            Spacer()
+        }
+        .padding(.horizontal, 16).frame(height: 56).card()
+        .accessibilityElement(children: .combine)
+    }
+}
 
 struct MonthCard: View {
     @EnvironmentObject var m: AppModel
@@ -284,7 +313,7 @@ struct MonthCard: View {
             }
             HStack(alignment: .lastTextBaseline) {
                 HStack(alignment: .lastTextBaseline, spacing: 5) {
-                    Text(total.formatted()).font(.system(size: TS.hero, weight: .regular, design: .serif)).tracking(-1).foregroundStyle(K.text)
+                    Text(total.formatted()).font(.system(size: TS.display, weight: .regular, design: .serif)).tracking(-1).foregroundStyle(K.text)
                     Text("files").font(.system(size: TS.body)).foregroundStyle(K.text2)
                 }
                 Spacer()
@@ -296,7 +325,7 @@ struct MonthCard: View {
             HStack(alignment: .bottom, spacing: 2) {
                 ForEach(0..<days, id: \.self) { d in
                     ZStack(alignment: .bottom) {
-                        RoundedRectangle(cornerRadius: 2).fill(K.fill)
+                        if d + 1 <= today { RoundedRectangle(cornerRadius: 2).fill(K.fill) }   // elapsed days only
                         RoundedRectangle(cornerRadius: 2).fill(d + 1 == today ? Tint.accent.fg : K.text).frame(height: counts[d] == 0 ? 0 : max(5, CGFloat(counts[d]) / CGFloat(mx) * 60))
                     }
                     .help("\(counts[d]) files")
