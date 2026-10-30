@@ -115,7 +115,7 @@ struct TrayBody: View {
     var plan: some View {
         ScrollView(.vertical, showsIndicators: false) {
             VStack(spacing: 2) {
-                ForEach(Array((tray.plan?.rows ?? []).enumerated()), id: \.element.id) { i, row in TrayPlanRow(row: row, selected: i == tray.planSelection) }
+                ForEach(Array((tray.plan?.rows ?? []).enumerated()), id: \.element.id) { i, row in TrayPlanRow(selected: i == tray.planSelection, row: row) }
             }
         }
         .frame(height: min(CGFloat(tray.plan?.rows.count ?? 0), 6) * 46)
