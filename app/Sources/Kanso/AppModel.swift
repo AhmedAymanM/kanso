@@ -178,6 +178,7 @@ final class AppModel: ObservableObject {
         HotKeys.shared.register(settings)
         StatusItem.shared.update()
         Island.shared.relayout()
+        TrayDragMonitor.shared.sync(settings.trayEnabled)
     }
 
     /// Light, dark, or follow the system. KANSO_APPEARANCE (screenshots) wins.

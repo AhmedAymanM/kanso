@@ -30,6 +30,9 @@ public struct TrayEntry: Identifiable, Sendable, Equatable {
     public var placeholder: Bool    // an iCloud placeholder: carried and moved by name, never read
     public var name: String { url.lastPathComponent }
     public var folder: String { url.deletingLastPathComponent().lastPathComponent }
+    public init(id: UUID = UUID(), url: URL, state: TrayState = .ready, locked: Bool = false, placeholder: Bool = false) {
+        self.id = id; self.url = url; self.state = state; self.locked = locked; self.placeholder = placeholder
+    }
 }
 
 /// What a drop did.
@@ -155,7 +158,12 @@ public struct TrayRow: Identifiable, Sendable {
     public var stays: String?       // why it will not move
     public var planned: Planned?
     public var name: String { entry.name }
-    public var moves: Bool { planned != nil }
+    public var willMove = false     // set by previews that carry no Planned (snapshots)
+    public var moves: Bool { planned != nil || willMove }
+    public init(entry: TrayEntry, shelf: String? = nil, basis: String = "", newShelf: Bool = false, stays: String? = nil, planned: Planned? = nil, willMove: Bool = false) {
+        self.willMove = willMove
+        self.id = entry.id; self.entry = entry; self.shelf = shelf; self.basis = basis; self.newShelf = newShelf; self.stays = stays; self.planned = planned
+    }
 }
 
 public struct TrayPlan: Sendable {
@@ -212,7 +220,7 @@ extension Engine {
         for (i, e) in entries.enumerated() {
             if Task.isCancelled { break }
             progress?(i + 1, entries.count)
-            var row = TrayRow(id: e.id, entry: e, basis: "")
+            var row = TrayRow(entry: e)
             switch e.state {
             case .missing: row.stays = "Missing. Forget it to clear the row."; plan.rows.append(row); continue
             case .manualShelves: row.stays = "In Manual Shelves, Kanso leaves it there."; plan.rows.append(row); continue
