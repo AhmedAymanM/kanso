@@ -1,5 +1,17 @@
 import Foundation
 
+/// Decodes an array and skips elements that fail, instead of failing the whole array.
+struct LossyArray<T: Decodable>: Decodable {
+    var elements: [T] = []
+    private struct Skip: Decodable {}
+    init(from decoder: Decoder) throws {
+        var c = try decoder.unkeyedContainer()
+        while !c.isAtEnd {
+            if let x = try? c.decode(T.self) { elements.append(x) } else { _ = try? c.decode(Skip.self) }
+        }
+    }
+}
+
 /// A shelf in "My Shelves". `match` lists the extensions that belong there.
 public struct FileType: Codable, Hashable, Identifiable, Sendable {
     public var name: String
@@ -179,7 +191,10 @@ public struct Settings: Codable, Equatable, Sendable {
         d(.collectDuringFocus, &collectDuringFocus); d(.openAtLogin, &openAtLogin)
         d(.showMenuBarIcon, &showMenuBarIcon); d(.appearance, &appearance); d(.updateChecks, &updateChecks); d(.crashReports, &crashReports)
         d(.islandShortcut, &islandShortcut)
-        d(.types, &types); d(.rules, &rules); d(.learnedExts, &learnedExts)
+        // Element by element: one malformed type or rule must not reset the whole list to defaults.
+        if let x = try? c.decode(LossyArray<FileType>.self, forKey: .types) { types = x.elements }
+        if let x = try? c.decode(LossyArray<Rule>.self, forKey: .rules) { rules = x.elements }
+        d(.learnedExts, &learnedExts)
     }
 }
 

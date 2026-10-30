@@ -115,12 +115,16 @@ final class AppModel: ObservableObject {
     @Published var selectedActivity: String?
     @Published var preview: [Planned] = []     // Sort everything preview, shown in the review window
     @Published var collected = 0               // notices waiting while quiet (Focus / full-screen)
+    @Published var hotKeyConflict = false      // set by HotKeys: the island shortcut could not be registered
+    @Published private(set) var loginItemError: String?   // SMAppService refused the last change (shown in General)
 
     private var watcher: FSEventStreamRef?
     private var pendingRun: DispatchWorkItem?
     private var timer: Timer?
     private var minuteTimer: Timer?
-    private var mounted: [URL: (image: URL, apps: [String: String], at: Date)] = [:]   // Smart Eject: volumes we watch
+    private var mounted: [URL: SmartEject.Watch] = [:]   // Smart Eject: volumes we watch
+    private var installTimer: Timer?                      // runs only while something is mounted
+    private var checkingInstalls = false
 
     init(store: Store = Store()) {
         self.store = store
@@ -385,12 +389,18 @@ final class AppModel: ObservableObject {
         minuteTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { _ in Task { @MainActor in self.minute() } }
         guard settings.onboarded else { return }
         let paths = settings.activeRoots.map(\.path) as CFArray
+        // passUnretained is safe only because AppModel.shared lives for the whole app; the stream is stopped before a restart.
         var ctx = FSEventStreamContext(version: 0, info: Unmanaged.passUnretained(self).toOpaque(), retain: nil, release: nil, copyDescription: nil)
-        let cb: FSEventStreamCallback = { _, info, _, _, _, _ in
+        let cb: FSEventStreamCallback = { _, info, count, _, flags, _ in
             let me = Unmanaged<AppModel>.fromOpaque(info!).takeUnretainedValue()
-            Task { @MainActor in me.changed() }
+            // A watched folder was moved, renamed or deleted: the stream no longer follows it, so start again.
+            let rootChanged = (0..<count).contains { flags[$0] & UInt32(kFSEventStreamEventFlagRootChanged) != 0 }
+            Task { @MainActor in
+                if rootChanged { me.startWatching() } else { me.changed() }
+            }
         }
-        guard let s = FSEventStreamCreate(nil, cb, &ctx, paths, FSEventStreamEventId(kFSEventStreamEventIdSinceNow), 1.0, UInt32(kFSEventStreamCreateFlagNoDefer)) else { return }
+        let createFlags = UInt32(kFSEventStreamCreateFlagNoDefer) | UInt32(kFSEventStreamCreateFlagWatchRoot)
+        guard let s = FSEventStreamCreate(nil, cb, &ctx, paths, FSEventStreamEventId(kFSEventStreamEventIdSinceNow), 1.0, createFlags) else { return }
         FSEventStreamSetDispatchQueue(s, .main)
         FSEventStreamStart(s)
         watcher = s
@@ -412,6 +422,7 @@ final class AppModel: ObservableObject {
     /// Hourly: expire Recents links, expire held duplicates (opt-in), pick up anything that settled.
     func tick() {
         engine.cleanRecents()
+        UpdateChecker.shared.checkAutomatically(enabled: settings.updateChecks)
         if !engine.expireDuplicates().isEmpty { refresh() }
         if settings.autoSort && settings.onboarded { sortNow(trigger: "auto") }
     }
@@ -428,8 +439,15 @@ final class AppModel: ObservableObject {
     func applyLoginItem() {
         do {
             if settings.openAtLogin { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
+            loginItemError = nil
         } catch {
             NSLog("Kanso: login item: \(error.localizedDescription)")
+            // Put the switch back where macOS left it, and say why in General. Written to the store directly so
+            // set() doesn't call applyLoginItem again.
+            let wanted = settings.openAtLogin
+            store.update { $0.openAtLogin = !wanted }
+            settings = store.settings
+            loginItemError = error.localizedDescription
         }
     }
 
@@ -467,35 +485,59 @@ final class AppModel: ObservableObject {
         }
         nc.addObserver(forName: NSWorkspace.didUnmountNotification, object: nil, queue: .main) { n in
             guard let url = n.userInfo?[NSWorkspace.volumeURLUserInfoKey] as? URL else { return }
-            MainActor.assumeIsolated { _ = self.mounted.removeValue(forKey: url.standardizedFileURL) }
+            MainActor.assumeIsolated {
+                _ = self.mounted.removeValue(forKey: url.standardizedFileURL)
+                self.updateInstallTimer()
+            }
         }
-        Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { _ in Task { @MainActor in self.checkInstalls() } }
     }
 
+    /// hdiutil, reading the volume and the receipts all run off the main thread; only the state lands back here.
     private func volumeMounted(_ volume: URL) {
         guard settings.smartEject else { return }
-        let apps = SmartEject.apps(onVolume: volume)
-        guard !apps.isEmpty, let image = SmartEject.imagePath(forVolume: volume) else { return }
-        mounted[volume.standardizedFileURL] = (image, apps, Date())
+        let key = volume.standardizedFileURL
+        let mountedAt = Date()
+        Task.detached(priority: .utility) {
+            let watch = SmartEject.inspect(volume, at: mountedAt)
+            await MainActor.run {
+                guard let watch, self.settings.smartEject else { return }
+                self.mounted[key] = watch
+                self.updateInstallTimer()
+            }
+        }
     }
 
-    /// ponytail: polls /Applications every 3 s while an installer volume is mounted; switch to FSEvents if it ever matters.
+    /// ponytail: polls every 3 s, but only while an installer volume is mounted; switch to FSEvents if it ever matters.
+    private func updateInstallTimer() {
+        if mounted.isEmpty {
+            installTimer?.invalidate()
+            installTimer = nil
+        } else if installTimer == nil {
+            installTimer = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in
+                Task { @MainActor in self?.checkInstalls() }
+            }
+        }
+    }
+
     private func checkInstalls() {
-        guard settings.smartEject, !mounted.isEmpty else { return }
-        for (volume, entry) in mounted {
-            let done = SmartEject.installed(Set(entry.apps.keys), in: URL(fileURLWithPath: "/Applications"))
-            guard let id = done.first, let app = entry.apps[id] else { continue }
-            let target = URL(fileURLWithPath: "/Applications").appendingPathComponent(app + ".app")
-            // Installed means copied *after* the volume mounted (a reinstall counts; an old copy doesn't),
-            // and settled: no change for 5 s.
-            guard let c = Stat.ctime(target), c > entry.at.timeIntervalSince1970,
-                  Date().timeIntervalSince1970 - (Stat.mtime(target).map { max($0, c) } ?? c) >= 5 else { continue }
-            mounted.removeValue(forKey: volume)
-            try? NSWorkspace.shared.unmountAndEjectDevice(at: volume)
-            if settings.smartEjectOnlyEject { continue }
-            if let a = engine.trashInstaller(entry.image, app: app) {
-                refresh()
-                if settings.smartEjectNotice { Island.shared.show(.installer(a)) }
+        guard settings.smartEject, !mounted.isEmpty, !checkingInstalls else { return }
+        checkingInstalls = true
+        let watching = mounted
+        Task.detached(priority: .utility) {
+            let spent = watching.filter { SmartEject.isSpent($0.value) }
+            await MainActor.run {
+                self.checkingInstalls = false
+                for (volume, entry) in spent where self.mounted[volume] != nil {
+                    self.mounted.removeValue(forKey: volume)
+                    try? NSWorkspace.shared.unmountAndEjectDevice(at: volume)
+                    if self.settings.smartEjectOnlyEject { continue }
+                    // trashInstaller refuses Manual Shelves, Keep-tagged and non-.dmg images.
+                    if let a = self.engine.trashInstaller(entry.image, app: entry.label) {
+                        self.refresh()
+                        if self.settings.smartEjectNotice { Island.shared.show(.installer(a)) }
+                    }
+                }
+                self.updateInstallTimer()
             }
         }
     }

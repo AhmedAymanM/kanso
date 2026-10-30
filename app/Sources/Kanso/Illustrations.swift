@@ -8,10 +8,11 @@ struct Illustration: View {
     var tint: Tint
     @State private var origin = Date()
     @State private var mouse = CGSize.zero
+    @State private var playing = true   // loops for ~15 s after appearing or a click, then rests on the settled pose (idle CPU)
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1 / 30, paused: Motion.reduced || Motion.snapshot)) { ctx in
-            let t = Motion.reduced || Motion.snapshot ? 3.2 : ctx.date.timeIntervalSince(origin)
+        TimelineView(.animation(minimumInterval: 1 / 30, paused: Motion.reduced || Motion.snapshot || !playing)) { ctx in
+            let t = Motion.reduced || Motion.snapshot || !playing ? 3.2 : ctx.date.timeIntervalSince(origin)
             Canvas { g, size in
                 Art(g: g, size: size, t: t, tint: tint, mouse: mouse).draw(kind)
             }
@@ -24,7 +25,11 @@ struct Illustration: View {
             case .ended: withAnimation(.easeOut(duration: 0.4)) { mouse = .zero }
             }
         }
-        .onTapGesture { origin = Date() }
+        .onTapGesture { origin = Date(); playing = true }
+        .task(id: origin) {
+            try? await Task.sleep(for: .seconds(15))
+            if !Task.isCancelled { playing = false }
+        }
         .help("Click to replay")
         .accessibilityHidden(true)
     }

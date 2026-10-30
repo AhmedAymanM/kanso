@@ -82,10 +82,7 @@ public enum Reader {
         return s.isEmpty ? nil : String(s.prefix(maxChars))
     }
 
-    static func isPlaceholder(_ url: URL) -> Bool {
-        let v = try? url.resourceValues(forKeys: [.ubiquitousItemDownloadingStatusKey])
-        return v?.ubiquitousItemDownloadingStatus == .notDownloaded
-    }
+    static func isPlaceholder(_ url: URL) -> Bool { Placeholder.isPlaceholder(url) }
 
     /// Document kind by keywords (several languages), organization by NER, date by NSDataDetector.
     public static func extract(_ text: String, source: String, host: String? = nil) -> Extracted {
@@ -186,12 +183,23 @@ public enum Renamer {
         let by = ["kind": kind, "organization": e.organization, "date": e.date.map { f.string(from: $0) }]
         let parts = order.compactMap { by[$0] ?? nil }
         guard !parts.isEmpty else { return nil }
-        return parts.joined(separator: separator) + (ext.isEmpty ? "" : ".\(ext)")
+        // A date format like "dd/MM/yyyy" or "HH:mm" must not turn into a path.
+        let base = parts.joined(separator: separator).replacingOccurrences(of: "/", with: "-").replacingOccurrences(of: ":", with: "-")
+        return base + (ext.isEmpty ? "" : ".\(ext)")
     }
 
     /// Stores the original name in an xattr and Finder comment, so Spotlight still finds it and undo can restore it.
     public static func keepOriginal(_ url: URL, _ original: String) {
-        Xattr.setPlist(url, "com.apple.metadata:kMDItemFinderComment", "Originally \(original)")
+        // The Finder comment is the user's: only write ours when there is none.
+        if !Xattr.has(url, commentKey) { Xattr.setPlist(url, commentKey, "Originally \(original)") }
         Xattr.setPlist(url, "app.kanso.original-name", original)
+    }
+
+    static let commentKey = "com.apple.metadata:kMDItemFinderComment"
+
+    /// Undo: drop the Finder comment only if it is still the one Kanso wrote.
+    public static func forgetOriginal(_ url: URL, _ original: String) {
+        if let c = Xattr.plist(url, commentKey) as? String, c == "Originally \(original)" { removexattr(url.path, commentKey, XATTR_NOFOLLOW) }
+        removexattr(url.path, "app.kanso.original-name", XATTR_NOFOLLOW)
     }
 }

@@ -162,26 +162,29 @@ extension View {
 struct CoffeeLink: View {
     @State private var hover = false
     var body: some View {
-        Button { NSWorkspace.shared.open(Links.coffee) } label: {
-            VStack(alignment: .leading, spacing: 6) {
-                Image(systemName: "cup.and.saucer").font(.system(size: TS.body))
-                Text("Free and open source. If it saves you time, a coffee keeps it going.")
-                    .font(.system(size: TS.meta)).lineLimit(3).multilineTextAlignment(.leading)
-                HStack(spacing: 4) {
-                    Text("Buy Me a Coffee").font(.system(size: TS.small, weight: .semibold))
-                    Image(systemName: "arrow.up.right").font(.system(size: 8, weight: .bold))
+        // No donate URL configured (KansoDonateURL empty): the card is hidden entirely.
+        if let donate = Links.donate {
+            Button { NSWorkspace.shared.open(donate) } label: {
+                VStack(alignment: .leading, spacing: 6) {
+                    Image(systemName: "cup.and.saucer").font(.system(size: TS.body))
+                    Text("Free and open source. If it saves you time, a coffee keeps it going.")
+                        .font(.system(size: TS.meta)).lineLimit(3).multilineTextAlignment(.leading)
+                    HStack(spacing: 4) {
+                        Text("Buy Me a Coffee").font(.system(size: TS.small, weight: .semibold))
+                        Image(systemName: "arrow.up.right").font(.system(size: 8, weight: .bold))
+                    }
                 }
+                .foregroundStyle(hover ? Tint.duplicate.fg : K.sidebarText2)
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Tint.duplicate.bg).opacity(hover ? 1 : 0))
+                .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(hover ? Tint.duplicate.stroke : K.separator, lineWidth: 0.75))
+                .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             }
-            .foregroundStyle(hover ? Tint.duplicate.fg : K.sidebarText2)
-            .padding(12)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Tint.duplicate.bg).opacity(hover ? 1 : 0))
-            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(hover ? Tint.duplicate.stroke : K.separator, lineWidth: 0.75))
-            .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .buttonStyle(.plain)
+            .onHover { h in withAnimation(.easeOut(duration: 0.18)) { hover = h } }
+            .accessibilityLabel("Buy Me a Coffee")
         }
-        .buttonStyle(.plain)
-        .onHover { h in withAnimation(.easeOut(duration: 0.18)) { hover = h } }
-        .accessibilityLabel("Buy Me a Coffee")
     }
 }
 

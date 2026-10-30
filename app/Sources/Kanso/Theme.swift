@@ -91,9 +91,26 @@ extension View {
 enum Motion {
     static var reduced: Bool { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion }
     static var solid: Bool { snapshot || NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency }
+    static var contrast: Bool { NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast }
     static var snapshot = false   // ImageRenderer can't draw glass or materials, so snapshots use the solid fallbacks
     /// Critically damped (docs/design-validation §9): no overshoot, interruptible.
     static func spring(_ response: Double = 0.35) -> Animation { reduced ? .easeOut(duration: 0.2) : .spring(response: response, dampingFraction: 1) }
+}
+
+/// Publishes changes to the system's accessibility display options (Reduce Transparency, Increase Contrast, Reduce Motion),
+/// so views that read `Motion` re-render while the app runs instead of on their next redraw.
+@MainActor
+final class AccessibilityOptions: ObservableObject {
+    static let shared = AccessibilityOptions()
+    @Published private(set) var revision = 0
+
+    private init() {
+        NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil, queue: .main) { _ in
+            MainActor.assumeIsolated {
+                AccessibilityOptions.shared.revision += 1
+            }
+        }
+    }
 }
 
 // MARK: Text styles
