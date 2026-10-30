@@ -37,7 +37,8 @@ public enum Brain {
     }
 
     public static func options(_ s: Settings) -> [(String, String)] {
-        s.types.filter { ![Shelf.unsorted, Shelf.screenshots].contains($0.name) }.map { ($0.name, $0.description) }
+        // Keys is never offered: a model can't route files into the security shelf (the extension table does that).
+        s.types.filter { ![Shelf.unsorted, Shelf.screenshots].contains($0.name) && Engine.automaticShelfAllowed($0.name) }.map { ($0.name, $0.description) }
     }
 
     public static func cleanName(_ n: String) -> String {

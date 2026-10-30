@@ -165,10 +165,25 @@ struct RuleRow: View {
             }
             Button { b.wrappedValue.conditions.append(Condition(.ext, "")) } label: { Label("Add condition", systemImage: "plus") }.buttonStyle(LinkStyle())
             Text("THEN").font(.system(size: TS.micro, weight: .semibold)).kerning(0.6).foregroundStyle(Tint.rule.fg).padding(.top, 4)
+            let custom = b.wrappedValue.dest.hasPrefix("/") || b.wrappedValue.dest.hasPrefix("~")
             HStack(spacing: 8) {
-                MenuPicker(options: [(0, "Move to shelf")], value: .constant(0)).frame(width: 150, alignment: .leading)
-                MenuPicker(options: shelfOptions(b.wrappedValue.dest), value: b.dest, emoji: { m.settings.emoji(for: $0) })
-                Spacer()
+                MenuPicker(options: [(0, custom ? "Move to folder" : "Move to shelf")], value: .constant(0)).frame(width: 150, alignment: .leading)
+                if custom {
+                    TextField("~/Documents/Taxes", text: b.dest).textFieldStyle(.plain).font(.system(size: TS.body, design: .monospaced))
+                        .padding(.horizontal, 12).frame(height: 30).background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(K.fill))
+                        .accessibilityLabel("Destination folder")
+                    Button("Use a shelf") { b.wrappedValue.dest = "Documents" }.buttonStyle(LinkStyle())
+                } else {
+                    MenuPicker(options: shelfOptions(b.wrappedValue.dest), value: b.dest, emoji: { m.settings.emoji(for: $0) })
+                    Button("Other folder…") { b.wrappedValue.dest = "~/" }.buttonStyle(LinkStyle())
+                    Spacer()
+                }
+            }
+            if let warning = Engine.destinationWarning(b.wrappedValue.dest) {
+                Label(warning, systemImage: "exclamationmark.triangle.fill")
+                    .font(.system(size: TS.small)).foregroundStyle(Tint.duplicate.fg)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityLabel("Warning: \(warning)")
             }
             HStack(spacing: 8) {
                 Text("Matches \(preview) \(preview == 1 ? "file" : "files") in your watched folders now").font(.system(size: TS.small)).foregroundStyle(K.text2)

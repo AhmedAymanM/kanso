@@ -49,6 +49,7 @@ public struct Rule: Codable, Hashable, Identifiable, Sendable {
     public var tags: [String] = []
     public var matchAny = false // false: all conditions must match; true: any one
     public var builtIn = false  // Kanso's own defaults: they work, but Rules shows only the user's rules
+    public var automatic = false // made from a suggestion or by a model, not typed by the user: its destination stays a shelf in My Shelves
     public init(_ conditions: [Condition], dest: String, tags: [String] = [], builtIn: Bool = false) {
         self.conditions = conditions; self.dest = dest; self.tags = tags; self.builtIn = builtIn
     }
@@ -60,6 +61,7 @@ public struct Rule: Codable, Hashable, Identifiable, Sendable {
         dest = try c.decode(String.self, forKey: .dest)
         tags = (try? c.decode([String].self, forKey: .tags)) ?? []
         matchAny = (try? c.decode(Bool.self, forKey: .matchAny)) ?? false
+        automatic = (try? c.decode(Bool.self, forKey: .automatic)) ?? false
         builtIn = (try? c.decode(Bool.self, forKey: .builtIn)) ?? Rule.defaults.contains { $0.conditions == conditions && $0.dest == dest }
     }
 }

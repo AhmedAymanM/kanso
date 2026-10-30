@@ -143,6 +143,7 @@ public final class Engine: @unchecked Sendable {
     public struct Decision: Sendable {
         public var dest: String; public var tags: [String]; public var why: String; public var source: String
         public var learning: Learning? = nil
+        public var userPath = false   // a destination the user typed: the only kind that may be an absolute path
     }
 
     public static func matches(_ rule: Rule, _ item: Item) -> Bool {
@@ -180,7 +181,8 @@ public final class Engine: @unchecked Sendable {
     public func decide(_ item: Item) async -> Decision {
         let settings = s
         if let rule = settings.rules.first(where: { Engine.matches($0, item) }) {
-            return Decision(dest: rule.dest, tags: rule.tags, why: "rule \(Engine.describe(rule))", source: "metadata only")
+            return Decision(dest: rule.dest, tags: rule.tags, why: "rule \(Engine.describe(rule))", source: "metadata only",
+                            userPath: !rule.builtIn && !rule.automatic)
         }
         if item.screenshot, settings.type(named: Shelf.screenshots) != nil {
             return Decision(dest: Shelf.screenshots, tags: [], why: "screenshot", source: "metadata only")
@@ -196,13 +198,14 @@ public final class Engine: @unchecked Sendable {
         guard let pick = await classifier.choose(facts: Brain.facts(item), options: options, creating: creating) else {
             return Decision(dest: Shelf.unsorted, tags: [], why: "apple-intelligence failed", source: "from name")
         }
-        if options.contains(where: { $0.0 == pick.folder }) {
+        if options.contains(where: { $0.0 == pick.folder }) && Engine.automaticShelfAllowed(pick.folder) {
             return Decision(dest: pick.folder, tags: [], why: "apple-intelligence \(pick.folder)", source: "from name",
                             learning: Learning(ext: item.ext, type: pick.folder))
         }
         let name = Brain.cleanName(pick.name)
-        if creating, pick.folder == Brain.new, !name.isEmpty, !Brain.isCatchAll(name), !name.lowercased().contains(item.ext) {  // "Qx7 files" says nothing
+        if creating, pick.folder == Brain.new, !name.isEmpty, !Brain.isCatchAll(name), !name.lowercased().contains(item.ext), Engine.automaticShelfAllowed(name) {  // "Qx7 files" says nothing
             let existing = settings.types.first { $0.name.lowercased() == name.lowercased() }?.name ?? name
+            guard Engine.automaticShelfAllowed(existing) else { return Decision(dest: Shelf.unsorted, tags: [], why: "apple-intelligence unsure", source: "from name") }
             return Decision(dest: existing, tags: [], why: "apple-intelligence new type \(existing)", source: "from name",
                             learning: Learning(ext: item.ext, type: existing, emoji: Brain.cleanEmoji(pick.emoji),
                                                description: String(pick.description.trimmingCharacters(in: .whitespaces).prefix(200))))
@@ -224,13 +227,79 @@ public final class Engine: @unchecked Sendable {
         }
     }
 
-    /// "Images" → <root>/My Shelves/Images. Absolute or ~ paths are used as-is.
-    public func resolve(_ root: URL, _ dest: String) -> URL {
+    // MARK: Destination safety
+
+    /// Lowercased, NFKC, without control and format characters ("Manual\u{200B} Shelves" and "MANUAL SHELVES" compare equal).
+    static func fold(_ s: String) -> String {
+        String(String.UnicodeScalarView(s.unicodeScalars.filter { $0.properties.generalCategory != .format && $0.properties.generalCategory != .control }))
+            .precomposedStringWithCompatibilityMapping
+            .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// Kanso's own folders: nothing but the engine's own steps ever files into them by name.
+    static let ownFolders: Set<String> = Set([Library.mine, Library.manual, Library.recents].map { fold($0) })
+    /// Shelves that only the extension table and the user fill: no model, suggestion or learned guess may route there.
+    static let guardedShelves: Set<String> = Set([Shelf.keys, Shelf.duplicates].map { fold($0) })
+
+    /// A shelf path inside My Shelves: relative, no "." or "..", and no component that is one of Kanso's own folders.
+    public static func isShelfPath(_ dest: String) -> Bool {
+        guard !dest.hasPrefix("/"), !dest.hasPrefix("~") else { return false }
+        let parts = dest.split(separator: "/").map(String.init)
+        return !parts.isEmpty && parts.allSatisfy { $0 != ".." && $0 != "." && !ownFolders.contains(fold($0)) }
+    }
+
+    /// May an automatic or model-originated decision (AI pick, learned extension, suggestion) file here?
+    /// Inside My Shelves, never Manual Shelves or Recents, and never Keys or Duplicates.
+    public static func automaticShelfAllowed(_ dest: String) -> Bool {
+        isShelfPath(dest) && !dest.split(separator: "/").contains { guardedShelves.contains(fold(String($0))) }
+    }
+
+    /// The warning the rule editor shows for a destination the user typed outside My Shelves; nil for an ordinary shelf.
+    public static func destinationWarning(_ dest: String) -> String? {
+        guard dest.hasPrefix("/") || dest.hasPrefix("~") else { return nil }
+        let parts = dest.split(separator: "/").map { fold(String($0)) }
+        if parts.contains(fold(Library.manual)) {
+            return "This is a Manual Shelves folder. Kanso otherwise never touches those; this rule will put files there without asking."
+        }
+        if parts.contains(fold(Shelf.keys)) {
+            return "This looks like a keys folder. Matching files will be moved there without asking."
+        }
+        return "This folder is outside My Shelves. Matching files move there without asking, and Undo is the only way back."
+    }
+
+    /// Resolves symlinks in the part of the path that exists and appends the rest, so a folder that doesn't exist yet compares fairly.
+    static func realPath(_ url: URL) -> String {
+        var tail: [String] = []
+        var base = url.standardizedFileURL
+        while !FileManager.default.fileExists(atPath: base.path) && base.path != "/" {
+            tail.insert(base.lastPathComponent, at: 0)
+            base = base.deletingLastPathComponent()
+        }
+        var resolved = base.resolvingSymlinksInPath()
+        for t in tail { resolved.appendPathComponent(t) }
+        return resolved.path
+    }
+
+    /// Is `url` really (after symlinks) inside `dir`?
+    static func contained(_ url: URL, in dir: URL) -> Bool {
+        let base = realPath(dir), path = realPath(url)
+        return path == base || path.hasPrefix(base + "/")
+    }
+
+    /// "Images" → <root>/My Shelves/Images. A relative destination can never leave My Shelves (no "..", no Kanso folder names,
+    /// no symlink out); anything wrong parks the file in Unsorted. Absolute or ~ paths are used as-is only when `userPath` is true,
+    /// which only a destination the user typed in a rule of their own sets.
+    public func resolve(_ root: URL, _ dest: String, userPath: Bool = false) -> URL {
         let mine = root.appendingPathComponent(Library.mine)
-        // A rule destination with ".." could climb out of My Shelves (or out of the path it names): park the file in Unsorted instead.
-        if dest.split(separator: "/").contains(where: { $0 == ".." }) { return mine.appendingPathComponent(Shelf.unsorted) }
-        if dest.hasPrefix("/") || dest.hasPrefix("~") { return URL(fileURLWithPath: (dest as NSString).expandingTildeInPath) }
-        return dest.split(separator: "/").reduce(mine) { $0.appendingPathComponent(String($1)) }
+        let unsorted = mine.appendingPathComponent(Shelf.unsorted)
+        if dest.split(separator: "/").contains(where: { $0 == ".." }) { return unsorted }
+        if dest.hasPrefix("/") || dest.hasPrefix("~") {
+            return userPath ? URL(fileURLWithPath: (dest as NSString).expandingTildeInPath) : unsorted
+        }
+        guard Engine.isShelfPath(dest) else { return unsorted }
+        let url = dest.split(separator: "/").reduce(mine) { $0.appendingPathComponent(String($1)) }
+        return Engine.contained(url, in: mine) ? url : unsorted
     }
 
     // MARK: Planning
@@ -252,7 +321,7 @@ public final class Engine: @unchecked Sendable {
             }
             let item = Item.inspect(url, root: root)
             let d = await decide(item)
-            var m = Planned(item: item, dest: resolve(root, d.dest), shelf: d.dest, tags: d.tags, why: d.why, source: d.source)
+            var m = Planned(item: item, dest: resolve(root, d.dest, userPath: d.userPath), shelf: d.dest, tags: d.tags, why: d.why, source: d.source)
             m.learning = d.learning
             if settings.recents == .links && fresh { m.link = root.appendingPathComponent(Library.recents) }
             if let w = item.whereFrom.first { m.details["from"] = w }
@@ -739,7 +808,7 @@ public final class Engine: @unchecked Sendable {
                 if let h = c.from { groups["from:\(h)>\(c.toShelf)", default: (Condition(.from, h), c.toShelf, [])].2.append(c.name) }
                 else if !c.ext.isEmpty && !known.contains(c.ext) { groups["ext:\(c.ext)>\(c.toShelf)", default: (Condition(.ext, c.ext), c.toShelf, [])].2.append(c.name) }
             }
-            for (key, g) in groups.sorted(by: { $0.key < $1.key }) where g.2.count >= 3 && !p.dismissed.contains(key)
+            for (key, g) in groups.sorted(by: { $0.key < $1.key }) where g.2.count >= 3 && !p.dismissed.contains(key) && Engine.automaticShelfAllowed(g.1)
                 && !p.suggestions.contains(where: { $0.shelf == g.1 })
                 && !store.settings.rules.contains(where: { $0.conditions == [g.0] && $0.dest == g.1 }) {
                 p.suggestions.append(RuleSuggestion(condition: g.0, shelf: g.1, files: g.2))
@@ -750,7 +819,7 @@ public final class Engine: @unchecked Sendable {
     /// Corrections teach types: a learned (or unknown) extension follows the user's move. Built-in types stay put,
     /// so moving one lecture PDF to "Uni" never sends every PDF there.
     func teach(_ c: Correction) {
-        guard !c.ext.isEmpty, c.toShelf != Shelf.duplicates else { return }
+        guard !c.ext.isEmpty, Engine.automaticShelfAllowed(c.toShelf) else { return }   // a move into Keys or a Kanso folder teaches nothing
         let current = s.type(forExt: c.ext)
         guard current == nil || current?.learned == true || s.learnedExts.contains(c.ext), current?.name != c.toShelf else { return }
         store.update { s in
@@ -768,7 +837,10 @@ public final class Engine: @unchecked Sendable {
 
     public func acceptSuggestion(_ id: UUID) {
         guard let sug = store.pending.suggestions.first(where: { $0.id == id }) else { return }
-        store.update { $0.rules.insert(Rule([sug.condition], dest: sug.shelf), at: 0) }
+        guard Engine.automaticShelfAllowed(sug.shelf) else { store.updatePending { $0.suggestions.removeAll { $0.id == id } }; return }
+        var rule = Rule([sug.condition], dest: sug.shelf)
+        rule.automatic = true   // derived from your moves, not typed: it can only file inside My Shelves
+        store.update { $0.rules.insert(rule, at: 0) }
         store.updatePending { $0.suggestions.removeAll { $0.id == id } }
     }
 
