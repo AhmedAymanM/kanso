@@ -78,6 +78,10 @@ public enum UnknownFiles: String, Codable, CaseIterable, Sendable { case askMode
 public enum IslandMode: String, Codable, CaseIterable, Sendable { case automatic, notch, below }
 
 public struct Settings: Codable, Equatable, Sendable {
+    /// Bump when a stored value changes meaning. New fields with a default need no bump: add them to `init(from:)`
+    /// (SettingsTests.testEveryFieldSurvivesARoundTrip fails if one is forgotten).
+    public static let currentVersion = 1
+    public var version = Settings.currentVersion
     public var onboarded = false
     public var roots: [String] = ["~/Downloads", "~/Desktop", "~/Documents"]
     public var pausedRoots: [String] = []
@@ -172,6 +176,7 @@ public struct Settings: Codable, Equatable, Sendable {
         self.init()
         let c = try decoder.container(keyedBy: CodingKeys.self)
         func d<T: Decodable>(_ k: CodingKeys, _ v: inout T) { if let x = try? c.decode(T.self, forKey: k) { v = x } }
+        version = (try? c.decode(Int.self, forKey: .version)) ?? 0   // files from before versioning have none
         d(.onboarded, &onboarded); d(.roots, &roots); d(.pausedRoots, &pausedRoots); d(.since, &since)
         d(.autoSort, &autoSort); d(.settleSeconds, &settleSeconds); d(.graceMinutes, &graceMinutes)
         sortingOffUntil = try? c.decode(Date.self, forKey: .sortingOffUntil)
@@ -195,6 +200,22 @@ public struct Settings: Codable, Equatable, Sendable {
         if let x = try? c.decode(LossyArray<FileType>.self, forKey: .types) { types = x.elements }
         if let x = try? c.decode(LossyArray<Rule>.self, forKey: .rules) { rules = x.elements }
         d(.learnedExts, &learnedExts)
+        migrate()
+    }
+
+    /// The version stored in a settings.json, 0 when it has none (or isn't JSON).
+    public static func storedVersion(_ data: Data) -> Int {
+        ((try? JSONSerialization.jsonObject(with: data)) as? [String: Any])?["version"] as? Int ?? 0
+    }
+
+    /// Steps run in order, once per file. A file from a newer build keeps its higher version (nothing is downgraded).
+    mutating func migrate() {
+        if version < 1 {
+            // v0 to v1: versioning starts here. Nothing changed meaning; just clean values older builds could store.
+            roots = roots.filter { !$0.isEmpty }
+            settleSeconds = max(0, settleSeconds)
+            version = 1
+        }
     }
 }
 
