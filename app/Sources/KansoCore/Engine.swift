@@ -301,9 +301,9 @@ public final class Engine: @unchecked Sendable {
     }
 
     /// Kanso's own folders: nothing but the engine's own steps ever files into them by name.
-    static let ownFolders: Set<String> = Set([Library.mine, Library.manual, Library.recents].map { fold($0) })
+    static let ownFolders: Set<String> = Set([Library.mine, Library.manual, Library.recents].map { Engine.fold($0) })
     /// Shelves that only the extension table and the user fill: no model, suggestion or learned guess may route there.
-    static let guardedShelves: Set<String> = Set([Shelf.keys, Shelf.duplicates].map { fold($0) })
+    static let guardedShelves: Set<String> = Set([Shelf.keys, Shelf.duplicates].map { Engine.fold($0) })
 
     /// A shelf path inside My Shelves: relative, no "." or "..", and no component that is one of Kanso's own folders.
     public static func isShelfPath(_ dest: String) -> Bool {
