@@ -120,7 +120,14 @@ public final class Store: @unchecked Sendable {
     public init(dir: URL = Store.defaultDir) {
         self.dir = dir
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        settings = Store.readOrBackup(Settings.self, dir.appendingPathComponent("settings.json")) ?? Settings()
+        let settingsURL = dir.appendingPathComponent("settings.json")
+        settings = Store.readOrBackup(Settings.self, settingsURL) ?? Settings()
+        // An older file is migrated in memory; keep a copy of what was on disk before the migrated one replaces it.
+        var migratedFile = false
+        if let data = try? Data(contentsOf: settingsURL), Settings.storedVersion(data) < Settings.currentVersion {
+            try? data.write(to: dir.appendingPathComponent("settings.v\(Settings.storedVersion(data)).bak"), options: .atomic)
+            migratedFile = true
+        }
         pending = Store.readOrBackup(Pending.self, dir.appendingPathComponent("pending.json")) ?? Pending()
         let lines = (try? String(contentsOf: dir.appendingPathComponent("journal.jsonl"), encoding: .utf8)) ?? ""
         // A write-ahead entry and its completed rewrite share an id; the last line wins.
@@ -131,7 +138,7 @@ public final class Store: @unchecked Sendable {
             if let i = latest[a.id] { loaded[i] = a } else { latest[a.id] = loaded.count; loaded.append(a) }
         }
         actions = loaded
-        if !FileManager.default.fileExists(atPath: dir.appendingPathComponent("settings.json").path) { saveSettings() }
+        if migratedFile || !FileManager.default.fileExists(atPath: settingsURL.path) { saveSettings() }
     }
 
     static let encoder: JSONEncoder = { let e = JSONEncoder(); e.dateEncodingStrategy = .iso8601; e.outputFormatting = [.sortedKeys]; return e }()

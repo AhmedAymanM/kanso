@@ -49,6 +49,7 @@ public struct Rule: Codable, Hashable, Identifiable, Sendable {
     public var tags: [String] = []
     public var matchAny = false // false: all conditions must match; true: any one
     public var builtIn = false  // Kanso's own defaults: they work, but Rules shows only the user's rules
+    public var automatic = false // made from a suggestion or by a model, not typed by the user: its destination stays a shelf in My Shelves
     public init(_ conditions: [Condition], dest: String, tags: [String] = [], builtIn: Bool = false) {
         self.conditions = conditions; self.dest = dest; self.tags = tags; self.builtIn = builtIn
     }
@@ -60,6 +61,7 @@ public struct Rule: Codable, Hashable, Identifiable, Sendable {
         dest = try c.decode(String.self, forKey: .dest)
         tags = (try? c.decode([String].self, forKey: .tags)) ?? []
         matchAny = (try? c.decode(Bool.self, forKey: .matchAny)) ?? false
+        automatic = (try? c.decode(Bool.self, forKey: .automatic)) ?? false
         builtIn = (try? c.decode(Bool.self, forKey: .builtIn)) ?? Rule.defaults.contains { $0.conditions == conditions && $0.dest == dest }
     }
 }
@@ -78,6 +80,10 @@ public enum UnknownFiles: String, Codable, CaseIterable, Sendable { case askMode
 public enum IslandMode: String, Codable, CaseIterable, Sendable { case automatic, notch, below }
 
 public struct Settings: Codable, Equatable, Sendable {
+    /// Bump when a stored value changes meaning. New fields with a default need no bump: add them to `init(from:)`
+    /// (SettingsTests.testEveryFieldSurvivesARoundTrip fails if one is forgotten).
+    public static let currentVersion = 1
+    public var version = Settings.currentVersion
     public var onboarded = false
     public var roots: [String] = ["~/Downloads", "~/Desktop", "~/Documents"]
     public var pausedRoots: [String] = []
@@ -98,6 +104,8 @@ public struct Settings: Codable, Equatable, Sendable {
     public var recentDays = 7
     public var folderIcons = true
     public var sortFolders = false
+    public var excludes: [String] = []   // name globs ("*.tmp", "Draft*"): matching top-level items stay where they are, in every watched folder
+    public var rootExcludes: [String: [String]] = [:]   // watched folder (as written in roots) → names of its subfolders that are never sorted
     public var keepTag = "Keep"
     public var learnCorrections = true
     public var unknownFiles = UnknownFiles.askModel
@@ -142,6 +150,7 @@ public struct Settings: Codable, Equatable, Sendable {
     public var types: [FileType] = FileType.defaults
     public var learnedExts: [String] = []   // extensions Kanso learned (from the model or your moves), even when filed under a built-in type
     public var rules: [Rule] = Rule.defaults
+    public var savedViews: [SavedView] = []   // Activity filter combinations the user named (filters only, they never move files)
 
     public init() {}
 
@@ -172,13 +181,14 @@ public struct Settings: Codable, Equatable, Sendable {
         self.init()
         let c = try decoder.container(keyedBy: CodingKeys.self)
         func d<T: Decodable>(_ k: CodingKeys, _ v: inout T) { if let x = try? c.decode(T.self, forKey: k) { v = x } }
+        version = (try? c.decode(Int.self, forKey: .version)) ?? 0   // files from before versioning have none
         d(.onboarded, &onboarded); d(.roots, &roots); d(.pausedRoots, &pausedRoots); d(.since, &since)
         d(.autoSort, &autoSort); d(.settleSeconds, &settleSeconds); d(.graceMinutes, &graceMinutes)
         sortingOffUntil = try? c.decode(Date.self, forKey: .sortingOffUntil)
         sortingOffSince = try? c.decode(Date.self, forKey: .sortingOffSince)
         d(.offReminderShown, &offReminderShown); d(.smartEject, &smartEject); d(.smartEjectNotice, &smartEjectNotice); d(.smartEjectOnlyEject, &smartEjectOnlyEject)
         d(.approach, &approach); d(.recents, &recents); d(.recentDays, &recentDays); d(.folderIcons, &folderIcons)
-        d(.sortFolders, &sortFolders); d(.keepTag, &keepTag); d(.learnCorrections, &learnCorrections)
+        d(.sortFolders, &sortFolders); d(.excludes, &excludes); d(.rootExcludes, &rootExcludes); d(.keepTag, &keepTag); d(.learnCorrections, &learnCorrections)
         d(.unknownFiles, &unknownFiles); d(.suggestTypes, &suggestTypes); d(.appleIntelligence, &appleIntelligence)
         d(.renaming, &renaming); d(.normalizeNames, &normalizeNames); d(.keepOriginalSearchable, &keepOriginalSearchable)
         d(.askBeforeMassRenames, &askBeforeMassRenames); d(.massRenameThreshold, &massRenameThreshold)
@@ -194,7 +204,24 @@ public struct Settings: Codable, Equatable, Sendable {
         // Element by element: one malformed type or rule must not reset the whole list to defaults.
         if let x = try? c.decode(LossyArray<FileType>.self, forKey: .types) { types = x.elements }
         if let x = try? c.decode(LossyArray<Rule>.self, forKey: .rules) { rules = x.elements }
+        if let x = try? c.decode(LossyArray<SavedView>.self, forKey: .savedViews) { savedViews = x.elements }
         d(.learnedExts, &learnedExts)
+        migrate()
+    }
+
+    /// The version stored in a settings.json, 0 when it has none (or isn't JSON).
+    public static func storedVersion(_ data: Data) -> Int {
+        ((try? JSONSerialization.jsonObject(with: data)) as? [String: Any])?["version"] as? Int ?? 0
+    }
+
+    /// Steps run in order, once per file. A file from a newer build keeps its higher version (nothing is downgraded).
+    mutating func migrate() {
+        if version < 1 {
+            // v0 to v1: versioning starts here. Nothing changed meaning; just clean values older builds could store.
+            roots = roots.filter { !$0.isEmpty }
+            settleSeconds = max(0, settleSeconds)
+            version = 1
+        }
     }
 }
 

@@ -60,6 +60,13 @@ struct ActivityPage: View {
     @EnvironmentObject var m: AppModel
     @State private var filter = Filter.all
     @State private var query = ""
+    @State private var shelf: String?    // narrowing that a saved view can carry: one shelf…
+    @State private var days: Int?        // …and/or the last N days
+    @State private var naming = false
+    @State private var newName = ""
+
+    /// The current filters as a view (unnamed), for narrowing and for saving.
+    var current: SavedView { SavedView(name: "", filter: filter.rawValue, query: query, shelf: shelf, days: days) }
 
     var entries: [Entry] {
         var done: [Entry] = []
@@ -84,19 +91,26 @@ struct ActivityPage: View {
             let passes: Bool
             switch (filter, entry) {
             case (.all, _): passes = true
+            case (_, .action(let a)): passes = ActivityFilter(rawValue: filter.rawValue)?.includes(a) ?? false
             case (.needs, .need): passes = true
             case (.handled, .need): passes = false
             case (.handled, _): passes = true
-            case (.renamed, .action(let a)): passes = a.kind == .renamed && !a.undone
             case (.renamed, .need(.renames)): passes = true
-            case (.tagged, .action(let a)): passes = !a.tags.isEmpty && !a.undone
-            case (.ejected, .action(let a)): passes = a.kind == .trashed && a.details["installer"] != nil
-            case (.undone, .action(let a)): passes = a.undone
-            case (.duplicates, .action(let a)): passes = (a.kind == .duplicate || (a.kind == .trashed && a.details["installer"] == nil)) && !a.undone
             case (.duplicates, .need(.duplicate)): passes = true
             default: passes = false
             }
-            return passes && (query.isEmpty || title(entry).localizedCaseInsensitiveContains(query) || subtitle(entry).localizedCaseInsensitiveContains(query))
+            return passes && narrowed(entry) && (query.isEmpty || title(entry).localizedCaseInsensitiveContains(query) || subtitle(entry).localizedCaseInsensitiveContains(query))
+        }
+    }
+
+    /// The shelf and time part of a saved view. Needs-you cards that aren't a held copy have no shelf, so narrowing hides them.
+    func narrowed(_ e: Entry) -> Bool {
+        guard current.isNarrowed else { return true }
+        switch e {
+        case .action(let a): return current.narrows(a)
+        case .batch(_, let a): return a.contains { current.narrows($0) }
+        case .need(.duplicate(let a)): return current.narrows(a)
+        case .need, .waiting: return false
         }
     }
 
@@ -121,6 +135,33 @@ struct ActivityPage: View {
             }
         }
         .background { KeyCatcher(keys: [126: { move(-1, list, selected?.id) }, 125: { move(1, list, selected?.id) }]) }
+        .alert("Save this view", isPresented: $naming) {
+            TextField("Name", text: $newName)
+            Button("Save") { saveView() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("A saved view remembers the filter, search and narrowing. It only changes what this list shows.")
+        }
+    }
+
+    func saveView() {
+        var v = current
+        v.name = newName
+        m.update { _ = $0.saveView(v) }
+    }
+
+    func apply(_ v: SavedView) {
+        withAnimation(Motion.spring(0.3)) {
+            filter = Filter(rawValue: v.filter) ?? .all
+            query = v.query
+            shelf = v.shelf
+            days = v.days
+        }
+    }
+
+    /// "Receipts · Documents · last 7 days"
+    var narrowText: String {
+        [shelf, days.map { "last \($0) days" }].compactMap { $0 }.joined(separator: " · ")
     }
 
     /// The three empty states: nothing at all, nothing under this filter, nothing matching the search.
@@ -132,8 +173,8 @@ struct ActivityPage: View {
                 .liquid(Circle(), tint: Tint.accent.bg.opacity(0.5), interactive: false)
             Text(searching ? "No matches for “\(query)”" : filter == .all ? "Nothing yet" : "Nothing under \(filter.rawValue)").font(.system(size: TS.title2, design: .serif)).foregroundStyle(K.text)
             Text(searching ? "Search looks at file names and shelves." : filter.emptyLine).font(.system(size: TS.body)).foregroundStyle(K.text2).multilineTextAlignment(.center).frame(maxWidth: 320)
-            if searching || filter != .all {
-                Button(searching ? "Clear search" : "Show all activity") { withAnimation(Motion.spring(0.3)) { if searching { query = "" } else { filter = .all } } }
+            if searching || filter != .all || current.isNarrowed {
+                Button(searching ? "Clear search" : "Show all activity") { withAnimation(Motion.spring(0.3)) { if searching { query = "" } else { filter = .all; shelf = nil; days = nil } } }
                     .buttonStyle(SecondaryStyle(small: true)).padding(.top, 4)
             }
         }
@@ -168,8 +209,17 @@ struct ActivityPage: View {
                     }
                     .padding(.horizontal, 12).frame(height: 32).liquid(Capsule(), tint: nil, fallback: K.fill, interactive: false)
                     filterMenu
+                    viewsMenu
                 }
                 ActivityFilterBar(filter: $filter, needs: m.needs.count)
+                if current.isNarrowed {
+                    HStack(spacing: 6) {
+                        Text("Narrowed to \(narrowText)").font(.system(size: TS.small)).foregroundStyle(K.text2)
+                        Button { withAnimation(Motion.spring(0.3)) { shelf = nil; days = nil } } label: { Image(systemName: "xmark.circle.fill").font(.system(size: TS.small)).foregroundStyle(K.text3) }
+                            .buttonStyle(.plain).help("Remove the narrowing").accessibilityLabel("Remove the narrowing")
+                    }
+                    .padding(.horizontal, 4)
+                }
                 if ![.all, .needs, .handled].contains(filter) {
                     HStack(spacing: 6) {
                         Text("Filtered by \(filter.rawValue)").font(.system(size: TS.small)).foregroundStyle(K.text2)
@@ -214,6 +264,44 @@ struct ActivityPage: View {
         }
         .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden).fixedSize()
         .help("Filter activity").accessibilityLabel(fine ? "Filter activity, \(filter.rawValue)" : "Filter activity")
+    }
+
+    /// Saved views: a menu of named filter combinations, plus the narrowing (shelf, time) and Save this view.
+    var viewsMenu: some View {
+        let saved = m.settings.savedViews
+        let narrowedNow = current.isNarrowed || !saved.filter { $0.sameFilters(as: current) }.isEmpty
+        return Menu {
+            if saved.isEmpty { Text("No saved views yet") }
+            ForEach(saved) { v in
+                Button { apply(v) } label: {
+                    if v.sameFilters(as: current) { Label(v.name, systemImage: "checkmark") } else { Text(v.name) }
+                }
+            }
+            Divider()
+            Picker("Shelf", selection: $shelf) {
+                Text("Any shelf").tag(String?.none)
+                ForEach(m.settings.types.map(\.name), id: \.self) { Text($0).tag(Optional($0)) }
+            }
+            Picker("When", selection: $days) {
+                Text("Any time").tag(Int?.none)
+                Text("Last 7 days").tag(Optional(7))
+                Text("Last 30 days").tag(Optional(30))
+            }
+            Divider()
+            Button("Save this view…") { newName = ""; naming = true }
+            if !saved.isEmpty {
+                Menu("Delete a view") {
+                    ForEach(saved) { v in Button(v.name, role: .destructive) { m.update { $0.savedViews.removeAll { $0.id == v.id } } } }
+                }
+            }
+        } label: {
+            Image(systemName: narrowedNow ? "bookmark.fill" : "bookmark")
+                .font(.system(size: TS.body, weight: .medium)).foregroundStyle(narrowedNow ? Tint.accent.fg : K.text2)
+                .frame(width: 32, height: 32).contentShape(Circle())
+                .liquid(Circle(), tint: narrowedNow ? Tint.accent.bg : nil, fallback: narrowedNow ? Tint.accent.bg : K.fill)
+        }
+        .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden).fixedSize()
+        .help("Saved views").accessibilityLabel("Saved views")
     }
 
     func group(_ list: [Entry]) -> [(String, [Entry])] {

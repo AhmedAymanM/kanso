@@ -17,6 +17,23 @@ public func lowBattery() -> Bool {
     return false
 }
 
+/// "What would match": a dry run of one rule over the files waiting to be sorted. Nothing is moved, journaled or learned.
+public struct RulePreview: Sendable, Equatable {
+    public struct Hit: Identifiable, Sendable, Equatable {
+        public var id: String { path }
+        public var path: String
+        public var name: String
+        public var otherwise: String?   // where the file type would put it without the rule; nil when no type claims it
+        public var shadowedBy: String?  // the earlier rule that takes it first (first match wins)
+    }
+    public var hits: [Hit] = []         // files this rule would take (the first few)
+    public var count = 0                // how many in all
+    public var shadowed: [Hit] = []     // files it matches but an earlier rule takes
+    public var shadowedCount = 0
+    public var scanned = 0              // files waiting to be sorted that were checked
+    public init() {}
+}
+
 /// One planned move. The review window can uncheck it (`include`) or edit `newName`.
 public struct Planned: Identifiable, Sendable {
     public enum Stage: Sendable { case recent, sort }
@@ -88,7 +105,24 @@ public final class Engine: @unchecked Sendable {
     func ignored(_ url: URL) -> Bool {
         let n = url.lastPathComponent
         return n.hasPrefix(".") || n.hasPrefix("~$") || n == "Icon\r" || partialExtensions.contains { n.lowercased().hasSuffix($0) }
-            || Tags.read(url).contains(s.keepTag)
+            || excluded(url, settings: s) || Tags.read(url).contains(s.keepTag)
+    }
+
+    /// The user's excludes: a name glob that matches (any watched folder), or a subfolder named for its watched folder.
+    /// Only the name is looked at, so excluded items are never read, hashed or tagged.
+    func excluded(_ url: URL, settings: Settings) -> Bool {
+        let name = url.lastPathComponent.lowercased()
+        for glob in settings.excludes {
+            let g = glob.trimmingCharacters(in: .whitespaces).lowercased()
+            if !g.isEmpty && fnmatch(g, name, 0) == 0 { return true }
+        }
+        if !settings.rootExcludes.isEmpty {
+            let parent = url.deletingLastPathComponent().standardizedFileURL.path
+            for (root, names) in settings.rootExcludes where URL(fileURLWithPath: (root as NSString).expandingTildeInPath).standardizedFileURL.path == parent {
+                if names.contains(where: { $0.lowercased() == name }) { return true }
+            }
+        }
+        return false
     }
 
     func candidates(all: Bool, now: Date) -> ([(URL, URL, Planned.Stage, Bool)], [Waiting]) {
@@ -143,6 +177,7 @@ public final class Engine: @unchecked Sendable {
     public struct Decision: Sendable {
         public var dest: String; public var tags: [String]; public var why: String; public var source: String
         public var learning: Learning? = nil
+        public var userPath = false   // a destination the user typed: the only kind that may be an absolute path
     }
 
     public static func matches(_ rule: Rule, _ item: Item) -> Bool {
@@ -157,6 +192,35 @@ public final class Engine: @unchecked Sendable {
             }
         }
         return rule.matchAny ? rule.conditions.contains(where: test) : rule.conditions.allSatisfy(test)
+    }
+
+    /// Dry run of `rule` (saved or being edited) over the current candidates, in the order the real run uses (first match wins).
+    /// Reads metadata only and never asks a model, so a file no rule or type claims simply shows no "otherwise".
+    public func previewRule(_ rule: Rule, now: Date = Date(), limit: Int = 6) -> RulePreview {
+        let settings = s
+        var candidate = rule
+        candidate.enabled = true   // a switched-off rule can still be previewed
+        var order = settings.rules
+        if let i = order.firstIndex(where: { $0.id == rule.id }) { order[i] = candidate } else { order.append(candidate) }
+        var out = RulePreview()
+        let found = candidates(all: true, now: now).0
+            .sorted { $0.0.lastPathComponent.localizedStandardCompare($1.0.lastPathComponent) == .orderedAscending }
+        for (url, root, _, _) in found {
+            let item = Item.inspect(url, root: root)
+            out.scanned += 1
+            guard Engine.matches(candidate, item) else { continue }
+            var hit = RulePreview.Hit(path: url.path, name: item.name,
+                                      otherwise: item.screenshot ? Shelf.screenshots : settings.type(forExt: item.ext)?.name, shadowedBy: nil)
+            if let winner = order.first(where: { Engine.matches($0, item) }), winner.id != candidate.id {
+                hit.shadowedBy = Engine.describe(winner)
+                out.shadowedCount += 1
+                if out.shadowed.count < limit { out.shadowed.append(hit) }
+            } else {
+                out.count += 1
+                if out.hits.count < limit { out.hits.append(hit) }
+            }
+        }
+        return out
     }
 
     public static func parseSize(_ s: String) -> Int64? {
@@ -180,7 +244,8 @@ public final class Engine: @unchecked Sendable {
     public func decide(_ item: Item) async -> Decision {
         let settings = s
         if let rule = settings.rules.first(where: { Engine.matches($0, item) }) {
-            return Decision(dest: rule.dest, tags: rule.tags, why: "rule \(Engine.describe(rule))", source: "metadata only")
+            return Decision(dest: rule.dest, tags: rule.tags, why: "rule \(Engine.describe(rule))", source: "metadata only",
+                            userPath: !rule.builtIn && !rule.automatic)
         }
         if item.screenshot, settings.type(named: Shelf.screenshots) != nil {
             return Decision(dest: Shelf.screenshots, tags: [], why: "screenshot", source: "metadata only")
@@ -196,13 +261,14 @@ public final class Engine: @unchecked Sendable {
         guard let pick = await classifier.choose(facts: Brain.facts(item), options: options, creating: creating) else {
             return Decision(dest: Shelf.unsorted, tags: [], why: "apple-intelligence failed", source: "from name")
         }
-        if options.contains(where: { $0.0 == pick.folder }) {
+        if options.contains(where: { $0.0 == pick.folder }) && Engine.automaticShelfAllowed(pick.folder) {
             return Decision(dest: pick.folder, tags: [], why: "apple-intelligence \(pick.folder)", source: "from name",
                             learning: Learning(ext: item.ext, type: pick.folder))
         }
         let name = Brain.cleanName(pick.name)
-        if creating, pick.folder == Brain.new, !name.isEmpty, !Brain.isCatchAll(name), !name.lowercased().contains(item.ext) {  // "Qx7 files" says nothing
+        if creating, pick.folder == Brain.new, !name.isEmpty, !Brain.isCatchAll(name), !name.lowercased().contains(item.ext), Engine.automaticShelfAllowed(name) {  // "Qx7 files" says nothing
             let existing = settings.types.first { $0.name.lowercased() == name.lowercased() }?.name ?? name
+            guard Engine.automaticShelfAllowed(existing) else { return Decision(dest: Shelf.unsorted, tags: [], why: "apple-intelligence unsure", source: "from name") }
             return Decision(dest: existing, tags: [], why: "apple-intelligence new type \(existing)", source: "from name",
                             learning: Learning(ext: item.ext, type: existing, emoji: Brain.cleanEmoji(pick.emoji),
                                                description: String(pick.description.trimmingCharacters(in: .whitespaces).prefix(200))))
@@ -224,13 +290,79 @@ public final class Engine: @unchecked Sendable {
         }
     }
 
-    /// "Images" → <root>/My Shelves/Images. Absolute or ~ paths are used as-is.
-    public func resolve(_ root: URL, _ dest: String) -> URL {
+    // MARK: Destination safety
+
+    /// Lowercased, NFKC, without control and format characters ("Manual\u{200B} Shelves" and "MANUAL SHELVES" compare equal).
+    static func fold(_ s: String) -> String {
+        String(String.UnicodeScalarView(s.unicodeScalars.filter { $0.properties.generalCategory != .format && $0.properties.generalCategory != .control }))
+            .precomposedStringWithCompatibilityMapping
+            .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// Kanso's own folders: nothing but the engine's own steps ever files into them by name.
+    static let ownFolders: Set<String> = Set([Library.mine, Library.manual, Library.recents].map { Engine.fold($0) })
+    /// Shelves that only the extension table and the user fill: no model, suggestion or learned guess may route there.
+    static let guardedShelves: Set<String> = Set([Shelf.keys, Shelf.duplicates].map { Engine.fold($0) })
+
+    /// A shelf path inside My Shelves: relative, no "." or "..", and no component that is one of Kanso's own folders.
+    public static func isShelfPath(_ dest: String) -> Bool {
+        guard !dest.hasPrefix("/"), !dest.hasPrefix("~") else { return false }
+        let parts = dest.split(separator: "/").map(String.init)
+        return !parts.isEmpty && parts.allSatisfy { $0 != ".." && $0 != "." && !ownFolders.contains(fold($0)) }
+    }
+
+    /// May an automatic or model-originated decision (AI pick, learned extension, suggestion) file here?
+    /// Inside My Shelves, never Manual Shelves or Recents, and never Keys or Duplicates.
+    public static func automaticShelfAllowed(_ dest: String) -> Bool {
+        isShelfPath(dest) && !dest.split(separator: "/").contains { guardedShelves.contains(fold(String($0))) }
+    }
+
+    /// The warning the rule editor shows for a destination the user typed outside My Shelves; nil for an ordinary shelf.
+    public static func destinationWarning(_ dest: String) -> String? {
+        guard dest.hasPrefix("/") || dest.hasPrefix("~") else { return nil }
+        let parts = dest.split(separator: "/").map { fold(String($0)) }
+        if parts.contains(fold(Library.manual)) {
+            return "This is a Manual Shelves folder. Kanso otherwise never touches those; this rule will put files there without asking."
+        }
+        if parts.contains(fold(Shelf.keys)) {
+            return "This looks like a keys folder. Matching files will be moved there without asking."
+        }
+        return "This folder is outside My Shelves. Matching files move there without asking, and Undo is the only way back."
+    }
+
+    /// Resolves symlinks in the part of the path that exists and appends the rest, so a folder that doesn't exist yet compares fairly.
+    static func realPath(_ url: URL) -> String {
+        var tail: [String] = []
+        var base = url.standardizedFileURL
+        while !FileManager.default.fileExists(atPath: base.path) && base.path != "/" {
+            tail.insert(base.lastPathComponent, at: 0)
+            base = base.deletingLastPathComponent()
+        }
+        var resolved = base.resolvingSymlinksInPath()
+        for t in tail { resolved.appendPathComponent(t) }
+        return resolved.path
+    }
+
+    /// Is `url` really (after symlinks) inside `dir`?
+    static func contained(_ url: URL, in dir: URL) -> Bool {
+        let base = realPath(dir), path = realPath(url)
+        return path == base || path.hasPrefix(base + "/")
+    }
+
+    /// "Images" → <root>/My Shelves/Images. A relative destination can never leave My Shelves (no "..", no Kanso folder names,
+    /// no symlink out); anything wrong parks the file in Unsorted. Absolute or ~ paths are used as-is only when `userPath` is true,
+    /// which only a destination the user typed in a rule of their own sets.
+    public func resolve(_ root: URL, _ dest: String, userPath: Bool = false) -> URL {
         let mine = root.appendingPathComponent(Library.mine)
-        // A rule destination with ".." could climb out of My Shelves (or out of the path it names): park the file in Unsorted instead.
-        if dest.split(separator: "/").contains(where: { $0 == ".." }) { return mine.appendingPathComponent(Shelf.unsorted) }
-        if dest.hasPrefix("/") || dest.hasPrefix("~") { return URL(fileURLWithPath: (dest as NSString).expandingTildeInPath) }
-        return dest.split(separator: "/").reduce(mine) { $0.appendingPathComponent(String($1)) }
+        let unsorted = mine.appendingPathComponent(Shelf.unsorted)
+        if dest.split(separator: "/").contains(where: { $0 == ".." }) { return unsorted }
+        if dest.hasPrefix("/") || dest.hasPrefix("~") {
+            return userPath ? URL(fileURLWithPath: (dest as NSString).expandingTildeInPath) : unsorted
+        }
+        guard Engine.isShelfPath(dest) else { return unsorted }
+        let url = dest.split(separator: "/").reduce(mine) { $0.appendingPathComponent(String($1)) }
+        return Engine.contained(url, in: mine) ? url : unsorted
     }
 
     // MARK: Planning
@@ -252,7 +384,7 @@ public final class Engine: @unchecked Sendable {
             }
             let item = Item.inspect(url, root: root)
             let d = await decide(item)
-            var m = Planned(item: item, dest: resolve(root, d.dest), shelf: d.dest, tags: d.tags, why: d.why, source: d.source)
+            var m = Planned(item: item, dest: resolve(root, d.dest, userPath: d.userPath), shelf: d.dest, tags: d.tags, why: d.why, source: d.source)
             m.learning = d.learning
             if settings.recents == .links && fresh { m.link = root.appendingPathComponent(Library.recents) }
             if let w = item.whereFrom.first { m.details["from"] = w }
@@ -264,6 +396,7 @@ public final class Engine: @unchecked Sendable {
                 m.why = "duplicate of \(kept.lastPathComponent)"
                 m.source = "size + hash"
                 m.details["kept"] = kept.path
+                m.details["keptWhy"] = Engine.keeperReason(kept: kept, copy: item.url, root: root, setting: settings.keeper)
                 m.details["size"] = String(item.size)
                 m.tags = []
                 m.link = nil
@@ -306,6 +439,21 @@ public final class Engine: @unchecked Sendable {
         }
         waiting.sort { $0.since > $1.since }
         return Plan(moves: moves, waiting: waiting)
+    }
+
+    /// Why `kept` stays and `copy` is the extra one. Journaled with the duplicate (details["keptWhy"]) and shown in Activity.
+    public static func keeperReason(kept: URL, copy: URL, root: URL, setting: Keeper) -> String {
+        let manual = root.appendingPathComponent(Library.manual).standardizedFileURL.path + "/"
+        let mine = root.appendingPathComponent(Library.mine).standardizedFileURL.path + "/"
+        let path = kept.standardizedFileURL.path
+        if path.hasPrefix(manual) { return "The other copy is already in your Manual Shelves" }
+        if path.hasPrefix(mine) { return "The other copy was already filed on a shelf" }
+        // Both were loose in the folder: the same order the plan used to pick the keeper.
+        let cleaner = Duplicates.nameScore(kept.lastPathComponent) < Duplicates.nameScore(copy.lastPathComponent)
+        if setting == .bestNamed { return cleaner ? "Its name is cleaner than \u{201C}\(copy.lastPathComponent)\u{201D}" : "Its name is as clean as the other copy's" }
+        let ck = Stat.ctime(kept) ?? 0, cc = Stat.ctime(copy) ?? 0
+        if abs(ck - cc) < 5 { return cleaner ? "Both arrived together, and its name is cleaner" : "Both arrived together" }
+        return ck < cc ? "It arrived first" : "It is the one that was already there"
     }
 
     func keeperOrder(_ a: URL, _ b: URL, _ k: Keeper) -> Bool {
@@ -739,7 +887,7 @@ public final class Engine: @unchecked Sendable {
                 if let h = c.from { groups["from:\(h)>\(c.toShelf)", default: (Condition(.from, h), c.toShelf, [])].2.append(c.name) }
                 else if !c.ext.isEmpty && !known.contains(c.ext) { groups["ext:\(c.ext)>\(c.toShelf)", default: (Condition(.ext, c.ext), c.toShelf, [])].2.append(c.name) }
             }
-            for (key, g) in groups.sorted(by: { $0.key < $1.key }) where g.2.count >= 3 && !p.dismissed.contains(key)
+            for (key, g) in groups.sorted(by: { $0.key < $1.key }) where g.2.count >= 3 && !p.dismissed.contains(key) && Engine.automaticShelfAllowed(g.1)
                 && !p.suggestions.contains(where: { $0.shelf == g.1 })
                 && !store.settings.rules.contains(where: { $0.conditions == [g.0] && $0.dest == g.1 }) {
                 p.suggestions.append(RuleSuggestion(condition: g.0, shelf: g.1, files: g.2))
@@ -750,7 +898,7 @@ public final class Engine: @unchecked Sendable {
     /// Corrections teach types: a learned (or unknown) extension follows the user's move. Built-in types stay put,
     /// so moving one lecture PDF to "Uni" never sends every PDF there.
     func teach(_ c: Correction) {
-        guard !c.ext.isEmpty, c.toShelf != Shelf.duplicates else { return }
+        guard !c.ext.isEmpty, Engine.automaticShelfAllowed(c.toShelf) else { return }   // a move into Keys or a Kanso folder teaches nothing
         let current = s.type(forExt: c.ext)
         guard current == nil || current?.learned == true || s.learnedExts.contains(c.ext), current?.name != c.toShelf else { return }
         store.update { s in
@@ -768,7 +916,10 @@ public final class Engine: @unchecked Sendable {
 
     public func acceptSuggestion(_ id: UUID) {
         guard let sug = store.pending.suggestions.first(where: { $0.id == id }) else { return }
-        store.update { $0.rules.insert(Rule([sug.condition], dest: sug.shelf), at: 0) }
+        guard Engine.automaticShelfAllowed(sug.shelf) else { store.updatePending { $0.suggestions.removeAll { $0.id == id } }; return }
+        var rule = Rule([sug.condition], dest: sug.shelf)
+        rule.automatic = true   // derived from your moves, not typed: it can only file inside My Shelves
+        store.update { $0.rules.insert(rule, at: 0) }
         store.updatePending { $0.suggestions.removeAll { $0.id == id } }
     }
 
