@@ -150,6 +150,7 @@ public struct Settings: Codable, Equatable, Sendable {
     public var types: [FileType] = FileType.defaults
     public var learnedExts: [String] = []   // extensions Kanso learned (from the model or your moves), even when filed under a built-in type
     public var rules: [Rule] = Rule.defaults
+    public var savedViews: [SavedView] = []   // Activity filter combinations the user named (filters only, they never move files)
 
     public init() {}
 
@@ -203,6 +204,7 @@ public struct Settings: Codable, Equatable, Sendable {
         // Element by element: one malformed type or rule must not reset the whole list to defaults.
         if let x = try? c.decode(LossyArray<FileType>.self, forKey: .types) { types = x.elements }
         if let x = try? c.decode(LossyArray<Rule>.self, forKey: .rules) { rules = x.elements }
+        if let x = try? c.decode(LossyArray<SavedView>.self, forKey: .savedViews) { savedViews = x.elements }
         d(.learnedExts, &learnedExts)
         migrate()
     }
