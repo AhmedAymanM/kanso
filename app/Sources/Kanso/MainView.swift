@@ -86,6 +86,7 @@ struct Sidebar: View {
                         HStack(spacing: 0) {
                             Label { Text(p.title).font(.system(size: TS.body)) } icon: { Image(systemName: p.icon).font(.system(size: TS.small)).foregroundStyle(m.page == p ? K.text : K.text2) }
                             Spacer(minLength: 4)
+                            if m.page == p { Circle().fill(K.accent).frame(width: 6, height: 6).padding(.trailing, 2).accessibilityHidden(true) }   // one selection language: row pill + accent dot
                             if p == .activity && !m.needs.isEmpty {
                                 Text("\(m.needs.count)").font(.system(size: TS.meta, weight: .semibold)).monospacedDigit().foregroundStyle(.white)
                                     .padding(.horizontal, 6).frame(minWidth: 20, minHeight: 20).background(Capsule().fill(Color(red: 1, green: 0.23, blue: 0.19)))   // system red: a count that needs you
