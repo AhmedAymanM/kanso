@@ -122,10 +122,6 @@ struct OnboardingView: View {
                 title("This is the island.", "A pretend file, so nothing real changes. Scan_0012.pdf just got a clear name.")
             }
             DemoIsland(expanded: demo.pressed).frame(height: demo.pressed ? 230 : 130).frame(maxWidth: .infinity)
-                .contentShape(Rectangle())
-                .onTapGesture { withAnimation(Motion.spring()) { demo.pressed = true } }
-                .accessibilityAddTraits(.isButton)
-                .accessibilityLabel(demo.pressed ? "Island, open" : "Island demo. Activate to open it.")
             if !demo.pressed {
                 VStack(spacing: 8) {
                     HStack(spacing: 8) {
@@ -141,9 +137,7 @@ struct OnboardingView: View {
         .onAppear {
             demo.pressed = false
             demo.active = true
-            if !NSWorkspace.shared.isVoiceOverEnabled {   // VoiceOver users open it themselves; no surprise change
-                DispatchQueue.main.asyncAfter(deadline: .now() + 10) { withAnimation(Motion.spring()) { demo.pressed = true } }
-            }   // never blocking
+            DispatchQueue.main.asyncAfter(deadline: .now() + 10) { withAnimation(Motion.spring()) { demo.pressed = true } }   // never blocking
         }
         .onDisappear { demo.active = false }
     }
@@ -199,7 +193,7 @@ struct OnboardingView: View {
     var declined: some View {
         VStack(alignment: .leading, spacing: 22) {
             Spacer().frame(height: 50)
-            Image(systemName: "folder.badge.minus").font(.system(size: TS.display)).foregroundStyle(K.text2)
+            Image(systemName: "folder.badge.minus").font(.system(size: TS.hero)).foregroundStyle(K.text2)
             title("Kanso needs at least one folder to work.", "You can allow Downloads, Desktop or Documents in Privacy & Security → Files & Folders. Kanso picks them up as soon as you do.")
         }
     }
@@ -209,8 +203,6 @@ struct OnboardingView: View {
         HStack {
             if step == .island || step == .ai || step == .files {
                 Button("Back") { step = previous() }.buttonStyle(SecondaryStyle())
-            } else if step == .declined {
-                Button("Back") { step = .folders }.buttonStyle(SecondaryStyle())
             }
             if step != .declined {
                 HStack(spacing: 6) {
@@ -265,13 +257,13 @@ struct DemoIsland: View {
                 VStack(alignment: .leading, spacing: 10) {
                     if expanded {
                         HStack(spacing: 8) {
-                            Image(systemName: "checkmark").font(.system(size: TS.meta, weight: .bold)).foregroundStyle(Tint.rename.fg).frame(width: 20, height: 20).background(Circle().fill(Tint.rename.soft))
+                            Image(systemName: "checkmark").font(.system(size: TS.micro, weight: .bold)).foregroundStyle(Tint.rename.fg).frame(width: 20, height: 20).background(Circle().fill(Tint.rename.soft))
                             Text("Renamed").font(.system(size: TS.body, weight: .semibold)).foregroundStyle(.white)
                             Spacer()
-                            Text("demo").font(.system(size: TS.meta)).foregroundStyle(.white.opacity(0.7))
+                            Text("demo").font(.system(size: TS.meta)).foregroundStyle(.white.opacity(0.4))
                         }
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Scan_0012.pdf").font(.system(size: TS.meta, design: .monospaced)).strikethrough().foregroundStyle(.white.opacity(0.7))
+                            Text("Scan_0012.pdf").font(.system(size: TS.meta, design: .monospaced)).strikethrough().foregroundStyle(.white.opacity(0.35))
                             Text("Invoice-Vattenfall-2026-03.pdf").font(.system(size: TS.heading, weight: .bold)).foregroundStyle(.white)
                         }
                         .padding(10).frame(maxWidth: .infinity, alignment: .leading).background(RoundedRectangle(cornerRadius: 12).fill(Color.white.opacity(0.08)))
@@ -282,7 +274,7 @@ struct DemoIsland: View {
                         }
                     } else {
                         HStack(spacing: 10) {
-                            Image(systemName: "pencil").font(.system(size: TS.meta, weight: .semibold)).foregroundStyle(Tint.rename.fg).frame(width: 20, height: 20).background(RoundedRectangle(cornerRadius: 6).fill(Tint.rename.soft))
+                            Image(systemName: "pencil").font(.system(size: TS.micro, weight: .semibold)).foregroundStyle(Tint.rename.fg).frame(width: 20, height: 20).background(RoundedRectangle(cornerRadius: 6).fill(Tint.rename.soft))
                             SweepText(from: "Scan_0012.pdf", to: "Invoice-Vattenfall-2026-03.pdf", glyphColor: Color(nsColor: NSColor(hex: 0x8FC9A8))).font(.system(size: TS.small, weight: .medium)).foregroundStyle(.white).lineLimit(1)
                             Spacer(minLength: 0)
                             Text(m.settings.islandShortcut.display).font(.system(size: TS.meta, weight: .medium)).foregroundStyle(.white.opacity(0.7)).padding(.horizontal, 6).frame(height: 18).background(RoundedRectangle(cornerRadius: 5).fill(Color.white.opacity(0.12)))

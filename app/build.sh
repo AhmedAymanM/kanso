@@ -80,13 +80,6 @@ cat > "$APP/Contents/Info.plist" <<PLIST
       <key>NSSendFileTypes</key><array><string>public.item</string></array>
     </dict>
     <dict>
-      <key>NSMenuItem</key><dict><key>default</key><string>Add to Kanso Tray</string></dict>
-      <key>NSMessage</key><string>addToTray</string>
-      <key>NSPortName</key><string>Kanso</string>
-      <key>NSRequiredContext</key><dict/>
-      <key>NSSendFileTypes</key><array><string>public.item</string></array>
-    </dict>
-    <dict>
       <key>NSMenuItem</key><dict><key>default</key><string>Allow Kanso to Sort</string></dict>
       <key>NSMessage</key><string>allowFiles</string>
       <key>NSPortName</key><string>Kanso</string>

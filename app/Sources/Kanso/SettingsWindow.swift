@@ -106,11 +106,6 @@ struct GeneralPage: View {
                 Row(icon: "moon", title: "Collect notices quietly during Focus and full-screen", desc: "They wait in the menu bar, which shows a dot.", last: true) { KToggle(on: m.binding(\.collectDuringFocus), label: "Collect quietly") }
             }
         }
-        PageSection(title: "Tray") {
-            RowGroup {
-                Row(icon: "tray", title: "Tray (beta)", desc: "Carry files to the top of the screen, then Organize files them together. Nothing moves until you ask. Without dragging: ⌘T on the island, or Add to Kanso Tray in Finder's Services.", last: true) { KToggle(on: m.binding(\.trayEnabled), label: "Tray, beta") }
-            }
-        }
     }
 
     var islandDesc: String {
