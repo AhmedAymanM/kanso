@@ -45,7 +45,7 @@ extension EngineTests {
         XCTAssertTrue(exists(shelf(Shelf.unsorted).appendingPathComponent("mystery.qqq")), "no model chosen: unknown types wait")
         XCTAssertTrue(store.settings.learnedExts.isEmpty)
 
-        make(pick: Pick(folder: "Documents"))
+        make(pick: Pick(folder: "Documents")) { $0.modelChoice = .appleIntelligence }
         file("mystery.qqq")
         _ = await run()
         XCTAssertTrue(exists(shelf("Documents").appendingPathComponent("mystery.qqq")))
