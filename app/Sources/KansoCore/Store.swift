@@ -123,7 +123,14 @@ public final class Store: @unchecked Sendable {
         settings = Store.readOrBackup(Settings.self, dir.appendingPathComponent("settings.json")) ?? Settings()
         pending = Store.readOrBackup(Pending.self, dir.appendingPathComponent("pending.json")) ?? Pending()
         let lines = (try? String(contentsOf: dir.appendingPathComponent("journal.jsonl"), encoding: .utf8)) ?? ""
-        actions = lines.split(separator: "\n").compactMap { try? Store.decoder.decode(Action.self, from: Data($0.utf8)) }
+        // A write-ahead entry and its completed rewrite share an id; the last line wins.
+        var latest: [UUID: Int] = [:]
+        var loaded: [Action] = []
+        for line in lines.split(separator: "\n") {
+            guard let a = try? Store.decoder.decode(Action.self, from: Data(line.utf8)) else { continue }
+            if let i = latest[a.id] { loaded[i] = a } else { latest[a.id] = loaded.count; loaded.append(a) }
+        }
+        actions = loaded
         if !FileManager.default.fileExists(atPath: dir.appendingPathComponent("settings.json").path) { saveSettings() }
     }
 
@@ -170,7 +177,7 @@ public final class Store: @unchecked Sendable {
     /// Append as it happens, so undo survives a crash mid-run.
     public func append(_ a: Action) {
         lock.lock(); defer { lock.unlock() }
-        actions.append(a)
+        if let i = actions.firstIndex(where: { $0.id == a.id }) { actions[i] = a } else { actions.append(a) }
         guard var data = try? Store.encoder.encode(a) else { return }
         data.append(0x0A)
         let url = dir.appendingPathComponent("journal.jsonl")
@@ -192,6 +199,15 @@ public final class Store: @unchecked Sendable {
         } catch {
             NSLog("Kanso: journal append failed: \(error)")
         }
+    }
+
+    /// Drop an entry whose move never happened.
+    public func discard(_ id: UUID) {
+        lock.lock()
+        actions.removeAll { $0.id == id }
+        let body = actions.compactMap { try? Store.encoder.encode($0) }.map { String(decoding: $0, as: UTF8.self) }.joined(separator: "\n")
+        lock.unlock()
+        try? (body.isEmpty ? "" : body + "\n").write(to: dir.appendingPathComponent("journal.jsonl"), atomically: true, encoding: .utf8)
     }
 
     /// ponytail: rewrites the whole journal; fine for years of actions, switch to SQLite if it grows past ~100k.

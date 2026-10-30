@@ -623,4 +623,92 @@ final class EngineTests: XCTestCase {
         engine.detectCorrections()
         XCTAssertNil(store.actions.first { $0.id == a.id }!.details["corrected"])
     }
+
+    // MARK: Safety edge cases (KAN-1)
+
+    func testCollisionNeverOverwritesAndKeepsBothContents() async {
+        file("a.pdf", "old", in: shelf("Documents"))
+        file("a.pdf", "new")
+        _ = await run()
+        XCTAssertEqual(try String(contentsOf: shelf("Documents").appendingPathComponent("a.pdf")), "old")
+        XCTAssertEqual(try String(contentsOf: shelf("Documents").appendingPathComponent("a 2.pdf")), "new")
+    }
+
+    func testCaseInsensitiveAndUnicodeNamesDoNotCollideSilently() async {
+        file("Résumé.pdf", "nfc", in: shelf("Documents"))
+        file("RÉSUMÉ.PDF", "second")
+        _ = await run()
+        let names = (try? fm.contentsOfDirectory(atPath: shelf("Documents").path)) ?? []
+        XCTAssertEqual(names.count, 2, "both files survive: \(names)")
+        let contents = Set(names.compactMap { try? String(contentsOf: shelf("Documents").appendingPathComponent($0)) })
+        XCTAssertEqual(contents, ["nfc", "second"])
+    }
+
+    func testSymlinksInTheRootAreNotFollowedOrMovedAsFiles() async {
+        let target = file("real.pdf", "t", in: tmp)
+        try? fm.createSymbolicLink(at: root.appendingPathComponent("link.pdf"), withDestinationURL: target)
+        _ = await run()
+        XCTAssertTrue(exists(target), "the symlink's target is never touched")
+        XCTAssertEqual(try String(contentsOf: target), "t")
+    }
+
+    func testAlreadySortedFolderIsLeftAlone() async {
+        _ = await run()
+        file("a.pdf", in: shelf("Documents"))
+        let plan = await engine.plan(all: true)
+        XCTAssertTrue(plan.moves.isEmpty)
+    }
+
+    func testPlanTouchesNothing() async {
+        let u = file("a.pdf")
+        _ = await engine.plan()
+        XCTAssertTrue(exists(u))
+        XCTAssertTrue(store.actions.isEmpty)
+    }
+
+    func testFailedMoveLeavesNoJournalEntry() async {
+        let u = file("a.pdf")
+        let plan = await engine.plan()
+        try? fm.removeItem(at: u)  // vanished between plan and apply
+        XCTAssertTrue(engine.apply(plan.moves).isEmpty)
+        XCTAssertTrue(store.actions.isEmpty)
+        XCTAssertTrue(Store(dir: tmp.appendingPathComponent("state")).actions.isEmpty)
+    }
+
+    func testReadOnlyDestinationFailsWithoutLosingTheFile() async throws {
+        let u = file("a.pdf")
+        let plan = await engine.plan()
+        let lib = root.appendingPathComponent(Library.mine)
+        try fm.createDirectory(at: lib, withIntermediateDirectories: true)
+        try fm.setAttributes([.posixPermissions: 0o555], ofItemAtPath: lib.path)
+        defer { try? fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: lib.path) }
+        let done = engine.apply(plan.moves)
+        if getuid() != 0 {  // root ignores permission bits
+            XCTAssertTrue(done.isEmpty)
+            XCTAssertTrue(exists(u))
+            XCTAssertTrue(store.actions.isEmpty)
+        }
+    }
+
+    /// Crash after the write-ahead line but before the move: undo must be a safe no-op, never a loss.
+    func testInterruptedApplyLeavesAnUndoSafeJournal() async {
+        let u = file("a.pdf")
+        var a = Action(run: "crash", kind: .sorted, src: u.path, dst: shelf("Documents").appendingPathComponent("a.pdf").path,
+                       root: root.path, shelf: "Documents", why: "extension", source: "metadata only")
+        a.trigger = "auto"
+        store.append(a)
+        let reloaded = Store(dir: tmp.appendingPathComponent("state"))
+        XCTAssertEqual(reloaded.actions.count, 1)
+        engine = Engine(store: reloaded, classifier: FakeAI(pick: nil))
+        XCTAssertTrue(engine.undoLast().isEmpty)
+        XCTAssertTrue(exists(u))
+    }
+
+    func testWriteAheadEntryIsReplacedNotDuplicated() async {
+        file("a.pdf")
+        _ = await run()
+        let reloaded = Store(dir: tmp.appendingPathComponent("state"))
+        XCTAssertEqual(reloaded.actions.count, 1)
+        XCTAssertEqual(reloaded.actions[0].shelf, "Documents")
+    }
 }

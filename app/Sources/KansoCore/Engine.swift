@@ -430,12 +430,12 @@ public final class Engine: @unchecked Sendable {
                 // Identical bytes are re-checked now: if the keeper changed or vanished, the copy is held on the shelf instead.
                 let keeper = m.details["kept"].map { movedTo[$0] ?? $0 }
                 if keeperStillHolds(keeper, src) {
-                    var result: NSURL?
-                    guard (try? fm.trashItem(at: src, resultingItemURL: &result)) != nil, let t = result as URL? else { continue }
-                    var a = Action(run: run, kind: .duplicate, src: src.path, dst: t.path, root: m.item.root.path, shelf: "Trash", why: m.why + " · moved to Trash (your setting)", source: m.source)
+                    var a = Action(run: run, kind: .duplicate, src: src.path, dst: "", root: m.item.root.path, shelf: "Trash", why: m.why + " · moved to Trash (your setting)", source: m.source)
                     a.trigger = trigger
                     a.details = m.details
                     if let keeper { a.details["kept"] = keeper }
+                    guard let t = trashJournaled(src, &a) else { continue }
+                    a.dst = t.path
                     store.append(a)
                     done.append(a)
                     continue
@@ -448,18 +448,23 @@ public final class Engine: @unchecked Sendable {
             ensureLibrary(for: dest)
             makeDir(dest)
             var dst = Engine.unique(dest.appendingPathComponent(name))
-            do { try fm.moveItem(at: src, to: dst) } catch {
-                // The new name may be what the volume refuses: keep the file's own name before giving up.
-                guard name != m.item.name else { Engine.log("could not move \(src.path): \(error.localizedDescription)"); continue }
-                name = m.item.name
-                dst = Engine.unique(dest.appendingPathComponent(name))
-                do { try fm.moveItem(at: src, to: dst) } catch { Engine.log("could not move \(src.path): \(error.localizedDescription)"); continue }
-            }
-            if let l = m.learning { learn(l) }
             var a = Action(run: run, kind: m.kind, src: src.path, dst: dst.path, root: m.item.root.path, shelf: shelf, why: why, source: m.source)
             a.trigger = trigger
             a.details = m.details
-            if !m.item.isDir && a.details["size"] == nil { a.details["size"] = String(Stat.size(dst)) }   // corrections check it later
+            if !m.item.isDir && a.details["size"] == nil { a.details["size"] = String(Stat.size(src)) }   // corrections check it later
+            // Write-ahead: the origin is on disk before the file moves. A crash mid-move leaves a record undo can
+            // handle (it skips entries whose dst is missing); a failed move discards it.
+            store.append(a)
+            do { try fm.moveItem(at: src, to: dst) } catch {
+                // The new name may be what the volume refuses: keep the file's own name before giving up.
+                guard name != m.item.name else { Engine.log("could not move \(src.path): \(error.localizedDescription)"); store.discard(a.id); continue }
+                name = m.item.name
+                dst = Engine.unique(dest.appendingPathComponent(name))
+                a.dst = dst.path
+                store.append(a)   // same id: replaces the first record
+                do { try fm.moveItem(at: src, to: dst) } catch { Engine.log("could not move \(src.path): \(error.localizedDescription)"); store.discard(a.id); continue }
+            }
+            if let l = m.learning { learn(l) }
             if let k = a.details["kept"], let moved = movedTo[k] { a.details["kept"] = moved }
             movedTo[src.path] = dst.path
             let renamedNow = name != m.item.name
@@ -569,7 +574,7 @@ public final class Engine: @unchecked Sendable {
         var relocated: [UUID: String] = [:]
         for a in store.actions.reversed() where ids.contains(a.id) && !a.undone {
             let dst = URL(fileURLWithPath: a.dst), src = URL(fileURLWithPath: a.src)
-            if !Stat.exists(dst) {
+            if a.dst.isEmpty || !Stat.exists(dst) {   // empty dst: a write-ahead record whose move never finished
                 gone.insert(a.id)
                 if let l = a.link, Stat.isSymlink(URL(fileURLWithPath: l)) { try? fm.removeItem(atPath: l) }
                 continue
@@ -607,15 +612,24 @@ public final class Engine: @unchecked Sendable {
         return true
     }
 
+    /// Write-ahead trash: the origin is journaled before the file leaves (the Trash path isn't known until it has),
+    /// so a crash mid-trash leaves a record. Undo skips entries with no dst; a failed trash discards the record.
+    private func trashJournaled(_ url: URL, _ a: inout Action) -> URL? {
+        store.append(a)
+        var result: NSURL?
+        guard (try? fm.trashItem(at: url, resultingItemURL: &result)) != nil, let t = result as URL? else { store.discard(a.id); return nil }
+        return t
+    }
+
     /// Move a held copy to the Trash. Only ever called from a user action.
     @discardableResult
     public func trash(_ id: UUID) -> Action? {
         guard let a = store.actions.first(where: { $0.id == id }), isHeldCopy(a) else { return nil }
         let url = URL(fileURLWithPath: a.dst)
-        var result: NSURL?
-        guard (try? fm.trashItem(at: url, resultingItemURL: &result)) != nil, let t = result as URL? else { return nil }
-        var tr = Action(run: String(UUID().uuidString.prefix(8)).lowercased(), kind: .trashed, src: a.dst, dst: t.path, root: a.root, shelf: "Trash", why: "moved to Trash by you", source: "size + hash")
+        var tr = Action(run: String(UUID().uuidString.prefix(8)).lowercased(), kind: .trashed, src: a.dst, dst: "", root: a.root, shelf: "Trash", why: "moved to Trash by you", source: "size + hash")
         tr.trigger = "menu"
+        guard let t = trashJournaled(url, &tr) else { return nil }
+        tr.dst = t.path
         tr.details = ["size": a.details["size"] ?? String(Stat.size(t)), "action": a.id.uuidString]
         store.append(tr)
         store.modify([id]) { $0.pending = false }
@@ -655,11 +669,11 @@ public final class Engine: @unchecked Sendable {
         let run = String(UUID().uuidString.prefix(8)).lowercased()
         let pendingByPath = Dictionary(store.actions.filter { $0.kind == .duplicate && !$0.undone }.map { ($0.dst, $0.id) }, uniquingKeysWith: { _, b in b })
         for url in duplicateFiles() {
-            var result: NSURL?
             let size = Stat.size(url)
-            guard (try? fm.trashItem(at: url, resultingItemURL: &result)) != nil, let t = result as URL? else { continue }
-            var tr = Action(run: run, kind: .trashed, src: url.path, dst: t.path, root: rootFor(url)?.path ?? "", shelf: "Trash", why: "moved to Trash by you", source: "size + hash")
+            var tr = Action(run: run, kind: .trashed, src: url.path, dst: "", root: rootFor(url)?.path ?? "", shelf: "Trash", why: "moved to Trash by you", source: "size + hash")
             tr.trigger = "menu"
+            guard let t = trashJournaled(url, &tr) else { continue }
+            tr.dst = t.path
             tr.details = ["size": String(size)]
             if let id = pendingByPath[url.path] { tr.details["action"] = id.uuidString; store.modify([id]) { $0.pending = false } }
             store.append(tr)
@@ -681,9 +695,9 @@ public final class Engine: @unchecked Sendable {
             guard isHeldCopy(a), keeperStillHolds(a.details["kept"], url) else { continue }
             let opened = (try? url.resourceValues(forKeys: [.contentAccessDateKey]).contentAccessDate) ?? .distantPast
             guard now.timeIntervalSince(max(a.ts, opened)) >= limit else { continue }
-            var result: NSURL?
-            guard (try? fm.trashItem(at: url, resultingItemURL: &result)) != nil, let t = result as URL? else { continue }
-            var tr = Action(run: run, kind: .trashed, src: a.dst, dst: t.path, root: a.root, shelf: "Trash", why: "held \(s.autoTrashDays) days untouched (your setting)", source: "size + hash")
+            var tr = Action(run: run, kind: .trashed, src: a.dst, dst: "", root: a.root, shelf: "Trash", why: "held \(s.autoTrashDays) days untouched (your setting)", source: "size + hash")
+            guard let t = trashJournaled(url, &tr) else { continue }
+            tr.dst = t.path
             tr.details = ["size": a.details["size"] ?? String(Stat.size(t)), "action": a.id.uuidString]
             store.append(tr)
             store.modify([a.id]) { $0.pending = false }
