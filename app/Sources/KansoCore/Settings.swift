@@ -77,12 +77,15 @@ public enum RecentsMode: String, Codable, CaseIterable, Sendable { case links, h
 public enum Approach: String, Codable, Sendable { case kind, purpose }
 public enum Keeper: String, Codable, CaseIterable, Sendable { case oldest, bestNamed, onShelf }
 public enum UnknownFiles: String, Codable, CaseIterable, Sendable { case askModel, unsorted }
+/// Which model Kanso asks about unknown file types and plain-English rules. Everything runs on this Mac; there is no cloud choice.
+/// "Kanso Local" has no model yet, so it is not a case: the picker shows it disabled.
+public enum ModelChoice: String, Codable, CaseIterable, Sendable { case appleIntelligence, rulesOnly }
 public enum IslandMode: String, Codable, CaseIterable, Sendable { case automatic, notch, below }
 
 public struct Settings: Codable, Equatable, Sendable {
     /// Bump when a stored value changes meaning. New fields with a default need no bump: add them to `init(from:)`
     /// (SettingsTests.testEveryFieldSurvivesARoundTrip fails if one is forgotten).
-    public static let currentVersion = 1
+    public static let currentVersion = 2
     public var version = Settings.currentVersion
     public var onboarded = false
     public var roots: [String] = ["~/Downloads", "~/Desktop", "~/Documents"]
@@ -110,7 +113,12 @@ public struct Settings: Codable, Equatable, Sendable {
     public var learnCorrections = true
     public var unknownFiles = UnknownFiles.askModel
     public var suggestTypes = true
-    public var appleIntelligence = true
+    public var modelChoice = ModelChoice.appleIntelligence
+    /// Older name of the model switch, kept so existing code and settings files keep working: on means Apple Intelligence.
+    public var appleIntelligence: Bool {
+        get { modelChoice == .appleIntelligence }
+        set { modelChoice = newValue ? .appleIntelligence : .rulesOnly }
+    }
 
     // Features
     public var renaming = true
@@ -189,7 +197,7 @@ public struct Settings: Codable, Equatable, Sendable {
         d(.offReminderShown, &offReminderShown); d(.smartEject, &smartEject); d(.smartEjectNotice, &smartEjectNotice); d(.smartEjectOnlyEject, &smartEjectOnlyEject)
         d(.approach, &approach); d(.recents, &recents); d(.recentDays, &recentDays); d(.folderIcons, &folderIcons)
         d(.sortFolders, &sortFolders); d(.excludes, &excludes); d(.rootExcludes, &rootExcludes); d(.keepTag, &keepTag); d(.learnCorrections, &learnCorrections)
-        d(.unknownFiles, &unknownFiles); d(.suggestTypes, &suggestTypes); d(.appleIntelligence, &appleIntelligence)
+        d(.unknownFiles, &unknownFiles); d(.suggestTypes, &suggestTypes); d(.modelChoice, &modelChoice)
         d(.renaming, &renaming); d(.normalizeNames, &normalizeNames); d(.keepOriginalSearchable, &keepOriginalSearchable)
         d(.askBeforeMassRenames, &askBeforeMassRenames); d(.massRenameThreshold, &massRenameThreshold)
         d(.separator, &separator); d(.dateFormat, &dateFormat); d(.nameParts, &nameParts)
@@ -201,6 +209,11 @@ public struct Settings: Codable, Equatable, Sendable {
         d(.collectDuringFocus, &collectDuringFocus); d(.openAtLogin, &openAtLogin)
         d(.showMenuBarIcon, &showMenuBarIcon); d(.appearance, &appearance); d(.updateChecks, &updateChecks); d(.crashReports, &crashReports)
         d(.islandShortcut, &islandShortcut)
+        // v1 stored the model as a Bool; a file without modelChoice and with it off means "no model".
+        if (try? c.decode(ModelChoice.self, forKey: .modelChoice)) == nil,
+           let legacy = try? decoder.container(keyedBy: LegacyKeys.self), (try? legacy.decode(Bool.self, forKey: .appleIntelligence)) == false {
+            modelChoice = .rulesOnly
+        }
         // Element by element: one malformed type or rule must not reset the whole list to defaults.
         if let x = try? c.decode(LossyArray<FileType>.self, forKey: .types) { types = x.elements }
         if let x = try? c.decode(LossyArray<Rule>.self, forKey: .rules) { rules = x.elements }
@@ -208,6 +221,8 @@ public struct Settings: Codable, Equatable, Sendable {
         d(.learnedExts, &learnedExts)
         migrate()
     }
+
+    private enum LegacyKeys: String, CodingKey { case appleIntelligence }
 
     /// The version stored in a settings.json, 0 when it has none (or isn't JSON).
     public static func storedVersion(_ data: Data) -> Int {
@@ -221,6 +236,10 @@ public struct Settings: Codable, Equatable, Sendable {
             roots = roots.filter { !$0.isEmpty }
             settleSeconds = max(0, settleSeconds)
             version = 1
+        }
+        if version < 2 {
+            // v1 to v2: the appleIntelligence Bool became modelChoice (converted while decoding, see init(from:)).
+            version = 2
         }
     }
 }

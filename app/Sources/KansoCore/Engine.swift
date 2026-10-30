@@ -253,7 +253,7 @@ public final class Engine: @unchecked Sendable {
         if let t = settings.type(forExt: item.ext) {
             return Decision(dest: t.name, tags: [], why: "extension", source: "metadata only")
         }
-        guard settings.unknownFiles == .askModel, settings.appleIntelligence, classifier.available else {
+        guard settings.unknownFiles == .askModel, settings.modelChoice != .rulesOnly, classifier.availability.ready, classifier.capabilities.contains(.classify) else {
             return Decision(dest: Shelf.unsorted, tags: [], why: "unknown type", source: "metadata only")
         }
         let options = Brain.options(settings)
