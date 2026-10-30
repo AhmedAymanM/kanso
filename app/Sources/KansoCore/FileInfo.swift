@@ -93,6 +93,32 @@ public enum Stat {
         var st = stat()
         return lstat(url.path, &st) == 0 ? Int64(st.st_size) : 0
     }
+
+    /// A regular file (not a symlink, folder or device), judged without following links.
+    public static func isRegular(_ url: URL) -> Bool {
+        var st = stat()
+        return lstat(url.path, &st) == 0 && (st.st_mode & S_IFMT) == S_IFREG
+    }
+
+    /// Something is there, even a broken symlink.
+    public static func exists(_ url: URL) -> Bool {
+        var st = stat()
+        return lstat(url.path, &st) == 0
+    }
+}
+
+/// Files whose bytes aren't on this Mac: reading them would download them.
+public enum Placeholder {
+    static let dataless: UInt32 = 0x4000_0000   // SF_DATALESS
+
+    public static func isPlaceholder(_ url: URL) -> Bool {
+        var st = stat()
+        if lstat(url.path, &st) == 0, st.st_flags & dataless != 0 { return true }
+        if let status = (try? url.resourceValues(forKeys: [.ubiquitousItemDownloadingStatusKey]))?.ubiquitousItemDownloadingStatus {
+            return status != .current
+        }
+        return false
+    }
 }
 
 public extension Int64 {

@@ -22,6 +22,33 @@ public struct Action: Codable, Identifiable, Hashable, Sendable {
     public var undone = false
     public var pending = false      // duplicate waiting for Move to Trash / Keep both
 
+    enum CodingKeys: String, CodingKey {
+        case id, run, ts, kind, src, dst, link, root, shelf, why, source, trigger, tags, oldName, details, undone, pending
+    }
+
+    /// Tolerant: only run, kind, src and dst are essential. Anything else missing or malformed gets a default,
+    /// so a journal written by another version still loads. A line that fails (unknown kind…) is kept verbatim on disk.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        run = try c.decode(String.self, forKey: .run)
+        kind = try c.decode(Kind.self, forKey: .kind)
+        src = try c.decode(String.self, forKey: .src)
+        dst = try c.decode(String.self, forKey: .dst)
+        id = (try? c.decodeIfPresent(UUID.self, forKey: .id)) ?? UUID()
+        ts = (try? c.decodeIfPresent(Date.self, forKey: .ts)) ?? Date()
+        link = (try? c.decodeIfPresent(String.self, forKey: .link)) ?? nil
+        root = (try? c.decodeIfPresent(String.self, forKey: .root)) ?? ""
+        shelf = (try? c.decodeIfPresent(String.self, forKey: .shelf)) ?? ""
+        why = (try? c.decodeIfPresent(String.self, forKey: .why)) ?? ""
+        source = (try? c.decodeIfPresent(String.self, forKey: .source)) ?? ""
+        trigger = (try? c.decodeIfPresent(String.self, forKey: .trigger)) ?? "auto"
+        tags = (try? c.decodeIfPresent([String].self, forKey: .tags)) ?? []
+        oldName = (try? c.decodeIfPresent(String.self, forKey: .oldName)) ?? nil
+        details = (try? c.decodeIfPresent([String: String].self, forKey: .details)) ?? [:]
+        undone = (try? c.decodeIfPresent(Bool.self, forKey: .undone)) ?? false
+        pending = (try? c.decodeIfPresent(Bool.self, forKey: .pending)) ?? false
+    }
+
     public init(run: String, kind: Kind, src: String, dst: String, root: String, shelf: String, why: String, source: String) {
         self.run = run; self.kind = kind; self.src = src; self.dst = dst; self.root = root
         self.shelf = shelf; self.why = why; self.source = source
@@ -80,6 +107,7 @@ public struct Pending: Codable, Equatable, Sendable {
 public final class Store: @unchecked Sendable {
     public let dir: URL
     private let lock = NSLock()
+    private let ioLock = NSLock()   // serializes settings.json / pending.json writes so they land in order
     public private(set) var settings: Settings
     public private(set) var actions: [Action]
     public private(set) var pending: Pending
@@ -92,8 +120,8 @@ public final class Store: @unchecked Sendable {
     public init(dir: URL = Store.defaultDir) {
         self.dir = dir
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        settings = Store.read(Settings.self, dir.appendingPathComponent("settings.json")) ?? Settings()
-        pending = Store.read(Pending.self, dir.appendingPathComponent("pending.json")) ?? Pending()
+        settings = Store.readOrBackup(Settings.self, dir.appendingPathComponent("settings.json")) ?? Settings()
+        pending = Store.readOrBackup(Pending.self, dir.appendingPathComponent("pending.json")) ?? Pending()
         let lines = (try? String(contentsOf: dir.appendingPathComponent("journal.jsonl"), encoding: .utf8)) ?? ""
         actions = lines.split(separator: "\n").compactMap { try? Store.decoder.decode(Action.self, from: Data($0.utf8)) }
         if !FileManager.default.fileExists(atPath: dir.appendingPathComponent("settings.json").path) { saveSettings() }
@@ -104,6 +132,16 @@ public final class Store: @unchecked Sendable {
 
     static func read<T: Decodable>(_ t: T.Type, _ url: URL) -> T? {
         (try? Data(contentsOf: url)).flatMap { try? decoder.decode(T.self, from: $0) }
+    }
+
+    /// Like `read`, but a file that exists and can't be decoded is copied to `<name>.bak` before the defaults overwrite it.
+    static func readOrBackup<T: Decodable>(_ t: T.Type, _ url: URL) -> T? {
+        guard let data = try? Data(contentsOf: url) else { return nil }
+        if let v = try? decoder.decode(T.self, from: data) { return v }
+        let bak = url.appendingPathExtension("bak")
+        try? FileManager.default.removeItem(at: bak)
+        try? FileManager.default.copyItem(at: url, to: bak)
+        return nil
     }
 
     public func update(_ change: (inout Settings) -> Void) {
@@ -118,11 +156,13 @@ public final class Store: @unchecked Sendable {
 
     private func saveSettings() {
         let e = JSONEncoder(); e.dateEncodingStrategy = .iso8601; e.outputFormatting = [.prettyPrinted, .sortedKeys]
+        ioLock.lock(); defer { ioLock.unlock() }
         lock.lock(); let data = try? e.encode(settings); lock.unlock()
         try? data?.write(to: dir.appendingPathComponent("settings.json"), options: .atomic)
     }
 
     private func write<T: Encodable>(_ value: T, _ file: String) {
+        ioLock.lock(); defer { ioLock.unlock() }
         lock.lock(); let data = try? Store.encoder.encode(value); lock.unlock()
         try? data?.write(to: dir.appendingPathComponent(file), options: .atomic)
     }
@@ -134,19 +174,51 @@ public final class Store: @unchecked Sendable {
         guard var data = try? Store.encoder.encode(a) else { return }
         data.append(0x0A)
         let url = dir.appendingPathComponent("journal.jsonl")
-        if let h = try? FileHandle(forWritingTo: url) {
-            h.seekToEndOfFile(); h.write(data); try? h.close()
-        } else {
-            try? data.write(to: url)
+        do {
+            if let h = try? FileHandle(forWritingTo: url) {
+                defer { try? h.close() }
+                let end = try h.seekToEnd()
+                if end > 0 {
+                    // A torn last line (crash, full disk) must not swallow this entry: start a fresh line.
+                    try h.seek(toOffset: end - 1)
+                    let last = try h.read(upToCount: 1)
+                    if last != Data([0x0A]) { try h.seekToEnd(); try h.write(contentsOf: Data([0x0A])) }
+                    else { try h.seekToEnd() }
+                }
+                try h.write(contentsOf: data)
+            } else {
+                try data.write(to: url)
+            }
+        } catch {
+            NSLog("Kanso: journal append failed: \(error)")
         }
     }
 
     /// ponytail: rewrites the whole journal; fine for years of actions, switch to SQLite if it grows past ~100k.
+    /// Lines that don't decode (torn, or written by a newer version) are kept verbatim; the write happens inside the lock.
     public func modify(_ ids: Set<UUID>, _ change: (inout Action) -> Void) {
-        lock.lock()
+        lock.lock(); defer { lock.unlock() }
         for i in actions.indices where ids.contains(actions[i].id) { change(&actions[i]) }
-        let body = actions.compactMap { try? Store.encoder.encode($0) }.map { String(decoding: $0, as: UTF8.self) }.joined(separator: "\n")
-        lock.unlock()
-        try? (body.isEmpty ? "" : body + "\n").write(to: dir.appendingPathComponent("journal.jsonl"), atomically: true, encoding: .utf8)
+        let url = dir.appendingPathComponent("journal.jsonl")
+        let current = Dictionary(actions.map { ($0.id, $0) }, uniquingKeysWith: { _, b in b })
+        let old = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
+        var out: [String] = []
+        var seen = Set<UUID>()
+        for line in old.split(separator: "\n", omittingEmptySubsequences: true) {
+            if let a = try? Store.decoder.decode(Action.self, from: Data(line.utf8)), let now = current[a.id] {
+                seen.insert(a.id)
+                if ids.contains(a.id), let d = try? Store.encoder.encode(now) { out.append(String(decoding: d, as: UTF8.self)); continue }
+            }
+            out.append(String(line))
+        }
+        // In-memory actions whose append never reached the disk.
+        for a in actions where !seen.contains(a.id) {
+            if let d = try? Store.encoder.encode(a) { out.append(String(decoding: d, as: UTF8.self)) }
+        }
+        do {
+            try (out.isEmpty ? "" : out.joined(separator: "\n") + "\n").write(to: url, atomically: true, encoding: .utf8)
+        } catch {
+            NSLog("Kanso: journal rewrite failed: \(error)")
+        }
     }
 }

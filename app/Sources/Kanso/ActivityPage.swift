@@ -439,7 +439,7 @@ final class QuickLook: NSObject, QLPreviewPanelDataSource {
     var url: URL?
     @MainActor static func show(_ url: URL) {
         shared.url = url
-        let p = QLPreviewPanel.shared()!
+        guard let p = QLPreviewPanel.shared() else { return }
         p.dataSource = shared
         p.reloadData()
         p.makeKeyAndOrderFront(nil)
