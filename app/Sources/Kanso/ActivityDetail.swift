@@ -166,6 +166,7 @@ struct EntryDetail: View {
         switch entry {
         case .need(.renames(let p, _)): if expanded { renameFileView(p) } else { renameSummary(p) }
         case .need(.rule(let r)): ruleDetail(r)
+        case .need(.shelf(let s)): shelfDetail(s)
         case .need(.duplicate(let a)): duplicateDetail(a)
         case .batch(let run, let a): if expanded { batchFileView(a) } else { batchSummary(run, a) }
         case .waiting(let w): waitingDetail(w)
@@ -600,6 +601,24 @@ struct EntryDetail: View {
         }
     }
 
+    /// A new shelf for what piles up in Unsorted: the files it would take, and what Accept does.
+    func shelfDetail(_ s: ShelfSuggestion) -> some View {
+        let t = Tint.rule
+        return VStack(alignment: .leading, spacing: 10) {
+            DecidedTitle()
+            Text("\(s.files.count) files in ❓ Unsorted \(s.kind == .ext ? "share the .\(s.key) extension" : "start with “\(s.key)”"). \(s.emoji) \(s.name) would hold them, and new ones like them.")
+                .font(.system(size: TS.body)).foregroundStyle(K.text).fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: 4) {
+                ForEach(Array(s.files.prefix(6)), id: \.self) { f in
+                    Text((f as NSString).lastPathComponent).font(.system(size: TS.small)).foregroundStyle(K.text2).lineLimit(1).truncationMode(.middle)
+                }
+                if s.files.count > 6 { Text("and \(s.files.count - 6) more").font(.system(size: TS.small)).foregroundStyle(K.text2) }
+            }
+            .padding(12).frame(maxWidth: .infinity, alignment: .leading).background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(t.bg))
+            Text("Nothing moves until you accept. Undo puts every file back in one step.").font(.system(size: TS.small)).foregroundStyle(K.text2)
+        }
+    }
+
     func ruleDetail(_ r: RuleSuggestion) -> some View {
         let t = Tint.rule
         let path = r.files.compactMap { f in m.actions.last { $0.name == f }?.dst }.first ?? ""
@@ -825,6 +844,9 @@ struct EntryDetail: View {
                     Button { m.applyRenames(clear) } label: { HStack { Text("Rename all"); Hint(text: "↩") } }
                         .buttonStyle(PrimaryStyle(tint: .accent)).keyboardShortcut(.defaultAction).disabled(clear.isEmpty)
                 }
+            case .need(.shelf(let s)):
+                Button("Dismiss") { m.dismissShelf(s.id) }.buttonStyle(LinkStyle(color: K.text2))
+                Button { m.acceptShelf(s.id) } label: { HStack { Text("Create \(s.name)"); Hint(text: "↩") } }.buttonStyle(PrimaryStyle(tint: .accent)).keyboardShortcut(.defaultAction)
             case .need(.rule(let r)):
                 Button("No thanks") { m.dismissSuggestion(r.id) }.buttonStyle(LinkStyle(color: K.text2))
                 Button("Edit…") { m.acceptSuggestion(r.id); Windows.shared.showMain(.sorting) }.buttonStyle(SecondaryStyle())

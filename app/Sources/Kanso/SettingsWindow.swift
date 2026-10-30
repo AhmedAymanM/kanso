@@ -120,17 +120,13 @@ struct PrivacyPage: View {
     @EnvironmentObject var m: AppModel
     var body: some View {
         PageSection(title: "Model") {
-            HStack(spacing: 12) {
-                Image(systemName: "cpu").font(.system(size: TS.emphasis)).foregroundStyle(Tint.accent.fg).frame(width: 30, height: 30).background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Tint.accent.bg))
-                VStack(alignment: .leading, spacing: 1) {
-                    Text("Apple Intelligence").font(.system(size: TS.body, weight: .semibold)).foregroundStyle(K.text)
-                    Text("Runs on this Mac. Used for unknown file types and naming.").font(.system(size: TS.small)).foregroundStyle(K.text2)
+            RowGroup {
+                ForEach(Array(ModelPicker.options(m.settings, apple: m.ai).enumerated()), id: \.element.id) { i, o in
+                    modelRow(o).overlay(alignment: .bottom) { if i < 2 { Rectangle().fill(K.separator).frame(height: 0.75) } }
                 }
-                Spacer()
-                Dot(on: m.aiReady, size: 6)
-                Text(m.aiReady ? "Ready" : m.ai.status).font(.system(size: TS.small, weight: .medium)).foregroundStyle(m.aiReady ? Tint.accent.fg : K.text2)
             }
-            .padding(.horizontal, 14).padding(.vertical, 12).card(radius: 14)
+            Text("Models run on this Mac and only ever choose from your shelves or fill in a draft you review. Nothing is sent anywhere.")
+                .font(.system(size: TS.small)).foregroundStyle(K.text2).frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 4)
         }
         PageSection(title: "What reads inside files") {
             RowGroup {
@@ -169,6 +165,26 @@ struct PrivacyPage: View {
             .padding(.horizontal, 16).padding(.vertical, 12).card(radius: 14)
         }
         Button("Show onboarding") { Windows.shared.showOnboarding() }.buttonStyle(LinkStyle(color: K.text2))
+    }
+
+    func modelRow(_ o: ModelOption) -> some View {
+        Button { if let c = o.choice, o.selectable { m.set(\.modelChoice, c) } } label: {
+            HStack(spacing: 12) {
+                Image(systemName: o.selected ? "largecircle.fill.circle" : "circle").font(.system(size: TS.emphasis))
+                    .foregroundStyle(o.selected ? Tint.accent.fg : K.text3).frame(width: 30)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(o.name).font(.system(size: TS.body, weight: .semibold)).foregroundStyle(o.selectable ? K.text : K.text3)
+                    Text(o.status).font(.system(size: TS.small)).foregroundStyle(K.text2)
+                }
+                Spacer()
+                if o.choice == .appleIntelligence { Dot(on: o.selectable, size: 6) }
+            }
+            .padding(.horizontal, 16).padding(.vertical, 10).contentShape(Rectangle())
+        }
+        .buttonStyle(PlainRowStyle())
+        .disabled(!o.selectable)
+        .accessibilityLabel("\(o.name), \(o.status)")
+        .accessibilityAddTraits(o.selected ? .isSelected : [])
     }
 
     func reads(_ name: String, _ detail: String, on: Bool) -> some View {

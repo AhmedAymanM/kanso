@@ -781,7 +781,7 @@ struct NeedCard: View {
         switch need {
         case .duplicate(let a): return a.dst
         case .renames(let p, _): return p.first?.path
-        case .rule: return nil
+        case .rule, .shelf: return nil
         }
     }
     var kind: String {
@@ -789,6 +789,7 @@ struct NeedCard: View {
         case .duplicate(let a): return "Duplicate held · \((Int64(a.details["size"] ?? "") ?? 0).bytes)"
         case .renames: return "Rename suggestions"
         case .rule: return "Rule suggestion"
+        case .shelf: return "Shelf suggestion"
         }
     }
     var title: String {
@@ -796,6 +797,7 @@ struct NeedCard: View {
         case .duplicate(let a): return a.name
         case .renames(let p, _): return "\(p.count) files can be renamed"
         case .rule(let r): return "You moved \(r.files.count) files to \(r.shelf)"
+        case .shelf(let s): return "\(s.files.count) files could have their own shelf"
         }
     }
     var why: String {
@@ -803,6 +805,7 @@ struct NeedCard: View {
         case .duplicate(let a): return "Same bytes as \(((a.details["kept"] ?? a.name) as NSString).lastPathComponent)"
         case .renames: return "Names from contents, page 1. You review every name first."
         case .rule: return "Make it automatic from now on?"
+        case .shelf(let s): return "\(s.emoji) \(s.name). Nothing moves until you accept."
         }
     }
 
@@ -810,7 +813,7 @@ struct NeedCard: View {
         switch need {
         case .duplicate(let a): PreviewTile(path: a.dst, size: CGSize(width: 86, height: 112))
         case .renames(let p, _): PreviewTile(path: p.first?.path ?? "", size: CGSize(width: 86, height: 112), eye: false)
-        case .rule: Image(systemName: need.icon).font(.system(size: TS.display)).foregroundStyle(need.tint.islandGlyph).frame(width: 86, height: 86).background(Circle().fill(need.tint.islandFill))
+        case .rule, .shelf: Image(systemName: need.icon).font(.system(size: TS.display)).foregroundStyle(need.tint.islandGlyph).frame(width: 86, height: 86).background(Circle().fill(need.tint.islandFill))
         }
     }
 }

@@ -19,8 +19,10 @@ public enum Batch {
         func dir(_ p: String) -> String { (p as NSString).deletingLastPathComponent }
         let renamed = live.filter { $0.kind == .renamed }.count
         let moved = live.filter { $0.kind == .sorted || ($0.kind == .renamed && dir($0.src) != dir($0.dst)) }.count
-        let copies = live.filter { $0.kind == .duplicate }.count
-        let trashed = live.filter { $0.kind == .trashed }.count
+        // A duplicate sent straight to the Trash is journaled as a duplicate whose shelf is "Trash".
+        let inTrash: (Action) -> Bool = { $0.kind == .trashed || ($0.kind == .duplicate && $0.shelf == "Trash") }
+        let copies = live.filter { $0.kind == .duplicate && !inTrash($0) }.count
+        let trashed = live.filter(inTrash).count
         func count(_ n: Int, _ one: String, _ many: String) -> String { "\(n) \(n == 1 ? one : many)" }
         var parts: [String] = []
         if moved > 0 { parts.append("sorted \(count(moved, "file", "files"))") }
