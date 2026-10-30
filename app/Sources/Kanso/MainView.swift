@@ -110,7 +110,7 @@ struct Sidebar: View {
         .safeAreaInset(edge: .bottom) {
             VStack(alignment: .leading, spacing: 8) {
                 CoffeeLink()
-                Text("Your files never leave your Mac.").font(.system(size: TS.meta)).foregroundStyle(K.sidebarText2)
+                Text("Your files never leave this Mac.").font(.system(size: TS.meta)).foregroundStyle(K.sidebarText2)
             }
             .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 14).padding(.bottom, 12)
         }
