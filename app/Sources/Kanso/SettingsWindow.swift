@@ -54,6 +54,19 @@ struct IslandPlacement: View {
 
 struct GeneralPage: View {
     @EnvironmentObject var m: AppModel
+
+    /// Login item: a refused change shows its error; a copy run from a mounted disk image or a translocated copy can't stay at login.
+    var loginDesc: String {
+        if let error = m.loginItemError { return "macOS didn't change this: \(error)" }
+        let path = Bundle.main.bundlePath
+        if path.hasPrefix("/Volumes/") || path.contains("AppTranslocation") { return "Move Kanso to Applications to open it at login." }
+        return "Kanso starts quietly in the menu bar."
+    }
+
+    var shortcutDesc: String {
+        m.hotKeyConflict ? "\(m.settings.islandShortcut.display) is in use by another app. Pick another shortcut." : "Opens the island, or the notice that's showing."
+    }
+
     var body: some View {
         PageSection(title: "Startup & visibility") {
             RowGroup {
@@ -61,7 +74,7 @@ struct GeneralPage: View {
                     Segmented(options: [("system", "System"), ("light", "Light"), ("dark", "Dark")], value: m.binding(\.appearance))
                 }
                 Row(icon: "menubar.rectangle", title: "Menu bar icon", desc: "When hidden, open Kanso from the island's gear or \(m.settings.islandShortcut.display).") { KToggle(on: m.binding(\.showMenuBarIcon), label: "Menu bar icon") }
-                Row(icon: "power", title: "Open at login", desc: "Kanso starts quietly in the menu bar.") { KToggle(on: m.binding(\.openAtLogin), label: "Open at login") }
+                Row(icon: "power", title: "Open at login", desc: loginDesc) { KToggle(on: m.binding(\.openAtLogin), label: "Open at login") }
                 Row(icon: "arrow.triangle.2.circlepath", title: "Auto update", desc: "Checks GitHub Releases once a day. Only the app version is sent.", last: true) { KToggle(on: m.binding(\.updateChecks), label: "Auto update") }
             }
         }
@@ -84,7 +97,7 @@ struct GeneralPage: View {
                 }
                 .padding(.horizontal, 16).padding(.top, 12)
                 Rectangle().fill(K.separator).frame(height: 0.75)
-                ShortcutRow(icon: "keyboard", title: "Island shortcut", desc: "Opens the island, or the notice that's showing.", kp: \.islandShortcut)
+                ShortcutRow(icon: "keyboard", title: "Island shortcut", desc: shortcutDesc, kp: \.islandShortcut)
                 Row(icon: "lightbulb", title: "Show the \(m.settings.islandShortcut.display) hint", desc: "On the compact island for your first days; turns itself off.", last: true) { KToggle(on: m.binding(\.showShortcutHint), label: "Show the shortcut hint") }
             }
         }
@@ -142,6 +155,7 @@ struct PrivacyPage: View {
                 Spacer()
                 Button { NSWorkspace.shared.open(Links.repo) } label: { Label("GitHub", systemImage: "arrow.up.right").labelStyle(TrailingIcon()) }.buttonStyle(CapsuleStyle())
                 Button { NSWorkspace.shared.open(Links.repo.appendingPathComponent("releases")) } label: { Label("Changelog", systemImage: "arrow.up.right").labelStyle(TrailingIcon()) }.buttonStyle(CapsuleStyle())
+                UpdateStatus()
                 Button("Send feedback…") { NSWorkspace.shared.open(Links.feedback()) }.buttonStyle(CapsuleStyle())
             }
             .padding(.horizontal, 16).padding(.vertical, 12).card(radius: 14)

@@ -254,10 +254,11 @@ struct MonthCard: View {
 
     var body: some View {
         let cal = Calendar.current, now = Date()
-        let days = cal.range(of: .day, in: .month, for: now)!.count
+        let days = cal.range(of: .day, in: .month, for: now)?.count ?? 30
+        let monthStart = cal.dateInterval(of: .month, for: now)?.start ?? now
         let today = cal.component(.day, from: now)
         let counts: [Int] = (1...days).map { d in
-            guard let date = cal.date(byAdding: .day, value: d - 1, to: cal.dateInterval(of: .month, for: now)!.start) else { return 0 }
+            guard let date = cal.date(byAdding: .day, value: d - 1, to: monthStart) else { return 0 }
             return m.actions.filter { !$0.undone && $0.kind != .trashed && cal.isDate($0.ts, inSameDayAs: date) }.count
         }
         let total = counts.reduce(0, +)
@@ -282,7 +283,7 @@ struct MonthCard: View {
                 }
                 Spacer()
                 if let pct {
-                    Label("\(abs(pct))% vs \(cal.date(byAdding: .month, value: -1, to: now)!.formatted(.dateTime.month(.wide)))", systemImage: pct >= 0 ? "arrow.up.right" : "arrow.down.right")
+                    Label("\(abs(pct))% vs \((cal.date(byAdding: .month, value: -1, to: now) ?? now).formatted(.dateTime.month(.wide)))", systemImage: pct >= 0 ? "arrow.up.right" : "arrow.down.right")
                         .font(.system(size: TS.small, weight: .medium)).foregroundStyle(Tint.accent.fg).padding(.horizontal, 8).frame(height: 22).background(Capsule().fill(Tint.accent.bg))
                 }
             }
@@ -337,7 +338,7 @@ struct ShelvesCard: View {
             if rows.isEmpty { Text("Shelves appear with the first sorted file.").font(.system(size: TS.small)).foregroundStyle(K.text2) }
             Spacer(minLength: 0)
         }
-        .padding(16).frame(maxHeight: .infinity, alignment: .topLeading)
+        .padding(16).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(RoundedRectangle(cornerRadius: 24, style: .continuous).fill(K.card))
         .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).strokeBorder(K.separator, lineWidth: 0.75))
     }

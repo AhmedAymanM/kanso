@@ -335,12 +335,19 @@ struct HBars: View {
     }
 }
 
+/// Project links. The repo and donate URLs come from Info.plist (KansoRepoURL / KansoDonateURL, set by build.sh).
 enum Links {
-    static let repo = URL(string: "https://github.com/AhmedAymanM/kanso")!
-    static let coffee = URL(string: "https://buymeacoffee.com/kanso")!
+    private static func infoString(_ key: String) -> String? {
+        guard let s = Bundle.main.object(forInfoDictionaryKey: key) as? String, !s.isEmpty else { return nil }
+        return s
+    }
+    static let repo: URL = infoString("KansoRepoURL").flatMap { URL(string: $0) }
+        ?? URL(string: "https://github.com/AhmedAymanM/kanso")!
+    /// nil when no donate URL was configured; the Buy Me a Coffee card is hidden then.
+    static let donate: URL? = infoString("KansoDonateURL").flatMap { URL(string: $0) }
     static func feedback() -> URL {
         let info = "Kanso \(Bundle.main.version) (\(Bundle.main.build)) · macOS \(ProcessInfo.processInfo.operatingSystemVersionString)"
-        var c = URLComponents(string: "https://github.com/AhmedAymanM/kanso/issues/new")!
+        var c = URLComponents(url: repo.appendingPathComponent("issues/new"), resolvingAgainstBaseURL: false)!
         c.queryItems = [URLQueryItem(name: "title", value: ""), URLQueryItem(name: "body", value: "**What happened?**\n\n\n**What did you expect?**\n\n\n---\n\(info)")]
         return c.url!
     }

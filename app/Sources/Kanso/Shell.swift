@@ -61,7 +61,7 @@ final class StatusItem: NSObject, NSPopoverDelegate {
         } else {
             // The glyph is hidden (a crowded menu bar pushes it under the notch or off screen):
             // open from a point just below the menu bar instead, never over it.
-            let s = Island.activeScreen
+            guard let s = Island.activeScreen else { return }
             let top = s.visibleFrame.maxY
             let x = min(max((b.window?.frame.midX ?? s.frame.maxX - 220), s.frame.minX + 200), s.frame.maxX - 200)
             let a = anchorWindow ?? NSWindow(contentRect: .zero, styleMask: .borderless, backing: .buffered, defer: false)
@@ -69,7 +69,8 @@ final class StatusItem: NSObject, NSPopoverDelegate {
             a.setFrame(NSRect(x: x - 1, y: top - 2, width: 2, height: 2), display: false)
             a.orderFrontRegardless()
             anchorWindow = a
-            popover.show(relativeTo: a.contentView!.bounds, of: a.contentView!, preferredEdge: .minY)
+            guard let anchor = a.contentView else { return }
+            popover.show(relativeTo: anchor.bounds, of: anchor, preferredEdge: .minY)
         }
         popover.contentViewController?.view.window?.makeKey()
     }
@@ -191,6 +192,8 @@ final class HotKeys {
     private var refs: [EventHotKeyRef] = []
     private var installed = false
 
+    /// Registers the island shortcut. A failure (another app or the system holds the combination) sets
+    /// `AppModel.hotKeyConflict`, which General settings shows next to the shortcut.
     func register(_ s: Settings) {
         refs.forEach { UnregisterEventHotKey($0) }
         refs = []
@@ -207,7 +210,14 @@ final class HotKeys {
         // One island shortcut (⌥⌘K) replaces the old undo / trash / menu chords (PRODUCT.md).
         var ref: EventHotKeyRef?
         let id = EventHotKeyID(signature: OSType(0x4B4E534F), id: 0)  // 'KNSO'
-        if RegisterEventHotKey(s.islandShortcut.keyCode, s.islandShortcut.modifiers, id, GetApplicationEventTarget(), 0, &ref) == noErr, let ref { refs.append(ref) }
+        let status = RegisterEventHotKey(s.islandShortcut.keyCode, s.islandShortcut.modifiers, id, GetApplicationEventTarget(), 0, &ref)
+        guard status == noErr, let ref else {
+            NSLog("Kanso: island shortcut \(s.islandShortcut.display) not registered (status \(status))")
+            AppModel.shared.hotKeyConflict = true
+            return
+        }
+        refs.append(ref)
+        AppModel.shared.hotKeyConflict = false
     }
 
     static func fire(_ id: UInt32) {
@@ -285,7 +295,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if !m.settings.onboarded { Windows.shared.showOnboarding() }
             else if ProcessInfo.processInfo.arguments.contains("--show") {
                 let args = ProcessInfo.processInfo.arguments
-                let page = args.firstIndex(of: "--page").flatMap { i in args.indices.contains(i + 1) ? Page.allCases.first { $0.rawValue.lowercased().hasPrefix(args[i + 1].lowercased()) } : nil }
+                let page = args.firstIndex(of: "--page").flatMap { i in args.indices.contains(i + 1) ? Page.allCases.first { $0.rawValue.lowercased().filter(\.isLetter).hasPrefix(args[i + 1].lowercased().filter(\.isLetter)) } : nil }   // letters only, so "smart-eject" finds Smart Eject
                 Windows.shared.showMain(page)
             }
             if let k = ProcessInfo.processInfo.environment["KANSO_ACTIVITY"] {   // open Activity on one entry (a rule or action kind), for README shots

@@ -437,11 +437,12 @@ final class EngineTests: XCTestCase {
         let vol = tmp.appendingPathComponent("Volumes/Figma"), apps = tmp.appendingPathComponent("Applications")
         app(vol, "Figma", "com.figma.Desktop")
         try fm.createDirectory(at: apps, withIntermediateDirectories: true)
-        let onVolume = SmartEject.apps(onVolume: vol)
-        XCTAssertEqual(onVolume, ["com.figma.Desktop": "Figma"])
-        XCTAssertTrue(SmartEject.installed(Set(onVolume.keys), in: apps).isEmpty, "not installed yet: never trash")
+        let onVolume = SmartEject.apps(in: vol)
+        XCTAssertEqual(onVolume.map(\.id), ["com.figma.Desktop"])
+        XCTAssertEqual(onVolume.map(\.name), ["Figma"])
+        XCTAssertFalse(SmartEject.appsSpent(volume: onVolume, installed: SmartEject.apps(in: apps), before: [:], mounted: 0, now: 1e12), "not installed yet: never trash")
         app(apps, "Figma", "com.figma.Desktop")
-        XCTAssertEqual(SmartEject.installed(Set(onVolume.keys), in: apps), ["com.figma.Desktop"])
+        XCTAssertTrue(SmartEject.appsSpent(volume: onVolume, installed: SmartEject.apps(in: apps), before: [:], mounted: 0, now: 1e12))
         let dmg = file("Figma.dmg", "image")
         let a = try XCTUnwrap(engine.trashInstaller(dmg, app: "Figma"))
         XCTAssertFalse(exists(dmg))
@@ -491,6 +492,136 @@ final class EngineTests: XCTestCase {
         XCTAssertTrue(old.tagging)
         let round = try JSONDecoder().decode(Settings.self, from: JSONEncoder().encode(old))
         XCTAssertEqual(round.smartEjectNotice, true)
+    }
+
+    // MARK: Audit fixes
+
+    func testUndoSkipsARunWhoseFileIsGoneAndUndoesTheOlderOne() async {
+        file("a.pdf")
+        let first = await run()
+        file("b.pdf")
+        let second = await run()
+        try! fm.removeItem(atPath: second[0].dst)
+        let restored = engine.undoLast()
+        XCTAssertEqual(restored.map(\.id), [first[0].id], "the older run is undone instead of getting stuck")
+        XCTAssertTrue(exists(root.appendingPathComponent("a.pdf")))
+        let gone = store.actions.first { $0.id == second[0].id }!
+        XCTAssertTrue(gone.undone)
+        XCTAssertEqual(gone.details["gone"], "true")
+    }
+
+    func testUndoRestoresToAFreeNameWhenTheOldPathIsTaken() async {
+        file("a.pdf", "one")
+        let done = await run()
+        file("a.pdf", "two")
+        let restored = engine.undo([done[0].id])
+        XCTAssertEqual(restored.count, 1)
+        XCTAssertEqual(try? String(contentsOf: root.appendingPathComponent("a.pdf")), "two", "the newcomer is untouched")
+        XCTAssertEqual(try? String(contentsOf: root.appendingPathComponent("a 2.pdf")), "one")
+        XCTAssertTrue(store.actions.first { $0.id == done[0].id }!.undone)
+    }
+
+    func testAutoTrashFallsBackToTheShelfWhenTheKeeperIsGone() async {
+        make(pick: nil) { $0.duplicates = true; $0.duplicatesToTrash = true }
+        let keeper = file("song.mp3", "same", in: shelf("Audio"))
+        file("song 2.mp3", "same")
+        let plan = await engine.plan()
+        try! fm.removeItem(at: keeper)
+        let a = engine.apply(plan.moves).first { $0.kind == .duplicate }!
+        XCTAssertFalse(a.dst.contains("/.Trash/"), a.dst)
+        XCTAssertTrue(a.pending)
+        XCTAssertTrue(exists(shelf("Duplicates").appendingPathComponent("song 2.mp3")))
+    }
+
+    func testHeldCopyDoesNotExpireWhenTheKeeperChanged() async {
+        make(pick: nil) { $0.duplicates = true; $0.autoTrashDuplicates = true }
+        let keeper = file("x.pdf", "same", in: shelf("Documents"))
+        file("x (1).pdf", "same")
+        let dup = await run().first { $0.kind == .duplicate }!
+        try! "different now".write(to: keeper, atomically: true, encoding: .utf8)
+        XCTAssertTrue(engine.expireDuplicates(now: Date().addingTimeInterval(400 * 86400)).isEmpty)
+        XCTAssertTrue(exists(URL(fileURLWithPath: dup.dst)))
+    }
+
+    func testTrashOnlyAcceptsAPendingHeldDuplicate() async {
+        make(pick: nil) { $0.duplicates = true }
+        file("a.pdf", "same", in: shelf("Documents"))
+        file("b.pdf", "same")
+        let dup = await run().first { $0.kind == .duplicate }!
+        let sorted = Action(run: "x", kind: .sorted, src: "/", dst: dup.dst, root: dup.root, shelf: "Documents", why: "t", source: "t")
+        store.append(sorted)
+        XCTAssertNil(engine.trash(sorted.id), "only duplicates")
+        try! "grown bigger".write(toFile: dup.dst, atomically: true, encoding: .utf8)
+        XCTAssertNil(engine.trash(dup.id), "size no longer matches the journal")
+        XCTAssertTrue(exists(URL(fileURLWithPath: dup.dst)))
+    }
+
+    func testApplyRenamesRejectsPathsAndHiddenNames() async {
+        file("a.pdf")
+        let dst = URL(fileURLWithPath: await run()[0].dst)
+        for bad in ["../x.pdf", "a/b.pdf", "a:b.pdf", ".hidden.pdf", ".."] {
+            let out = engine.applyRenames([RenameProposal(path: dst.path, newName: bad, shelf: "Documents", source: "t")])
+            XCTAssertTrue(out.isEmpty, bad)
+        }
+        XCTAssertTrue(exists(dst))
+        XCTAssertFalse(exists(shelf("x.pdf")))
+        let ok = engine.applyRenames([RenameProposal(path: dst.path, newName: "Invoice.pdf", shelf: "Documents", source: "t")])
+        XCTAssertEqual(ok.count, 1)
+    }
+
+    func testRenamerNeverEmitsPathSeparators() {
+        let e = Extracted(kind: "Invoice", organization: "Acme", date: Date(timeIntervalSince1970: 1_700_000_000), source: "t")
+        let n = Renamer.name(e, ext: "pdf", dateFormat: "dd/MM/yyyy HH:mm")!
+        XCTAssertFalse(n.contains("/")); XCTAssertFalse(n.contains(":"))
+        XCTAssertTrue(Engine.validName(n))
+    }
+
+    func testPlanOrDryRunDoesNotTeachTypes() async {
+        make(pick: Pick(folder: Brain.new, name: "Subtitles", emoji: "💬", description: "Subtitle tracks"))
+        file("movie.srt")
+        let plan = await engine.plan()
+        XCTAssertEqual(plan.moves.count, 1)
+        XCTAssertNil(store.settings.type(forExt: "srt"), "planning alone learns nothing")
+        var unchecked = plan.moves
+        unchecked[0].include = false
+        engine.apply(unchecked)
+        XCTAssertNil(store.settings.type(forExt: "srt"), "an unchecked item teaches nothing")
+        engine.apply(plan.moves)
+        XCTAssertEqual(store.settings.type(forExt: "srt")?.name, "Subtitles")
+    }
+
+    func testSymlinksAtTheRootAreSkipped() async throws {
+        let outside = tmp.appendingPathComponent("elsewhere.pdf")
+        try "x".write(to: outside, atomically: true, encoding: .utf8)
+        try fm.createSymbolicLink(at: root.appendingPathComponent("link.pdf"), withDestinationURL: outside)
+        file("real.pdf", "y")
+        let plan = await engine.plan(all: true)
+        XCTAssertEqual(plan.moves.map(\.item.name), ["real.pdf"])
+        XCTAssertTrue(Stat.isSymlink(root.appendingPathComponent("link.pdf")))
+    }
+
+    func testStalePlanSkipsKeepTaggedAndVanishedFiles() async {
+        let a = file("a.pdf"), b = file("b.pdf")
+        let plan = await engine.plan()
+        Tags.add(a, ["Keep"])
+        try! fm.removeItem(at: b)
+        XCTAssertTrue(engine.apply(plan.moves).isEmpty)
+        XCTAssertTrue(exists(a))
+    }
+
+    func testRuleDestinationCannotClimbOutOfMyShelves() {
+        let r = engine.resolve(root, "../../Elsewhere")
+        XCTAssertEqual(r.lastPathComponent, Shelf.unsorted)
+        XCTAssertTrue(r.path.hasPrefix(root.appendingPathComponent(Library.mine).path))
+    }
+
+    func testCorrectionNeedsTheSameSize() async {
+        file("a.pdf", "original")
+        let a = await run().first!
+        try? fm.removeItem(atPath: a.dst)
+        file("a.pdf", "something else entirely", in: shelf("Receipts"))
+        engine.detectCorrections()
+        XCTAssertNil(store.actions.first { $0.id == a.id }!.details["corrected"])
     }
 
     // MARK: Safety edge cases (KAN-1)

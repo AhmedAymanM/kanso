@@ -147,7 +147,8 @@ final class Island: ObservableObject {
     private var keyMonitor: Any?
     private var clickMonitor: Any?
     private var dwell: Task<Void, Never>?
-    private var timer: Timer?
+    private var timer: Timer?          // one-shot, fires at dismissAt (armDismiss)
+    private var confirmTask: Task<Void, Never>?
     private var deferred = 0
     static let size = NSSize(width: 580, height: 560)
 
@@ -218,6 +219,7 @@ final class Island: ObservableObject {
         panel?.makeKey()
         installMonitors()
         dismissAt = .distantFuture
+        armDismiss()
     }
 
     func collapse() {
@@ -233,6 +235,7 @@ final class Island: ObservableObject {
         removeMonitors()
         let wasNeeds = notices.contains(where: \.needsYou)
         dismissAt = .distantFuture
+        armDismiss()
         // Shrinks back into the notch (the removal transition), then the empty panel leaves.
         withAnimation(Motion.spring(0.38)) {
             notices = []
@@ -256,17 +259,31 @@ final class Island: ObservableObject {
     }
 
     private func scheduleDismiss() {
-        guard !expanded else { dismissAt = .distantFuture; return }
+        guard !expanded else { dismissAt = .distantFuture; armDismiss(); return }
         // VoiceOver users get four times as long to reach the notice's Undo (it also stays in the overview and Activity).
         let base: TimeInterval = notices.contains(where: \.needsYou) ? 8 : 5
         dismissAt = Date().addingTimeInterval(NSWorkspace.shared.isVoiceOverEnabled ? base * 4 : base)
+        armDismiss()
+    }
+
+    /// One one-shot timer at dismissAt. It is rescheduled whenever dismissAt moves (hover ends, a new notice)
+    /// and cancelled while expanded, hovered or hidden, so nothing keeps ticking in the background.
+    private func armDismiss() {
         timer?.invalidate()
-        timer = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { _ in
+        timer = nil
+        guard !expanded, !hovering, visible, dismissAt != .distantFuture else { return }
+        timer = Timer.scheduledTimer(withTimeInterval: max(0, dismissAt.timeIntervalSinceNow), repeats: false) { [weak self] _ in
             MainActor.assumeIsolated {
-                guard !self.expanded, !self.hovering, self.visible else { return }
-                if Date() >= self.dismissAt { self.timer?.invalidate(); self.hide() }
+                guard let self else { return }
+                self.dismissIfDue()
             }
         }
+    }
+
+    private func dismissIfDue() {
+        timer = nil
+        guard !expanded, !hovering, visible else { return }
+        if Date() >= dismissAt { hide() } else { armDismiss() }
     }
 
     // MARK: Hover and clicks
@@ -282,11 +299,12 @@ final class Island: ObservableObject {
         } else if !on {
             dismissAt = max(dismissAt, Date().addingTimeInterval(2))
         }
+        armDismiss()
     }
 
     // MARK: Geometry
 
-    static var activeScreen: NSScreen { NSScreen.main ?? NSScreen.screens.first! }
+    static var activeScreen: NSScreen? { NSScreen.main ?? NSScreen.screens.first }
 
     static func notchSize(_ s: NSScreen) -> CGSize? {
         guard s.safeAreaInsets.top > 0, let l = s.auxiliaryTopLeftArea, let r = s.auxiliaryTopRightArea else { return nil }
@@ -294,7 +312,7 @@ final class Island: ObservableObject {
     }
 
     func relayout() {
-        let s = Island.activeScreen
+        guard let s = Island.activeScreen else { return }   // no displays attached (lid closed, headless)
         let mode = AppModel.shared.settings.islandMode
         let n = Island.notchSize(s)
         let wantsNotch = mode == .notch || (mode == .automatic && NotchApps.running().isEmpty)
@@ -406,7 +424,12 @@ final class Island: ObservableObject {
         announce(text)
         withAnimation(Motion.spring()) { confirmation = (text, undo) }
         selection = 0
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3) { withAnimation(Motion.spring()) { self.confirmation = nil } }
+        confirmTask?.cancel()   // a newer confirmation restarts the 3 s instead of being cleared by the older one
+        confirmTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 3_000_000_000)
+            guard !Task.isCancelled else { return }
+            withAnimation(Motion.spring()) { self.confirmation = nil }
+        }
     }
 
     func stepCard(_ d: Int) {
@@ -479,6 +502,8 @@ final class Island: ObservableObject {
         case .reading: return []
         case .sortingOff:
             return [IslandAction(label: "Turn on Sorting", key: "↩", icon: "power") { m.setSorting(true); done() }]
+        case .info(let icon, _, _) where icon == "arrow.down.circle" && UpdateChecker.shared.availableURL != nil:
+            return [IslandAction(label: "Download", key: "↩", icon: "arrow.down.circle") { if let u = UpdateChecker.shared.availableURL { NSWorkspace.shared.open(u) }; done() }]
         case .info(_, _, let undo):
             return undo.map { id in [IslandAction(label: "Undo", key: "⌘Z") { m.undo([id]); done() }] } ?? []
         }
@@ -517,7 +542,7 @@ final class Island: ObservableObject {
     static func frontmostIsFullScreen() -> Bool {
         guard let pid = NSWorkspace.shared.frontmostApplication?.processIdentifier,
               let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] else { return false }
-        let screen = activeScreen.frame
+        guard let screen = activeScreen?.frame else { return false }
         return list.contains { w in
             guard w[kCGWindowOwnerPID as String] as? pid_t == pid, (w[kCGWindowLayer as String] as? Int) == 0,
                   let b = w[kCGWindowBounds as String] as? [String: CGFloat] else { return false }
