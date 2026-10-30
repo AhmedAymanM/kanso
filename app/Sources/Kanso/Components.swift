@@ -95,6 +95,7 @@ struct RuleRow: View {
     var count: Int
     var toggle: () -> Void
     var close: () -> Void
+    var newShelf: NewShelf? = nil   // a shelf the plain-English draft would create when saved
     @State private var edit: Rule?
     @State private var matches: RulePreview?
     @State private var showMatches = false
@@ -194,7 +195,11 @@ struct RuleRow: View {
                 Button {
                     var r = b.wrappedValue
                     if r.dest.hasPrefix("/") || r.dest.hasPrefix("~") { r.automatic = false }   // a path you typed is yours
-                    m.update { s in if let i = s.rules.firstIndex(where: { $0.id == r.id }) { s.rules[i] = r } else { s.rules.append(r) } }
+                    if let n = newShelf, !m.settings.rules.contains(where: { $0.id == r.id }) {
+                        m.saveDraftedRule(r, newShelf: n)
+                    } else {
+                        m.update { s in if let i = s.rules.firstIndex(where: { $0.id == r.id }) { s.rules[i] = r } else { s.rules.append(r) } }
+                    }
                     close()
                 } label: { HStack(spacing: 6) { Text("Save rule"); Image(systemName: "return").font(.system(size: TS.micro)) } }
                     .buttonStyle(SaveRuleStyle()).keyboardShortcut(.defaultAction).disabled(b.wrappedValue.conditions.contains { $0.value.trimmingCharacters(in: .whitespaces).isEmpty })
