@@ -199,6 +199,7 @@ struct SortingPage: View {
         Group {
             PageSection(title: "Watched folders", subtitle: "Kanso sorts new files in these folders.", action: ("Add folder…", { m.addFolders() })) { folders }
             PageSection(title: "Behavior") { behavior }
+            ExcludesSection()
             RulesSection()
         }
         .gated(on)

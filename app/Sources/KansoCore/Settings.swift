@@ -104,6 +104,8 @@ public struct Settings: Codable, Equatable, Sendable {
     public var recentDays = 7
     public var folderIcons = true
     public var sortFolders = false
+    public var excludes: [String] = []   // name globs ("*.tmp", "Draft*"): matching top-level items stay where they are, in every watched folder
+    public var rootExcludes: [String: [String]] = [:]   // watched folder (as written in roots) → names of its subfolders that are never sorted
     public var keepTag = "Keep"
     public var learnCorrections = true
     public var unknownFiles = UnknownFiles.askModel
@@ -185,7 +187,7 @@ public struct Settings: Codable, Equatable, Sendable {
         sortingOffSince = try? c.decode(Date.self, forKey: .sortingOffSince)
         d(.offReminderShown, &offReminderShown); d(.smartEject, &smartEject); d(.smartEjectNotice, &smartEjectNotice); d(.smartEjectOnlyEject, &smartEjectOnlyEject)
         d(.approach, &approach); d(.recents, &recents); d(.recentDays, &recentDays); d(.folderIcons, &folderIcons)
-        d(.sortFolders, &sortFolders); d(.keepTag, &keepTag); d(.learnCorrections, &learnCorrections)
+        d(.sortFolders, &sortFolders); d(.excludes, &excludes); d(.rootExcludes, &rootExcludes); d(.keepTag, &keepTag); d(.learnCorrections, &learnCorrections)
         d(.unknownFiles, &unknownFiles); d(.suggestTypes, &suggestTypes); d(.appleIntelligence, &appleIntelligence)
         d(.renaming, &renaming); d(.normalizeNames, &normalizeNames); d(.keepOriginalSearchable, &keepOriginalSearchable)
         d(.askBeforeMassRenames, &askBeforeMassRenames); d(.massRenameThreshold, &massRenameThreshold)
