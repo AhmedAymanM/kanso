@@ -113,15 +113,16 @@ public final class Engine: @unchecked Sendable {
     /// The user's excludes: a name glob that matches (any watched folder), or a subfolder named for its watched folder.
     /// Only the name is looked at, so excluded items are never read, hashed or tagged.
     func excluded(_ url: URL, settings: Settings) -> Bool {
-        let name = url.lastPathComponent.lowercased()
+        // Both sides are normalized (canonical form, case, accents), so an NFD file name can't slip past an NFC pattern.
+        let name = Engine.fold(url.lastPathComponent)
         for glob in settings.excludes {
-            let g = glob.trimmingCharacters(in: .whitespaces).lowercased()
+            let g = Engine.fold(glob)
             if !g.isEmpty && fnmatch(g, name, 0) == 0 { return true }
         }
         if !settings.rootExcludes.isEmpty {
             let parent = url.deletingLastPathComponent().standardizedFileURL.path
             for (root, names) in settings.rootExcludes where URL(fileURLWithPath: (root as NSString).expandingTildeInPath).standardizedFileURL.path == parent {
-                if names.contains(where: { $0.lowercased() == name }) { return true }
+                if names.contains(where: { Engine.fold($0) == name }) { return true }
             }
         }
         return false
@@ -743,6 +744,7 @@ public final class Engine: @unchecked Sendable {
         store.modify(done) { $0.undone = true; $0.pending = false }
         if !gone.isEmpty { store.modify(gone) { $0.undone = true; $0.pending = false; $0.details["gone"] = "true" } }
         for (id, path) in relocated { store.modify([id]) { $0.details["restoredTo"] = path } }
+        retractCreatedShelves(after: done.union(gone))
         // Putting back a trashed copy makes its duplicate decision pending again.
         let putBack = restored.filter { $0.kind == .trashed }.compactMap { $0.details["action"].flatMap(UUID.init) }
         if !putBack.isEmpty { store.modify(Set(putBack)) { $0.pending = true } }
