@@ -1,16 +1,18 @@
 import AppKit
 import KansoCore
 import SwiftUI
+import UniformTypeIdentifiers
 
 // The island's views (design handoff 2026-09-30). The black island fades into a clear Liquid Glass lip at the bottom;
 // text stays on the black part, and only glass controls sit in the lip. Fixed palette, not themed.
 
 enum IslandInk {
     static let text = Color(nsColor: NSColor(hex: 0xF5F5F7))
-    static let text2 = Color.white.opacity(0.6)
-    static let text3 = Color.white.opacity(0.6)   // 6.2:1 on black; 40% failed 4.5:1 for 11 pt text
-    static let control = Color.white.opacity(0.12)
+    static let text2 = Color.white.opacity(0.7)
+    static let text3 = Color.white.opacity(0.62)   // floor: 7.8:1 on black
+    static let control = Color.white.opacity(0.14)
     static let rim = Color.white.opacity(0.18)
+    static let ring = Color(nsColor: NSColor(hex: 0xCFE8D8))   // keyboard focus on black: about 15:1 (needs 3:1)
 }
 
 /// The whole panel is transparent; only the island shape draws (and takes clicks), anchored at the top center.
@@ -29,6 +31,7 @@ struct IslandRoot: View {
             Spacer(minLength: 0)
         }
         .frame(width: Island.size.width, height: Island.size.height, alignment: .top)
+        .environment(\.focusRingColor, IslandInk.ring)
     }
 }
 
@@ -61,9 +64,10 @@ struct IslandBody: View {
     @EnvironmentObject var island: Island
     @EnvironmentObject var m: AppModel
     @ObservedObject private var a11y = AccessibilityOptions.shared
+    @ObservedObject private var trayModel = TrayModel.shared
 
     var notchSkin: Bool { island.skin == .notch }
-    var width: CGFloat { island.expanded ? 480 : (notchSkin ? max(290, island.notch.width + 110) : 320) }
+    var width: CGFloat { island.expanded ? 480 : (notchSkin ? max(290, island.notch.width + 140) : 320) }
     var radius: CGFloat { island.expanded ? 30 : (notchSkin ? 20 : 22) }
     /// Text never enters the clear lip: expanded 64 pt, compact 30 pt (capsule compact 14).
     var lip: CGFloat { island.expanded ? 92 : (notchSkin ? 34 : 14) }
@@ -77,12 +81,19 @@ struct IslandBody: View {
         .padding(.horizontal, notchSkin ? 10 : 0)   // room for the ears
         .frame(width: width)
         .background { IslandFill(shape: IslandShape(ears: notchSkin, radius: radius), expanded: island.expanded) }
+        .overlay { if island.tray && island.expanded && trayModel.planning && !Motion.reduced && !Motion.snapshot { IslandBeam(shape: IslandShape(ears: notchSkin, radius: radius), top: notchSkin ? island.notch.height : 0).allowsHitTesting(false) } }
+        .overlay { if island.tray && island.expanded && trayModel.over { IslandShape(ears: notchSkin, radius: radius).stroke(Color(nsColor: NSColor(hex: 0xCFE8D8)), style: StrokeStyle(lineWidth: 2, dash: [7, 5])).padding(1).allowsHitTesting(false) } }
         .overlay { if case .reading? = island.current, !Motion.reduced, !Motion.snapshot, !island.expanded { IslandBeam(shape: IslandShape(ears: notchSkin, radius: radius), top: notchSkin ? island.notch.height : 0).allowsHitTesting(false) } }
         .clipShape(IslandShape(ears: notchSkin, radius: radius))
         .environment(\.colorScheme, .dark)
         .contentShape(IslandShape(ears: notchSkin, radius: radius))
         .onHover { island.hover($0) }
         .onTapGesture { if !island.expanded { island.expand() } }
+        .onDrop(of: [.fileURL, .item], isTargeted: Binding(get: { false }, set: { if $0 && island.tray { trayModel.over = true } })) { providers in
+            guard island.trayOn, island.tray else { return false }
+            trayModel.add(providers: providers)
+            return true
+        }
         .padding(.top, notchSkin ? 0 : 2)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Kanso")
@@ -154,15 +165,21 @@ struct IslandFill: View {
             shape.fill(Color.black)
                 .overlay { if Motion.contrast { shape.stroke(K.text.opacity(0.6), lineWidth: 1) } }
         } else {
-            let stops: [Gradient.Stop] = expanded
-                ? [.init(color: .black, location: 0), .init(color: .black, location: 0.7), .init(color: .black.opacity(0.55), location: 0.84), .init(color: .clear, location: 1)]
-                : [.init(color: .black, location: 0), .init(color: .black, location: 0.58), .init(color: .black.opacity(0.65), location: 0.77), .init(color: .clear, location: 1)]
-            ZStack {
-                if #available(macOS 26, *) { Color.clear.glassEffect(.regular, in: shape) }   // the lip shows real frosted Liquid Glass
-                shape.fill(LinearGradient(stops: stops, startPoint: .top, endPoint: .bottom))
-                shape.stroke(LinearGradient(stops: [.init(color: .clear, location: 0), .init(color: .white.opacity(0.25), location: 0.85), .init(color: .white.opacity(0.85), location: 1)], startPoint: .top, endPoint: .bottom), lineWidth: 1.5)
-                shape.stroke(Color.white.opacity(0.18), lineWidth: 6).blur(radius: 7).mask(LinearGradient(colors: [.clear, .white], startPoint: .init(x: 0.5, y: 0.8), endPoint: .bottom))
+            // The melt into glass is confined to the last 12 pt; everything above, including the esc row, is solid black.
+            GeometryReader { g in
+                let h = max(g.size.height, 1), m0 = max(0, 1 - 12 / h)
+                let stops: [Gradient.Stop] = [.init(color: .black, location: 0), .init(color: .black, location: m0), .init(color: .black.opacity(0.55), location: m0 + (1 - m0) * 0.5), .init(color: .clear, location: 1)]
+                fill(stops)
             }
+        }
+    }
+
+    @ViewBuilder private func fill(_ stops: [Gradient.Stop]) -> some View {
+        ZStack {
+            if #available(macOS 26, *) { Color.clear.glassEffect(.regular, in: shape) }   // the lip shows real frosted Liquid Glass
+            shape.fill(LinearGradient(stops: stops, startPoint: .top, endPoint: .bottom))
+            shape.stroke(LinearGradient(stops: [.init(color: .clear, location: 0), .init(color: .white.opacity(0.25), location: 0.85), .init(color: .white.opacity(0.85), location: 1)], startPoint: .top, endPoint: .bottom), lineWidth: 1.5)
+            shape.stroke(Color.white.opacity(0.18), lineWidth: 6).blur(radius: 7).mask(LinearGradient(colors: [.clear, .white], startPoint: .init(x: 0.5, y: 0.8), endPoint: .bottom))
         }
     }
 }
@@ -175,9 +192,10 @@ struct IslandLip: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            Text(hints).font(.system(size: TS.meta)).foregroundStyle(Color.white.opacity(0.5)).lineLimit(1)
+            Text(hints).font(.system(size: TS.meta)).foregroundStyle(IslandInk.text3).lineLimit(1)
             Spacer()
             LipButtons {
+                if island.trayOn { TrayLipButton() }
                 IslandGlassButton(symbol: "keyboard", label: "Keyboard shortcuts") { withAnimation(Motion.spring()) { island.shortcuts.toggle() } }.keyboardShortcut("/")
                 IslandGlassButton(symbol: "gearshape", label: "Settings") { island.hide(); Windows.shared.showSettings() }.keyboardShortcut(",")
             }
@@ -188,6 +206,7 @@ struct IslandLip: View {
     /// Only esc to close, plus the arrows when they do something in this state. Actions show their own keys.
     var hints: String {
         if island.shortcuts { return "esc back" }
+        if island.tray { return TrayModel.shared.phase == .list ? "↑ ↓ select · ⌥↑ ⌥↓ reorder · ⌫ forget · esc back" : "esc back" }
         var parts: [String] = []
         let rows = island.overview ? min(m.needs.count, 3) + min(m.done.count, 3) : (island.fanned || island.stacked ? 0 : island.notices.count)
         if island.overview && m.needs.count > 1 { parts.append("← → cycle cards") }
@@ -255,13 +274,14 @@ struct IslandExpanded: View {
             if island.skin == .notch { Color.clear.frame(height: island.notch.height) }
             Group {
                 if island.shortcuts { ShortcutsList() }
+                else if island.tray && island.overview { TrayBody() }
                 else if island.askState.isProposal { AskProposal().stagger(0) }
                 else if island.overview { OverviewBody() }
                 else if let n = island.current { notice(n).id(n.id) }
             }
             .padding(.horizontal, 20).padding(.top, 2)   // the black island starts right under the notch: no extra space
             .transition(.opacity)
-            if island.askAvailable && !island.shortcuts && !island.overview {
+            if island.askAvailable && !island.shortcuts && !island.overview && !island.tray {
                 AskField().padding(.horizontal, 20).padding(.top, 10).stagger(4)
             }
         }
@@ -320,7 +340,7 @@ struct NoticeHead: View {
     var tags: [String] = []
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: icon).font(.system(size: TS.micro, weight: .bold)).foregroundStyle(tint.islandGlyph).frame(width: 20, height: 20).background(Circle().fill(tint.islandFill))
+            Image(systemName: icon).font(.system(size: TS.meta, weight: .bold)).foregroundStyle(tint.islandGlyph).frame(width: 20, height: 20).background(Circle().fill(tint.islandFill))
             Text(title + " ·").font(.system(size: TS.body, weight: .semibold)).foregroundStyle(IslandInk.text).lineLimit(1)
             Text(time).font(.system(size: TS.meta)).foregroundStyle(IslandInk.text3)
             Spacer(minLength: 8)
@@ -341,7 +361,7 @@ struct PreviewTile: View {
             .overlay(alignment: .topTrailing) {
                 if eye && hover {
                     Button { island.quickLook() } label: {
-                        Image(systemName: "eye").font(.system(size: TS.micro)).foregroundStyle(.white).frame(width: 20, height: 20).background(Circle().fill(Color.black.opacity(0.6)))
+                        Image(systemName: "eye").font(.system(size: TS.meta)).foregroundStyle(.white).frame(width: 20, height: 20).background(Circle().fill(Color.black.opacity(0.6)))
                     }
                     .buttonStyle(.plain).padding(4).help("Quick Look").accessibilityLabel("Quick Look").transition(.opacity)
                 }
@@ -617,6 +637,7 @@ struct FanBody: View {
 }
 
 struct ShortcutsList: View {
+    @EnvironmentObject var island: Island
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
@@ -625,16 +646,24 @@ struct ShortcutsList: View {
                 Spacer()
                 IslandKey(text: "esc", dark: true)
             }
+            if island.tray {
+                HStack(alignment: .top, spacing: 10) {
+                    group("The Tray", [("Organize, then Move", "↩"), ("Add copied files", "⌘V"), ("Forget the row", "⌫"), ("Put a row back", "⌘Z")])
+                    group("Rows", [("Select", "↑ ↓"), ("Reorder", "⌥↑ ⌥↓"), ("Quick Look", "Space"), ("Reveal in Finder", "⌘R")])
+                    group("The island", [("Open / close Tray", "⌘T"), ("Back", "esc"), ("Settings", "⌘,"), ("This list", "⌘/")])
+                }
+            } else {
             HStack(alignment: .top, spacing: 10) {
                 group("This notice", [("Run selected action", "↩"), ("Undo", "⌘Z"), ("Previous / next file", "← →"), ("Move to Trash", "⌘⌫")])
                 group("This file", [("Quick Look", "Space"), ("Reveal in Finder", "⌘R"), ("Open", "⌘O"), ("Copy new name", "⌘C")])
                 group("The island", [("Open / close", "⌥⌘K"), ("Collapse", "esc"), ("Settings", "⌘,"), ("This list", "⌘/")])
             }
+            }
         }
     }
     func group(_ title: String, _ rows: [(String, String)]) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(title.uppercased()).font(.system(size: TS.micro, weight: .semibold)).kerning(0.5).foregroundStyle(IslandInk.text3)
+            Text(title.uppercased()).font(.system(size: TS.meta, weight: .semibold)).kerning(0.5).foregroundStyle(IslandInk.text3)
             ForEach(rows, id: \.0) { r in
                 HStack(spacing: 6) {
                     Text(r.0).font(.system(size: TS.small)).foregroundStyle(IslandInk.text).fixedSize(horizontal: false, vertical: true)
@@ -813,7 +842,7 @@ struct NeedCard: View {
         switch need {
         case .duplicate(let a): PreviewTile(path: a.dst, size: CGSize(width: 86, height: 112))
         case .renames(let p, _): PreviewTile(path: p.first?.path ?? "", size: CGSize(width: 86, height: 112), eye: false)
-        case .rule, .shelf: Image(systemName: need.icon).font(.system(size: TS.display)).foregroundStyle(need.tint.islandGlyph).frame(width: 86, height: 86).background(Circle().fill(need.tint.islandFill))
+        case .rule, .shelf: Image(systemName: need.icon).font(.system(size: TS.title)).foregroundStyle(need.tint.islandGlyph).frame(width: 86, height: 86).background(Circle().fill(need.tint.islandFill))
         }
     }
 }
@@ -845,9 +874,9 @@ struct IslandKey: View {
     var text: String
     var dark: Bool
     var body: some View {
-        Text(text).font(.system(size: TS.meta, weight: .medium)).foregroundStyle(dark ? .white.opacity(0.7) : K.text2)
+        Text(text).font(.system(size: TS.meta, weight: .medium)).fixedSize().foregroundStyle(dark ? .white.opacity(0.7) : K.text2)
             .padding(.horizontal, 6).frame(height: 18)
-            .background(RoundedRectangle(cornerRadius: 5).fill(dark ? .white.opacity(0.12) : K.fill))
+            .background(RoundedRectangle(cornerRadius: 5).fill(dark ? .white.opacity(0.14) : K.fill))
     }
 }
 

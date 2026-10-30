@@ -101,6 +101,8 @@ public struct Settings: Codable, Equatable, Sendable {
     public var graceMinutes = 0        // "Leave new files alone for"
     public var smartEject = true
     public var smartEjectNotice = true       // show the island notice with Put Back
+    public var trayPlansShown = 0            // the plan preview is always shown the first 5 times
+    public var trayEnabled = false           // beta: the Tray page on the island (files only)
     public var smartEjectOnlyEject = false   // eject the disk image but leave the installer where it is
     public var approach = Approach.kind
     public var recents = RecentsMode.links
@@ -194,7 +196,7 @@ public struct Settings: Codable, Equatable, Sendable {
         d(.autoSort, &autoSort); d(.settleSeconds, &settleSeconds); d(.graceMinutes, &graceMinutes)
         sortingOffUntil = try? c.decode(Date.self, forKey: .sortingOffUntil)
         sortingOffSince = try? c.decode(Date.self, forKey: .sortingOffSince)
-        d(.offReminderShown, &offReminderShown); d(.smartEject, &smartEject); d(.smartEjectNotice, &smartEjectNotice); d(.smartEjectOnlyEject, &smartEjectOnlyEject)
+        d(.offReminderShown, &offReminderShown); d(.smartEject, &smartEject); d(.smartEjectNotice, &smartEjectNotice); d(.smartEjectOnlyEject, &smartEjectOnlyEject); d(.trayEnabled, &trayEnabled); d(.trayPlansShown, &trayPlansShown)
         d(.approach, &approach); d(.recents, &recents); d(.recentDays, &recentDays); d(.folderIcons, &folderIcons)
         d(.sortFolders, &sortFolders); d(.excludes, &excludes); d(.rootExcludes, &rootExcludes); d(.keepTag, &keepTag); d(.learnCorrections, &learnCorrections)
         d(.unknownFiles, &unknownFiles); d(.suggestTypes, &suggestTypes); d(.modelChoice, &modelChoice)

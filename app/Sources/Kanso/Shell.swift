@@ -252,6 +252,21 @@ final class Services: NSObject {
     @objc func skipFiles(_ pboard: NSPasteboard, userData: String?, error: AutoreleasingUnsafeMutablePointer<NSString?>) { setKeep(true, pboard) }
     @objc func allowFiles(_ pboard: NSPasteboard, userData: String?, error: AutoreleasingUnsafeMutablePointer<NSString?>) { setKeep(false, pboard) }
 
+    /// "Add to Kanso Tray": the keyboard path to the Tray (no drag needed). Only while the beta is on.
+    @objc func addToTray(_ pboard: NSPasteboard, userData: String?, error: AutoreleasingUnsafeMutablePointer<NSString?>) {
+        let urls = pboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? []
+        DispatchQueue.main.async {
+            MainActor.assumeIsolated {
+                guard AppModel.shared.settings.trayEnabled else {
+                    Island.shared.show(.info(icon: "tray", text: "Turn on the Tray (beta) in General first."))
+                    return
+                }
+                let r = TrayModel.shared.add(urls)
+                Island.shared.show(.info(icon: "tray", text: r.added > 0 ? "Added \(r.added) to the Tray" : (r.refused.first ?? "Already in the Tray")))
+            }
+        }
+    }
+
     private func setKeep(_ keep: Bool, _ pboard: NSPasteboard) {
         let tag = Store().settings.keepTag
         let urls = pboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? []
@@ -275,6 +290,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             HotKeys.shared.register(m.settings)
             m.startWatching()
             m.startSmartEject()
+            TrayDragMonitor.shared.sync(m.settings.trayEnabled)
             Island.shared.relayout()
             NSApp.mainMenu = mainMenu()
             if ProcessInfo.processInfo.environment["KANSO_BACKDROP"] != nil { Self.backdrop() }

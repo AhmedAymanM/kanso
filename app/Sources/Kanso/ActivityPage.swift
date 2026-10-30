@@ -169,9 +169,9 @@ struct ActivityPage: View {
         let searching = !query.isEmpty
         let icon = searching ? "magnifyingglass" : filter.icon
         return VStack(spacing: 10) {
-            Image(systemName: icon).font(.system(size: TS.hero, weight: .light)).foregroundStyle(K.text3).frame(width: 84, height: 84)
+            Image(systemName: icon).font(.system(size: TS.display, weight: .light)).foregroundStyle(K.text3).frame(width: 84, height: 84)
                 .liquid(Circle(), tint: Tint.accent.bg.opacity(0.5), interactive: false)
-            Text(searching ? "No matches for “\(query)”" : filter == .all ? "Nothing yet" : "Nothing under \(filter.rawValue)").font(.system(size: TS.title2, design: .serif)).foregroundStyle(K.text)
+            Text(searching ? "No matches for “\(query)”" : filter == .all ? "Nothing yet" : "Nothing under \(filter.rawValue)").font(.system(size: TS.title, design: .serif)).foregroundStyle(K.text)
             Text(searching ? "Search looks at file names and shelves." : filter.emptyLine).font(.system(size: TS.body)).foregroundStyle(K.text2).multilineTextAlignment(.center).frame(maxWidth: 320)
             if searching || filter != .all || current.isNarrowed {
                 Button(searching ? "Clear search" : "Show all activity") { withAnimation(Motion.spring(0.3)) { if searching { query = "" } else { filter = .all; shelf = nil; days = nil } } }
@@ -343,7 +343,7 @@ func title(_ e: Entry) -> String {
         case .trashed: return a.details["installer"] != nil ? "Smart Eject · installer moved to Trash" : "Moved to Trash · \((Int64(a.details["size"] ?? "") ?? 0).bytes)"
         case .sorted: return "Sorted → \(st.emoji(for: a.shelf)) \(a.shelf)"
         }
-    case .batch(_, let a): return "Sorted into \(Set(a.map(\.shelf)).count) shelves"
+    case .batch(_, let a): let n = Set(a.map(\.shelf)).count; return "Sorted into \(n) \(n == 1 ? "shelf" : "shelves")"
     case .waiting(let w): return w.partial ? "Waiting · still downloading" : "Waiting · settling"
     }
 }

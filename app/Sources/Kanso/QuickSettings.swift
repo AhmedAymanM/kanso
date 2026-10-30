@@ -100,7 +100,7 @@ struct QuickSettings: View {
                 }
                 Spacer()
                 if !menuOpen { Dot(on: on, size: 7) }
-                Image(systemName: "chevron.down").font(.system(size: TS.micro, weight: .semibold)).foregroundStyle(K.text2).rotationEffect(.degrees(menuOpen ? 180 : 0))
+                Image(systemName: "chevron.down").font(.system(size: TS.meta, weight: .semibold)).foregroundStyle(K.text2).rotationEffect(.degrees(menuOpen ? 180 : 0))
             }
             .padding(.horizontal, 14).frame(maxHeight: .infinity).contentShape(Rectangle())
         }
@@ -184,9 +184,9 @@ struct FeatureTile: View {
         Button { withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) { on.toggle() } } label: {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
-                    Image(systemName: icon).font(.system(size: TS.body)).foregroundStyle(on ? K.text2 : K.text3)
+                    Image(systemName: icon).font(.system(size: TS.body, weight: on ? .semibold : .light)).foregroundStyle(on ? K.text : K.text3)
                     Spacer()
-                    if on { Circle().fill(Tint.accent.fg).frame(width: 7, height: 7) } else { Circle().strokeBorder(K.text3, lineWidth: 1).frame(width: 7, height: 7) }
+                    if on { Circle().fill(Tint.accent.fg).frame(width: 7, height: 7) } else { Circle().strokeBorder(K.controlStroke, lineWidth: 1).frame(width: 7, height: 7) }
                 }
                 VStack(alignment: .leading, spacing: 0) {
                     Text(name).font(.system(size: TS.body, weight: .semibold)).foregroundStyle(K.text)
@@ -218,7 +218,7 @@ struct RulePreviewRow: View {
     var emoji: String
     var body: some View {
         HStack(spacing: 6) {
-            Text("IF").font(.system(size: TS.micro, weight: .bold)).foregroundStyle(Tint.rule.fg)
+            Text("IF").font(.system(size: TS.meta, weight: .bold)).foregroundStyle(Tint.rule.fg)
             Text(conditionText(condition)).font(.system(size: TS.small)).padding(.horizontal, 6).frame(height: 20).background(RoundedRectangle(cornerRadius: 5).fill(K.card))
             Image(systemName: "arrow.right").font(.system(size: 9)).foregroundStyle(K.text3)
             Text("\(emoji) \(shelf)").font(.system(size: TS.small, weight: .medium)).padding(.horizontal, 6).frame(height: 20).background(RoundedRectangle(cornerRadius: 5).fill(K.card))
