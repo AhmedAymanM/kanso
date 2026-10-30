@@ -65,7 +65,7 @@ extension EngineTests {
 
     func testExcludesMatchAcrossUnicodeNormalizationForms() async {
         let nfc = "caf\u{00E9}*", nfd = "cafe\u{0301}*"
-        XCTAssertNotEqual(nfc, nfd)
+        XCTAssertNotEqual(Array(nfc.unicodeScalars), Array(nfd.unicodeScalars))   // Swift String == is canonical, so compare scalars
         for (pattern, name) in [(nfc, "cafe\u{0301}-menu.pdf"), (nfd, "caf\u{00E9}-menu.pdf")] {
             make(pick: nil) { $0.excludes = [pattern] }
             file(name)
