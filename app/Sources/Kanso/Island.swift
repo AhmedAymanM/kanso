@@ -640,8 +640,10 @@ final class Island: ObservableObject {
         dragClose?.cancel()
         let phase: TrayKey.Phase
         switch t.phase { case .list: phase = .list; case .planning: phase = .planning; case .review: phase = .review; case .moving: phase = .moving }
+        // A focused footer button owns Return and Space: it is pressed, whatever the page's default action is.
+        if let f = t.focusedButton, !cmd, [TrayKey.returnKey, TrayKey.enterKey, TrayKey.space].contains(Int(e.keyCode)) { f.action(); return true }
         let r = panel?.firstResponder
-        let controlFocused = r is NSControl || r is NSText || (r.map { String(describing: type(of: $0)).contains("Button") } ?? false)
+        let controlFocused = t.focusedButton != nil || r is NSControl || r is NSText || (r.map { String(describing: type(of: $0)).contains("Button") } ?? false)
         switch TrayKey.route(code: Int(e.keyCode), cmd: cmd, option: e.modifierFlags.contains(.option), phase: phase, controlFocused: controlFocused) {
         case .passThrough: return false
         case .consume: return true

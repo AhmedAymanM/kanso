@@ -264,6 +264,7 @@ struct TrayButton: View {
     var primary: Bool
     var enabled = true
     var action: () -> Void
+    @FocusState private var focused: Bool
     var body: some View {
         Button(action: action) {
             HStack(spacing: 6) {
@@ -276,6 +277,14 @@ struct TrayButton: View {
             .opacity(enabled ? 1 : 0.4)
         }
         .buttonStyle(PressStyle()).disabled(!enabled)
+        .focused($focused)
+        // SwiftUI focus never becomes the panel's first responder, so tell the Tray which button has it: Return and Space
+        // then press that button (Tab to "Not now" and Return cancels) instead of the page's default action.
+        .onChange(of: focused) { f in
+            if f { TrayModel.shared.focusedButton = (label, action) }
+            else if TrayModel.shared.focusedButton?.label == label { TrayModel.shared.focusedButton = nil }
+        }
+        .onDisappear { if TrayModel.shared.focusedButton?.label == label { TrayModel.shared.focusedButton = nil } }
         .accessibilityLabel(label)
     }
 }
