@@ -343,7 +343,7 @@ func title(_ e: Entry) -> String {
         case .trashed: return a.details["installer"] != nil ? "Smart Eject · installer moved to Trash" : "Moved to Trash · \((Int64(a.details["size"] ?? "") ?? 0).bytes)"
         case .sorted: return "Sorted → \(st.emoji(for: a.shelf)) \(a.shelf)"
         }
-    case .batch(_, let a): return "Sorted into \(Set(a.map(\.shelf)).count) shelves"
+    case .batch(_, let a): let n = Set(a.map(\.shelf)).count; return "Sorted into \(n) \(n == 1 ? "shelf" : "shelves")"
     case .waiting(let w): return w.partial ? "Waiting · still downloading" : "Waiting · settling"
     }
 }

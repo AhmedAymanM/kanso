@@ -400,6 +400,7 @@ struct EntryDetail: View {
         case "menu": return "Sort New Files Now"
         case "sort-everything": return "Sort everything"
         case "review": return "the review window"
+        case "suggestion": return "your shelf suggestion"
         default: return "Auto-Sort"
         }
     }
