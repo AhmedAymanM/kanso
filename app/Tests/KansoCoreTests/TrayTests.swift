@@ -176,4 +176,81 @@ final class TrayTests: XCTestCase {
         XCTAssertEqual(engine.tray.count, 1)
         XCTAssertTrue(fm.fileExists(atPath: a.path))
     }
+
+    // MARK: Review fixes
+
+    func testKeyRoutingLeavesReturnAndSpaceToAFocusedControl() {
+        typealias K = TrayKey
+        XCTAssertEqual(K.route(code: K.returnKey, cmd: false, option: false, phase: .review, controlFocused: true), .passThrough, "Return on Not now cancels")
+        XCTAssertEqual(K.route(code: K.returnKey, cmd: false, option: false, phase: .review, controlFocused: false), .move)
+        XCTAssertEqual(K.route(code: K.returnKey, cmd: false, option: false, phase: .list, controlFocused: false), .organize)
+        XCTAssertEqual(K.route(code: K.returnKey, cmd: true, option: false, phase: .list, controlFocused: true), .consume)
+        XCTAssertEqual(K.route(code: K.space, cmd: false, option: false, phase: .list, controlFocused: true), .passThrough)
+        XCTAssertEqual(K.route(code: K.space, cmd: false, option: false, phase: .list, controlFocused: false), .quickLook)
+        XCTAssertEqual(K.route(code: K.down, cmd: false, option: false, phase: .list, controlFocused: true), .passThrough)
+        XCTAssertEqual(K.route(code: K.down, cmd: false, option: true, phase: .list, controlFocused: false), .reorder(1))
+        XCTAssertEqual(K.route(code: K.right, cmd: false, option: false, phase: .review, controlFocused: false), .cycleShelf(1))
+        XCTAssertEqual(K.route(code: K.up, cmd: false, option: false, phase: .review, controlFocused: false), .planStep(-1))
+        XCTAssertEqual(K.route(code: K.delete, cmd: true, option: false, phase: .list, controlFocused: false), .consume, "no trash from here")
+        XCTAssertEqual(K.route(code: K.escape, cmd: false, option: false, phase: .review, controlFocused: true), .passThrough)
+        XCTAssertEqual(K.cycled("B", in: ["A", "B", "C"], by: 1), "C")
+        XCTAssertEqual(K.cycled("C", in: ["A", "B", "C"], by: 1), "A")
+        XCTAssertEqual(K.cycled(nil, in: ["A", "B"], by: -1), "B")
+    }
+
+    func testUndoStackIsOneMostRecentFirstList() {
+        var u = TrayUndoStack()
+        u.push(.forget([])); u.push(.move("r1"))
+        XCTAssertEqual(u.label, "Undo move"); XCTAssertEqual(u.topRun, "r1")
+        u.drop(run: "r1")
+        XCTAssertEqual(u.label, "Undo forget"); XCTAssertNil(u.topRun)
+        XCTAssertEqual(u.pop(), .forget([])); XCTAssertNil(u.label)
+    }
+
+    func testFolderGuardsApplyToDroppedFolders() async {
+        let plain = root.appendingPathComponent("Stuff"); try! fm.createDirectory(at: plain, withIntermediateDirectories: true)
+        let repo = outside.appendingPathComponent("proj"); try! fm.createDirectory(at: repo.appendingPathComponent(".git"), withIntermediateDirectories: true)
+        let own = outside.appendingPathComponent("my shelves"); try! fm.createDirectory(at: own, withIntermediateDirectories: true)
+        let shelved = file("s.pdf", in: shelf("Documents"))
+        engine.tray.add([plain, repo, own, shelved])
+        var plan = await engine.trayPlan()
+        XCTAssertEqual(plan.movable, 0)
+        XCTAssertTrue(plan.rows.allSatisfy { $0.stays != nil })
+        store.update { $0.sortFolders = true }
+        plan = await engine.trayPlan()
+        XCTAssertNotNil(plan.rows.first { $0.name == "proj" }?.stays, "git repos never move")
+        XCTAssertNotNil(plan.rows.first { $0.name == "my shelves" }?.stays)
+        XCTAssertNotNil(plan.rows.first { $0.name == "s.pdf" }?.stays)
+    }
+
+    func testOutsideFileShowsItsDestinationRoot() async {
+        engine.tray.add([file("a.pdf", in: outside)])
+        let plan = await engine.trayPlan()
+        XCTAssertEqual(plan.rows.first?.destRoot, "Downloads")
+        XCTAssertTrue(Engine.sameVolume(outside.appendingPathComponent("nope/x"), root))
+    }
+
+    func testDedupeUsesResolvedPathsAndBadFileIsKept() throws {
+        let a = file("a.pdf")
+        engine.tray.add([a])
+        let viaLink = tmp.appendingPathComponent("lnk")
+        try fm.createSymbolicLink(at: viaLink, withDestinationURL: root)
+        let r = engine.tray.add([viaLink.appendingPathComponent("a.pdf")])
+        XCTAssertEqual(r.already, 1)
+        XCTAssertEqual(engine.tray.count, 1)
+        let dir = tmp.appendingPathComponent("bad"); try fm.createDirectory(at: dir, withIntermediateDirectories: true)
+        try Data("not json".utf8).write(to: dir.appendingPathComponent("tray.json"))
+        XCTAssertEqual(TrayStore(dir: dir).count, 0)
+        XCTAssertTrue(fm.fileExists(atPath: dir.appendingPathComponent("tray.json.bad").path))
+    }
+
+    func testOneBadElementDoesNotLoseTheRest() throws {
+        engine.tray.add([file("a.pdf")])
+        let url = store.dir.appendingPathComponent("tray.json")
+        var arr = try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as! [Any]
+        arr.append(["path": "relative/x.pdf", "id": UUID().uuidString])
+        arr.append(["nonsense": 1])
+        try JSONSerialization.data(withJSONObject: arr).write(to: url)
+        XCTAssertEqual(TrayStore(dir: store.dir).items.map { ($0.path as NSString).lastPathComponent }, ["a.pdf"])
+    }
 }

@@ -115,7 +115,7 @@ struct TrayBody: View {
     var plan: some View {
         ScrollView(.vertical, showsIndicators: false) {
             VStack(spacing: 2) {
-                ForEach(tray.plan?.rows ?? []) { row in TrayPlanRow(row: row) }
+                ForEach(Array((tray.plan?.rows ?? []).enumerated()), id: \.element.id) { i, row in TrayPlanRow(row: row, selected: i == tray.planSelection) }
             }
         }
         .frame(height: min(CGFloat(tray.plan?.rows.count ?? 0), 6) * 46)
@@ -137,7 +137,7 @@ struct TrayBody: View {
             switch tray.phase {
             case .list:
                 TrayButton(label: "Organize", key: "↩", primary: true, enabled: tray.entries.contains { $0.state == .ready }) { tray.organize() }
-                if tray.lastRun != nil && tray.error != nil { TrayButton(label: "Undo", key: "⌘Z", primary: false) { tray.undoLastRun() } }
+                if tray.canUndo && tray.error != nil { TrayButton(label: tray.undoLabel, key: "⌘Z", primary: false) { tray.undo() } }
                 Spacer(minLength: 0)
                 if tray.entries.isEmpty == false {
                     Text("Files stay where they are until you Organize").font(.system(size: TS.meta)).foregroundStyle(IslandInk.text3).lineLimit(1)
@@ -149,6 +149,7 @@ struct TrayBody: View {
                 let n = tray.plan?.movable ?? 0
                 TrayButton(label: "Move \(n)", key: "↩", primary: true) { tray.move() }
                 TrayButton(label: "Not now", key: "esc", primary: false) { _ = tray.escape() }
+                Text("↑ ↓ pick a file · ← → change its shelf").font(.system(size: TS.meta)).foregroundStyle(IslandInk.text3).lineLimit(1)
                 Spacer(minLength: 0)
                 if tray.plan?.modelOff == true { Text("Apple Intelligence is off").font(.system(size: TS.meta)).foregroundStyle(IslandInk.text3) }
             case .moving:
@@ -210,6 +211,7 @@ struct TrayRowView: View {
 }
 
 struct TrayPlanRow: View {
+    var selected = false
     @EnvironmentObject var m: AppModel
     @ObservedObject var tray = TrayModel.shared
     var row: TrayRow
@@ -230,7 +232,7 @@ struct TrayPlanRow: View {
                 Menu {
                     ForEach(tray.shelfChoices, id: \.self) { s in Button("\(m.settings.emoji(for: s)) \(s)") { tray.choose(s, for: row.id) } }
                 } label: {
-                    Text("\(m.settings.emoji(for: shelf)) \(shelf)").font(.system(size: TS.body, weight: .semibold)).foregroundStyle(IslandInk.text).fixedSize().lineLimit(1)
+                    Text((row.destRoot.map { "\($0) › " } ?? "") + "\(m.settings.emoji(for: shelf)) \(shelf)").font(.system(size: TS.body, weight: .semibold)).foregroundStyle(IslandInk.text).fixedSize().lineLimit(1)
                         .padding(.horizontal, 10).frame(minHeight: 28).background(Capsule().fill(Color.white.opacity(0.1)))
                 }
                 .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
@@ -238,6 +240,7 @@ struct TrayPlanRow: View {
             }
         }
         .padding(.horizontal, 8).frame(minHeight: 44)
+        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.white.opacity(selected ? 0.1 : 0)))
         .accessibilityElement(children: .contain)
         .accessibilityLabel(spoken)
     }
@@ -250,7 +253,7 @@ struct TrayPlanRow: View {
     var spoken: String {
         if let why = row.stays { return "\(row.name), stays. \(why)" }
         let shelf = tray.shelf(for: row) ?? ""
-        return "\(row.name), goes to \(shelf), based on \(row.basis)" + (row.newShelf ? ", new shelf" : "")
+        return "\(row.name), goes to \(row.destRoot.map { "\($0), " } ?? "")\(shelf), based on \(row.basis)" + (row.newShelf ? ", new shelf" : "")
     }
 }
 
