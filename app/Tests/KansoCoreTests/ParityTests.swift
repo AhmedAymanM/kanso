@@ -70,6 +70,37 @@ extension EngineTests {
         XCTAssertEqual(engine.resolve(root, "/tmp/x", userPath: true).path, "/tmp/x")
     }
 
+    // MARK: Duplicate keeper reason
+
+    func testKeeperReasonIsJournaled() async {
+        make(pick: nil) { $0.duplicates = true }
+        file("invoice.pdf", "same bytes", in: shelf("Documents"))
+        file("invoice (1).pdf", "same bytes")
+        file("contract.pdf", "other bytes", in: root.appendingPathComponent(Library.manual))
+        file("contract copy.pdf", "other bytes")
+        let done = await run().filter { $0.kind == .duplicate }
+        XCTAssertEqual(done.count, 2)
+        XCTAssertEqual(done.first { $0.srcName == "invoice (1).pdf" }?.details["keptWhy"], "The other copy was already filed on a shelf")
+        XCTAssertEqual(done.first { $0.srcName == "contract copy.pdf" }?.details["keptWhy"], "The other copy is already in your Manual Shelves")
+        let reloaded = Store(dir: tmp.appendingPathComponent("state"))
+        XCTAssertNotNil(reloaded.actions.first { $0.kind == .duplicate }?.details["keptWhy"], "the reason survives a restart")
+    }
+
+    func testKeeperReasonForTwoLooseCopies() async {
+        make(pick: nil) { $0.duplicates = true }
+        file("a.pdf", "same")
+        Thread.sleep(forTimeInterval: 1.1)
+        file("a copy.pdf", "same")
+        let dup = await run().first { $0.kind == .duplicate }
+        XCTAssertEqual(dup?.details["keptWhy"], "Both arrived together, and its name is cleaner")
+    }
+
+    func testKeeperReasonWording() {
+        let a = file("a.pdf"), b = file("a (1).pdf")
+        XCTAssertEqual(Engine.keeperReason(kept: a, copy: b, root: root, setting: .bestNamed), "Its name is cleaner than \u{201C}a (1).pdf\u{201D}")
+        XCTAssertEqual(Engine.keeperReason(kept: b, copy: a, root: root, setting: .bestNamed), "Its name is as clean as the other copy's")
+    }
+
     func testDestinationWarning() {
         XCTAssertNil(Engine.destinationWarning("Documents/Invoices"))
         XCTAssertNotNil(Engine.destinationWarning("~/Taxes"))

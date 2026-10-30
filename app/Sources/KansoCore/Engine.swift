@@ -333,6 +333,7 @@ public final class Engine: @unchecked Sendable {
                 m.why = "duplicate of \(kept.lastPathComponent)"
                 m.source = "size + hash"
                 m.details["kept"] = kept.path
+                m.details["keptWhy"] = Engine.keeperReason(kept: kept, copy: item.url, root: root, setting: settings.keeper)
                 m.details["size"] = String(item.size)
                 m.tags = []
                 m.link = nil
@@ -375,6 +376,21 @@ public final class Engine: @unchecked Sendable {
         }
         waiting.sort { $0.since > $1.since }
         return Plan(moves: moves, waiting: waiting)
+    }
+
+    /// Why `kept` stays and `copy` is the extra one. Journaled with the duplicate (details["keptWhy"]) and shown in Activity.
+    public static func keeperReason(kept: URL, copy: URL, root: URL, setting: Keeper) -> String {
+        let manual = root.appendingPathComponent(Library.manual).standardizedFileURL.path + "/"
+        let mine = root.appendingPathComponent(Library.mine).standardizedFileURL.path + "/"
+        let path = kept.standardizedFileURL.path
+        if path.hasPrefix(manual) { return "The other copy is already in your Manual Shelves" }
+        if path.hasPrefix(mine) { return "The other copy was already filed on a shelf" }
+        // Both were loose in the folder: the same order the plan used to pick the keeper.
+        let cleaner = Duplicates.nameScore(kept.lastPathComponent) < Duplicates.nameScore(copy.lastPathComponent)
+        if setting == .bestNamed { return cleaner ? "Its name is cleaner than \u{201C}\(copy.lastPathComponent)\u{201D}" : "Its name is as clean as the other copy's" }
+        let ck = Stat.ctime(kept) ?? 0, cc = Stat.ctime(copy) ?? 0
+        if abs(ck - cc) < 5 { return cleaner ? "Both arrived together, and its name is cleaner" : "Both arrived together" }
+        return ck < cc ? "It arrived first" : "It is the one that was already there"
     }
 
     func keeperOrder(_ a: URL, _ b: URL, _ k: Keeper) -> Bool {
