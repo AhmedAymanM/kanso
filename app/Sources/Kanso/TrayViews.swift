@@ -118,7 +118,7 @@ struct TrayBody: View {
                 ForEach(Array((tray.plan?.rows ?? []).enumerated()), id: \.element.id) { i, row in TrayPlanRow(selected: i == tray.planSelection, row: row) }
             }
         }
-        .frame(height: min(CGFloat(tray.plan?.rows.count ?? 0), 6) * 46)
+        .frame(height: min((tray.plan?.rows ?? []).reduce(CGFloat(0)) { $0 + ($1.stays.map { $0.count > 46 } == true ? 60 : 46) }, 300))
     }
 
     func line(_ text: String, icon: String, color: Color) -> some View {
@@ -140,7 +140,7 @@ struct TrayBody: View {
                 if tray.canUndo && tray.error != nil { TrayButton(label: tray.undoLabel, key: "⌘Z", primary: false) { tray.undo() } }
                 Spacer(minLength: 0)
                 if tray.entries.isEmpty == false {
-                    Text("Files stay where they are until you Organize").font(.system(size: TS.meta)).foregroundStyle(IslandInk.text3).lineLimit(1)
+                    Text("Nothing moves until you Organize").font(.system(size: TS.meta)).foregroundStyle(IslandInk.text3).lineLimit(2).multilineTextAlignment(.trailing)
                 }
             case .planning:
                 TrayButton(label: "Cancel", key: "esc", primary: false) { _ = tray.escape() }
@@ -149,7 +149,7 @@ struct TrayBody: View {
                 let n = tray.plan?.movable ?? 0
                 TrayButton(label: "Move \(n)", key: "↩", primary: true) { tray.move() }
                 TrayButton(label: "Not now", key: "esc", primary: false) { _ = tray.escape() }
-                Text("↑ ↓ pick a file · ← → change its shelf").font(.system(size: TS.meta)).foregroundStyle(IslandInk.text3).lineLimit(1)
+                Text("↑ ↓ pick a file · ← → change its shelf").font(.system(size: TS.meta)).foregroundStyle(IslandInk.text3).lineLimit(2)
                 Spacer(minLength: 0)
                 if tray.plan?.modelOff == true { Text("Apple Intelligence is off").font(.system(size: TS.meta)).foregroundStyle(IslandInk.text3) }
             case .moving:
@@ -221,7 +221,7 @@ struct TrayPlanRow: View {
             Image(nsImage: NSWorkspace.shared.icon(forFile: row.entry.url.path)).resizable().frame(width: 28, height: 28).opacity(row.moves ? 1 : 0.5).accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 1) {
                 Text(row.name).font(.system(size: TS.body, weight: .medium)).foregroundStyle(row.moves ? IslandInk.text : IslandInk.text2).lineLimit(1).truncationMode(.middle)
-                Text(second).font(.system(size: TS.small)).foregroundStyle(IslandInk.text2).lineLimit(1)
+                Text(second).font(.system(size: TS.small)).foregroundStyle(IslandInk.text2).lineLimit(2).fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 6)
             if row.moves, let shelf = tray.shelf(for: row) {
@@ -277,7 +277,7 @@ struct TrayButton: View {
             .opacity(enabled ? 1 : 0.4)
         }
         .buttonStyle(PressStyle()).disabled(!enabled)
-        .focused($focused)
+        .focused($focused).focusRing(14)
         // SwiftUI focus never becomes the panel's first responder, so tell the Tray which button has it: Return and Space
         // then press that button (Tab to "Not now" and Return cancels) instead of the page's default action.
         .onChange(of: focused) { f in

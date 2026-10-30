@@ -82,7 +82,7 @@ enum Snapshot {
             func prow(_ e: TrayEntry, _ shelf: String?, _ basis: String, new: Bool = false, stays: String? = nil) -> TrayRow { TrayRow(entry: e, shelf: shelf, basis: basis, newShelf: new, stays: stays, willMove: stays == nil) }
             var preview = TrayPlan()
             preview.rows = [prow(carrying[0], "Documents", "by file type"), prow(carrying[1], "Images", "by file type"), prow(carrying[2], "Keys", "by file type, never read"),
-                            prow(TrayEntry(url: URL(fileURLWithPath: desk + "/mockup.qx7")), "Mockups", "asked Apple Intelligence", new: true), prow(carrying[3], nil, "", stays: "Missing. Forget it to clear the row.")]
+                            prow(TrayEntry(url: URL(fileURLWithPath: desk + "/mockup.qx7")), "Mockups", "by Apple Intelligence", new: true), prow(carrying[3], nil, "", stays: "Missing. Forget it to clear the row.")]
             let trays: [(String, () -> Void)] = [
                 ("empty", { tm.demo(entries: []) }),
                 ("over", { tm.demo(entries: Array(carrying.prefix(2)), note: nil, over: true) }),

@@ -330,7 +330,7 @@ extension Engine {
         var isDir: ObjCBool = false
         FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir)
         if isDir.boolValue && s.type(forExt: url.pathExtension.lowercased()) == nil {
-            if !s.sortFolders { return "A folder. Kanso only sorts files unless you turn on sorting folders." }
+            if !s.sortFolders { return "A folder. Turn on sorting folders to move it." }
             if FileManager.default.fileExists(atPath: url.appendingPathComponent(".git").path) { return "A git repository, Kanso leaves it there." }
         }
         if Engine.ownFolders.contains(Engine.fold(url.lastPathComponent)) { return "That's one of Kanso's own folders." }
@@ -355,7 +355,7 @@ extension Engine {
         if why == "extension" { return "by file type" }
         if why == "screenshot" { return "screenshot flag" }
         if why.hasPrefix("rule") { return "by your rule" }
-        if why.hasPrefix("apple-intelligence") && !why.hasSuffix("failed") && !why.hasSuffix("unsure") { return "asked Apple Intelligence" }
+        if why.hasPrefix("apple-intelligence") && !why.hasSuffix("failed") && !why.hasSuffix("unsure") { return "by Apple Intelligence" }
         if why == "unknown type" { return "unknown type" }
         return "no clear type"
     }

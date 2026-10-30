@@ -82,8 +82,18 @@ enum K {
 struct FocusRing: ViewModifier {
     var radius: CGFloat
     @Environment(\.isFocused) private var focused
+    @Environment(\.focusRingColor) private var color
     func body(content: Content) -> some View {
-        content.overlay(RoundedRectangle(cornerRadius: radius + 2).stroke(K.accent, lineWidth: 2).padding(-2).opacity(focused ? 1 : 0))
+        content.overlay(RoundedRectangle(cornerRadius: radius + 2).stroke(color, lineWidth: 2).padding(-2).opacity(focused ? 1 : 0))
+    }
+}
+
+private struct FocusRingColorKey: EnvironmentKey { static let defaultValue: Color = K.accent }
+extension EnvironmentValues {
+    /// The island and Tray are always dark, where the mint ink is barely visible: they set a light ring (IslandInk.ring).
+    var focusRingColor: Color {
+        get { self[FocusRingColorKey.self] }
+        set { self[FocusRingColorKey.self] = newValue }
     }
 }
 
