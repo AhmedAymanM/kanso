@@ -30,8 +30,8 @@ struct Showcase: View {
                         }
                     }
                 }
-                .font(.system(size: TS.small, design: .monospaced)).foregroundStyle(tint.fg)
-                .padding(.horizontal, 12).frame(height: 28).background(Capsule().fill(K.card.opacity(0.6)))
+                .font(.system(size: TS.small)).foregroundStyle(tint.fg)
+                .padding(.vertical, 4)
             }
             Spacer(minLength: 0)
             VStack(spacing: 8) {
@@ -46,10 +46,10 @@ struct Showcase: View {
                 Text("How it works").font(.system(size: TS.meta)).foregroundStyle(tint.fg)
             }
         }
-        .padding(.horizontal, 28).padding(.vertical, 32)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(tint.bg))
-        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(tint.stroke, lineWidth: 0.75))
+        .padding(.horizontal, 28).padding(.vertical, 24)
+        .frame(maxWidth: .infinity, maxHeight: 160, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(tint.bg))
+        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(tint.stroke, lineWidth: 0.75))
     }
 
     func play() {
