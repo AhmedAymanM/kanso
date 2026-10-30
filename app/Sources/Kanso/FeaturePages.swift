@@ -19,13 +19,13 @@ struct Showcase: View {
     var body: some View {
         HStack(spacing: 28) {
             if let art { Illustration(kind: art, tint: tint) }
-            else { Image(systemName: icon).font(.system(size: TS.hero, weight: .light)).foregroundStyle(tint.fg).frame(width: 64).symbolEffect(.bounce, value: playing) }
+            else { Image(systemName: icon).font(.system(size: TS.display, weight: .light)).foregroundStyle(tint.fg).frame(width: 64).symbolEffect(.bounce, value: playing) }
             VStack(alignment: .leading, spacing: 10) {
-                Text(headline).font(.system(size: TS.headline, weight: .regular, design: .serif)).tracking(-0.4).foregroundStyle(tint.fg)
+                Text(headline).font(.system(size: TS.title, weight: .regular, design: .serif)).tracking(-0.4).foregroundStyle(tint.fg)
                 HStack(spacing: 6) {
                     ForEach(Array(steps.enumerated()), id: \.offset) { i, step in
                         if i <= shown {
-                            if i > 0 { Image(systemName: "arrow.right").font(.system(size: TS.micro, weight: .semibold)).transition(.opacity) }
+                            if i > 0 { Image(systemName: "arrow.right").font(.system(size: TS.meta, weight: .semibold)).transition(.opacity) }
                             Text(step).transition(.asymmetric(insertion: .offset(x: -8).combined(with: .opacity), removal: .opacity))
                         }
                     }
@@ -142,7 +142,7 @@ struct ChoiceCard<Preview: View>: View {
                 preview.frame(maxWidth: .infinity, minHeight: 86).background(RoundedRectangle(cornerRadius: 2).fill(K.window))   // 14 card − 12 padding
                 HStack(spacing: 6) {
                     Text(title).font(.system(size: TS.body, weight: .semibold)).foregroundStyle(K.text)
-                    if soon { Text("Soon").font(.system(size: TS.micro, weight: .medium)).foregroundStyle(K.text3).padding(.horizontal, 6).frame(height: 16).background(Capsule().fill(K.fill)) }
+                    if soon { Text("Soon").font(.system(size: TS.meta, weight: .medium)).foregroundStyle(K.text3).padding(.horizontal, 6).frame(height: 16).background(Capsule().fill(K.fill)) }
                 }
                 Text(caption).font(.system(size: TS.small)).foregroundStyle(K.text2).fixedSize(horizontal: false, vertical: true)
             }
@@ -213,7 +213,7 @@ struct SortingPage: View {
                 let placed = m.actions.filter { $0.root == r || $0.root == (r as NSString).expandingTildeInPath }.filter { Calendar.current.isDateInToday($0.ts) && $0.kind == .sorted }.count
                 VStack(spacing: 0) {
                     HStack(spacing: 12) {
-                        Text(folderEmoji(r)).font(.system(size: TS.headline)).frame(width: 30)
+                        Text(folderEmoji(r)).font(.system(size: TS.emoji)).frame(width: 30)
                             .overlay(alignment: .bottomTrailing) { if !allowed { Image(systemName: "exclamationmark.triangle.fill").font(.system(size: TS.meta)).foregroundStyle(.yellow).offset(x: 6, y: 4) } }
                         VStack(alignment: .leading, spacing: 1) {
                             Text((r as NSString).lastPathComponent).font(.system(size: TS.body, weight: .medium)).foregroundStyle(K.text)
@@ -401,7 +401,7 @@ struct RenamingPage: View {
             HStack(spacing: 12) {
                 Image(systemName: "eye").font(.system(size: TS.body)).foregroundStyle(Tint.rename.fg)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("PREVIEW").font(.system(size: TS.micro, weight: .semibold)).kerning(0.6).foregroundStyle(Tint.rename.fg)
+                    Text("PREVIEW").font(.system(size: TS.meta, weight: .semibold)).kerning(0.6).foregroundStyle(Tint.rename.fg)
                     Text(preview).font(.system(size: TS.emphasis, weight: .medium, design: .monospaced)).foregroundStyle(Tint.rename.fg).textSelection(.enabled)
                 }
                 Spacer()
@@ -490,7 +490,7 @@ struct DuplicatesPage: View {
     var heldCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 12) {
-                Text("🪞").font(.system(size: TS.headline))
+                Text("🪞").font(.system(size: TS.emoji))
                 VStack(alignment: .leading, spacing: 1) {
                     Text(m.duplicatesBytes.bytes).font(.system(size: TS.title, weight: .semibold)).foregroundStyle(Tint.duplicate.fg)
                     Text("in Duplicates · \(held.files) \(held.files == 1 ? "file" : "files")").font(.system(size: TS.small)).foregroundStyle(Tint.duplicate.fg)
@@ -543,7 +543,7 @@ struct DuplicatesPage: View {
 /// A single big shelf emoji in a choice card preview.
 struct ShelfGlyph: View {
     var emoji: String
-    var body: some View { Text(emoji).font(.system(size: TS.hero)).frame(maxWidth: .infinity, minHeight: 86) }
+    var body: some View { Text(emoji).font(.system(size: TS.display)).frame(maxWidth: .infinity, minHeight: 86) }
 }
 
 // MARK: Tagging and Smart Eject (not designed yet: same anatomy, minimal)

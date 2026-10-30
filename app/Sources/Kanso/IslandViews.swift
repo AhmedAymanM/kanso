@@ -320,7 +320,7 @@ struct NoticeHead: View {
     var tags: [String] = []
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: icon).font(.system(size: TS.micro, weight: .bold)).foregroundStyle(tint.islandGlyph).frame(width: 20, height: 20).background(Circle().fill(tint.islandFill))
+            Image(systemName: icon).font(.system(size: TS.meta, weight: .bold)).foregroundStyle(tint.islandGlyph).frame(width: 20, height: 20).background(Circle().fill(tint.islandFill))
             Text(title + " ·").font(.system(size: TS.body, weight: .semibold)).foregroundStyle(IslandInk.text).lineLimit(1)
             Text(time).font(.system(size: TS.meta)).foregroundStyle(IslandInk.text3)
             Spacer(minLength: 8)
@@ -341,7 +341,7 @@ struct PreviewTile: View {
             .overlay(alignment: .topTrailing) {
                 if eye && hover {
                     Button { island.quickLook() } label: {
-                        Image(systemName: "eye").font(.system(size: TS.micro)).foregroundStyle(.white).frame(width: 20, height: 20).background(Circle().fill(Color.black.opacity(0.6)))
+                        Image(systemName: "eye").font(.system(size: TS.meta)).foregroundStyle(.white).frame(width: 20, height: 20).background(Circle().fill(Color.black.opacity(0.6)))
                     }
                     .buttonStyle(.plain).padding(4).help("Quick Look").accessibilityLabel("Quick Look").transition(.opacity)
                 }
@@ -634,7 +634,7 @@ struct ShortcutsList: View {
     }
     func group(_ title: String, _ rows: [(String, String)]) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(title.uppercased()).font(.system(size: TS.micro, weight: .semibold)).kerning(0.5).foregroundStyle(IslandInk.text3)
+            Text(title.uppercased()).font(.system(size: TS.meta, weight: .semibold)).kerning(0.5).foregroundStyle(IslandInk.text3)
             ForEach(rows, id: \.0) { r in
                 HStack(spacing: 6) {
                     Text(r.0).font(.system(size: TS.small)).foregroundStyle(IslandInk.text).fixedSize(horizontal: false, vertical: true)
@@ -810,7 +810,7 @@ struct NeedCard: View {
         switch need {
         case .duplicate(let a): PreviewTile(path: a.dst, size: CGSize(width: 86, height: 112))
         case .renames(let p, _): PreviewTile(path: p.first?.path ?? "", size: CGSize(width: 86, height: 112), eye: false)
-        case .rule: Image(systemName: need.icon).font(.system(size: TS.display)).foregroundStyle(need.tint.islandGlyph).frame(width: 86, height: 86).background(Circle().fill(need.tint.islandFill))
+        case .rule: Image(systemName: need.icon).font(.system(size: TS.title)).foregroundStyle(need.tint.islandGlyph).frame(width: 86, height: 86).background(Circle().fill(need.tint.islandFill))
         }
     }
 }
