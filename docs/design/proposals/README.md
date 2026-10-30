@@ -7,9 +7,10 @@ Three design directions for the Swift app, a Tray design, six references and an 
 | [proposal-a.md](proposal-a.md) / [proposal-a.html](proposal-a.html) | **A · Paper & Ink**: evolve today's identity |
 | [proposal-b.md](proposal-b.md) / [proposal-b.html](proposal-b.html) | **B · Glass Shelf**: Liquid Glass forward |
 | [proposal-c.md](proposal-c.md) / [proposal-c.html](proposal-c.html) | **C · Ink Notch**: the island is the product, the window is a ledger |
-| [tray.md](tray.md) | The Tray (roadmap v2): flows, states, keyboard, accessibility, ADR fit |
+| [tray.md](tray.md) | The Tray (roadmap v2, files only): drag detection, flows, states, keyboard, accessibility, security invariants, ADR fit |
+| [final-direction.md](final-direction.md) | **The decision**: A as base, exact tokens mapped to `Theme.swift`, motion values, ordered change list |
 
-**Recommendation: A as the base, with B's material rules and C's mono-for-paths detail.** See the end of this file.
+**Recommendation: A as the base, with B's material rules and C's mono-for-paths detail.** The concrete version is [final-direction.md](final-direction.md). The proposals were revised after the panel reviews (see `docs/research/panel/`): the island and Tray now differ per direction and use the real two-row structure, B's glass morph is cut and its window rejected, and every text token is measured against WCAG.
 
 ## How the references were found (honest note)
 
@@ -122,8 +123,8 @@ From `docs/assets/*.png` and `app/Sources/Kanso/Theme.swift`. Specific, in rough
 13. "Downloads → ✨ My Shelves → Documents" is set in a monospace chip while everything else is SF/serif: a fourth type voice. (C embraces mono deliberately; A and B should not use it.)
 
 **Island (`island-*.png`, `Island.swift`, `IslandViews.swift`)**
-14. In the compact island the shortcut chip is truncated to "⌥..." in three of four states; in the expanded card "Extra copy · 120 MB · id..." is truncated. Truncating a shortcut is a bug; drop the chip to icon-only after the first dwell.
-15. The bottom of the expanded island fades black to grey ("ears melting into glass"). In the screenshot it reads as a smudge under the ask field and drops contrast of "esc to close" (about grey on dark grey). Use a clean edge with a thin 0.5 px highlight; keep the glass for the capsule skin.
+14. (Cause found: the notch skin leaves only 38 pt beside the cutout at width `notch + 110`; final-direction widens it to `notch + 140`.) In the compact island the shortcut chip is truncated to "⌥..." in three of four states; in the expanded card "Extra copy · 120 MB · id..." is truncated. Truncating a shortcut is a bug; drop the chip to icon-only after the first dwell.
+15. **Owner call, not a defect.** The bottom of the expanded island melts into glass ("ears melting into glass", Droppy-style): a recorded owner decision in AGENTS.md. The smudge under the ask field and the low contrast of "esc to close" are real: confine the melt to the last 12 pt and keep the esc row on solid black. The clean edge with a 0.5 px highlight is only a proposal for the owner.
 16. Both thumbnails in the duplicates card are identical white page glyphs, so the "Kept" vs "Extra copy" distinction relies on 11 pt grey captions.
 17. In the compact states the icon sits left, the text is centred and the chip right: three alignment axes in 360 px. Left-align icon + text, keep the chip at the far right.
 

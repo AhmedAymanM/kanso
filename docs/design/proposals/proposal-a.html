@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Kanso · Proposal A · Paper & Ink</title><style>:root{--bg:#F4F2EE;--card:#fff;--sep:rgba(0,0,0,.1);--text:#1D1D1F;--text2:#6E6E73;--mintbg:#CFE8D8;--mintfg:#2E5A4B;--butterbg:#F7E4B5;--butterfg:#7E531B;--peribg:#D9E0FA;--perifg:#3C509A;--glass:rgba(251,250,248,.78);--shadow:0 8px 28px rgba(0,0,0,.12);--ink:#2E5A4B;--hero:#2E5A4B;--herofg:#F4F2EE;}[data-theme=dark]{--bg:#1C1C1E;--card:#2C2C2E;--sep:rgba(255,255,255,.12);--text:#F5F5F7;--text2:#A1A1A6;--mintbg:#2D3A37;--mintfg:#BFE3D0;--butterbg:#453828;--butterfg:#F3D79B;--peribg:#31374E;--perifg:#C9D3FF;--glass:rgba(42,42,44,.7);--shadow:0 8px 28px rgba(0,0,0,.5);--ink:#BFE3D0;--hero:#243A33;--herofg:#E8F3EC;}@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#1C1C1E;--card:#2C2C2E;--sep:rgba(255,255,255,.12);--text:#F5F5F7;--text2:#A1A1A6;--mintbg:#2D3A37;--mintfg:#BFE3D0;--butterbg:#453828;--butterfg:#F3D79B;--peribg:#31374E;--perifg:#C9D3FF;--glass:rgba(42,42,44,.7);--shadow:0 8px 28px rgba(0,0,0,.5);--ink:#BFE3D0;--hero:#243A33;--herofg:#E8F3EC;}}:root{--sans:-apple-system,"SF Pro Text",system-ui,sans-serif;--serif:ui-serif,"New York",Georgia,serif;--isl-r:34px;--ask-r:14px;--dur:420ms;--ease:cubic-bezier(.2,.8,.2,1)}
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Kanso · Proposal A · Paper & Ink</title><style>:root{--bg:#F4F2EE;--card:#fff;--sep:rgba(0,0,0,.1);--text:#1D1D1F;--text2:#636368;--text3:#666669;--ctl:#8A8A8E;--fillc:rgba(0,0,0,.05);--fillc2:rgba(0,0,0,.1);--sbar:#ECE8E1;--ink:#2E5A4B;--mintbg:#CFE8D8;--mintfg:#2E5A4B;--butterbg:#F7E4B5;--butterfg:#7E531B;--peribg:#D9E0FA;--perifg:#3C509A;--glass:rgba(251,250,248,.92);--shadow:0 8px 28px rgba(0,0,0,.12);--ink:#2E5A4B;--hero:#2E5A4B;--herofg:#F4F2EE;}[data-theme=dark]{--bg:#1C1C1E;--card:#2C2C2E;--sep:rgba(255,255,255,.12);--text:#F5F5F7;--text2:#A1A1A6;--text3:#9C9CA2;--ctl:#78787D;--fillc:rgba(255,255,255,.07);--fillc2:rgba(255,255,255,.12);--sbar:#232325;--mintbg:#2D3A37;--mintfg:#BFE3D0;--butterbg:#453828;--butterfg:#F3D79B;--peribg:#31374E;--perifg:#C9D3FF;--glass:rgba(42,42,44,.92);--shadow:0 8px 28px rgba(0,0,0,.5);--ink:#BFE3D0;--hero:#243A33;--herofg:#E8F3EC;}@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#1C1C1E;--card:#2C2C2E;--sep:rgba(255,255,255,.12);--text:#F5F5F7;--text2:#A1A1A6;--text3:#9C9CA2;--ctl:#78787D;--fillc:rgba(255,255,255,.07);--fillc2:rgba(255,255,255,.12);--sbar:#232325;--mintbg:#2D3A37;--mintfg:#BFE3D0;--butterbg:#453828;--butterfg:#F3D79B;--peribg:#31374E;--perifg:#C9D3FF;--glass:rgba(42,42,44,.92);--shadow:0 8px 28px rgba(0,0,0,.5);--ink:#BFE3D0;--hero:#243A33;--herofg:#E8F3EC;}}:root{--nmintbg:#CFE8D8;--nmintfg:#2E5A4B;--nperibg:#D9E0FA;--nperifg:#3C509A;--sans:-apple-system,"SF Pro Text",system-ui,sans-serif;--serif:ui-serif,"New York",Georgia,serif;--isl-r:34px;--ask-r:14px;--dur:420ms;--ease:cubic-bezier(.2,.8,.2,1)}
 *{box-sizing:border-box;margin:0}
 body{font:13px/1.4 var(--sans);background:var(--bg);color:var(--text);padding:28px;-webkit-font-smoothing:antialiased}
 h1{font:600 12px var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--text2);margin:34px 0 14px}
@@ -6,91 +6,121 @@ button{font:inherit;color:inherit;cursor:pointer}
 kbd{font:600 11px var(--sans);opacity:.6;margin-left:6px}
 .dim{color:var(--text2)}
 .bar{display:flex;gap:12px;align-items:center;margin-bottom:6px}.bar b{font:600 15px var(--sans)}
-.bar button{margin-left:auto;border:1px solid var(--sep);background:var(--card);padding:5px 12px;border-radius:99px}
+.bar button{margin-left:auto;border:1px solid var(--ctl);background:var(--card);padding:5px 12px;border-radius:99px}
 .cap{font-size:11px;color:var(--text2);margin-top:10px;text-align:center}
+
 .stage{display:flex;flex-direction:column;align-items:center;margin:0 0 26px}
-.ic{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:7px;font-size:12px}
+.ic{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:7px;font-size:12px;flex:none}
 .mint{background:var(--mintbg);color:var(--mintfg)}.butter{background:var(--butterbg);color:var(--butterfg)}.peri{background:var(--peribg);color:var(--perifg)}
-.notch{background:#000;color:#fff;border-radius:0 0 var(--isl-r) var(--isl-r);padding:14px 18px 12px;position:relative}
-.notch .dim{color:rgba(255,255,255,.62)}
-.notch.compact{width:360px;display:flex;align-items:center;gap:10px;min-height:44px}
-.notch.compact .t{flex:1;text-align:center;font-weight:600}
-.notch.compact kbd{background:rgba(255,255,255,.12);padding:2px 6px;border-radius:6px;opacity:1}
-.notch.expanded,.notch.tray{width:460px}
-.notch .head{display:flex;gap:6px;align-items:center;margin-bottom:12px}.notch .head b{font-weight:600}
-.pair{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:12px}.pair div{display:flex;flex-direction:column}.pair strong{font:600 16px var(--sans)}
-.acts{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
-.notch button{background:rgba(255,255,255,.12);border:0;border-radius:99px;padding:6px 12px;color:#fff}
-.notch button.go{background:var(--mintbg);color:var(--mintfg);font-weight:600}
-.ask{border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.05);border-radius:var(--ask-r);padding:9px 12px;color:rgba(255,255,255,.62);display:flex;justify-content:space-between;margin-bottom:12px}
-.lip{display:flex;justify-content:space-between;align-items:center;font-size:11px;padding-top:2px}
-.lipbtns{display:flex;gap:6px}.lipbtns i{font-style:normal;background:rgba(255,255,255,.14);border-radius:99px;padding:3px 9px}
-.capsule{display:flex;gap:10px;align-items:center;padding:8px 16px 8px 10px;border-radius:99px;background:var(--glass);border:1px solid var(--sep);backdrop-filter:blur(24px) saturate(1.4);box-shadow:var(--shadow)}
-.traygrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(480px,1fr));gap:26px 18px;justify-items:center}
-figure{display:flex;flex-direction:column;align-items:center}figcaption{font-size:11px;color:var(--text2);margin-top:10px}
-.well{border:1.5px dashed rgba(255,255,255,.28);border-radius:var(--ask-r);padding:26px;text-align:center;display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
-.well small{color:rgba(255,255,255,.55)}.well.on{border-color:var(--mintbg);background:rgba(207,232,216,.12)}
-.items{list-style:none;padding:0;margin-bottom:12px;display:flex;flex-direction:column;gap:2px}
-.items li{display:grid;grid-template-columns:22px 1fr auto auto;gap:8px;align-items:center;padding:7px 8px;border-radius:10px}.items li:hover{background:rgba(255,255,255,.07)}
-.items u{text-decoration:none;opacity:.5}.items em{font-style:normal;font-size:10px;background:var(--peribg);color:var(--perifg);padding:1px 6px;border-radius:99px;margin-left:4px}
-.dest{font-weight:600}.conf{font-size:10px;color:rgba(255,255,255,.55);text-align:right}
-.items li:has(.dest){grid-template-columns:22px 1fr auto 88px}
+.notch{--nh:32px;--cut:200px;--ear:10px;--isl-r:20px;width:var(--w,340px);background:#000;color:#fff;position:relative;border-radius:0 0 var(--isl-r) var(--isl-r)}
+.notch::before,.notch::after{content:"";position:absolute;top:0;width:var(--ear);height:var(--ear);pointer-events:none}
+.notch::before{left:calc(var(--ear) * -1);background:radial-gradient(circle at 0 100%,transparent calc(var(--ear) - .5px),#000 var(--ear))}
+.notch::after{right:calc(var(--ear) * -1);background:radial-gradient(circle at 100% 100%,transparent calc(var(--ear) - .5px),#000 var(--ear))}
+.notch .dim{color:rgba(255,255,255,.7)}
+.notch kbd{opacity:1;color:rgba(255,255,255,.7);margin-left:6px}
+.cut{width:var(--cut);height:var(--nh);flex:none;border:1px dashed rgba(255,255,255,.3);border-top:0;border-radius:0 0 12px 12px}
+.n-r1{height:var(--nh);display:flex;align-items:center;justify-content:space-between;padding:0 14px}
+.n-top{height:var(--nh);display:flex;justify-content:center}
+.chip{font:600 11px var(--sans);background:rgba(255,255,255,.14);padding:3px 8px;border-radius:6px;white-space:nowrap;color:#fff}
+.notch.compact{--w:340px}
+.notch.compact .t{text-align:center;font-weight:600;padding:2px 14px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.notch.compact .clearlip{height:34px}
+.notch.expanded,.notch.tray{--w:480px;--isl-r:30px}
+.xb{padding:6px 20px 0}
+.notch .head{display:flex;gap:8px;align-items:center;margin-bottom:12px;white-space:nowrap}.notch .head b{font-weight:600;font-size:15px}
+.notch .head .go{margin-left:auto}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:12px}.pair div{display:flex;flex-direction:column;min-width:0}.pair strong{font:600 15px var(--sans);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.acts{display:flex;gap:8px;margin-bottom:12px}
+.notch button{background:rgba(255,255,255,.14);border:0;border-radius:99px;padding:6px 12px;min-height:28px;color:#fff;white-space:nowrap}
+.notch button.go{background:var(--nmintbg);color:var(--nmintfg);font-weight:600}
+.notch button.go kbd{color:inherit}
+.ask{border:1px solid rgba(255,255,255,.4);background:rgba(255,255,255,.05);border-radius:var(--ask-r);padding:9px 12px;color:rgba(255,255,255,.7);display:flex;justify-content:space-between;margin-bottom:12px}
+.xlip{display:flex;justify-content:space-between;align-items:center;font-size:11px;padding:0 20px 16px}
+.lipbtns{display:flex;gap:6px}.lipbtns i{font-style:normal;background:rgba(255,255,255,.14);border-radius:99px;min-width:28px;height:28px;display:grid;place-items:center;color:#fff}
+.capsule{display:flex;gap:10px;align-items:center;width:320px;height:38px;padding:0 12px;border-radius:22px;background:var(--glass);color:var(--text);border:1px solid var(--ctl);backdrop-filter:blur(24px) saturate(1.4);box-shadow:var(--shadow)}
+.capsule .t{flex:1;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.capsule .chip{background:var(--fillc);color:var(--text2)}
+.menubar{width:520px;height:24px;background:rgba(0,0,0,.08);border-radius:6px 6px 0 0;margin-bottom:6px;font-size:11px;display:flex;align-items:center;padding:0 10px;color:var(--text2)}
+.traygrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(520px,1fr));gap:26px 18px;justify-items:center}
+figure{display:flex;flex-direction:column;align-items:center}figcaption{font-size:11px;color:var(--text2);margin-top:10px;max-width:520px;text-align:center}
+.well{border:1.5px dashed rgba(255,255,255,.4);border-radius:var(--ask-r);padding:26px;text-align:center;display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+.well small{color:rgba(255,255,255,.7);font-size:12px}
+.notch.tray.on{outline:2px dashed var(--nmintbg);outline-offset:-2px}.notch.tray.on .well{border-color:var(--nmintbg);background:rgba(207,232,216,.12)}
+.items{list-style:none;padding:0;margin:0 0 12px;display:flex;flex-direction:column;gap:2px}
+.items li{display:grid;grid-template-columns:22px minmax(0,1fr) auto 44px;gap:8px;align-items:center;min-height:40px;padding:4px 0 4px 8px;border-radius:10px}.items li:hover{background:rgba(255,255,255,.07)}
+.items li.plan{grid-template-columns:22px minmax(0,1fr) auto}
+.nm{display:flex;flex-direction:column;min-width:0}.nm b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}.nm small{font-size:11px;color:rgba(255,255,255,.7);white-space:nowrap}
+.src{font-size:12px;color:rgba(255,255,255,.7);white-space:nowrap}
+.x{width:44px;height:44px;margin:-8px 0;display:grid;place-items:center;background:none!important;color:rgba(255,255,255,.7)!important;padding:0!important}
+.dest{font-weight:600;white-space:nowrap;padding-right:8px}.dest em{font-style:normal;font-size:11px;background:var(--nperibg);color:var(--nperifg);padding:1px 6px;border-radius:99px;margin-left:4px}
+.swap .b{display:none}.swap.open .a{display:none}.swap.open .b{display:flex;flex-direction:column;align-items:center}.swap{cursor:pointer}
+.states{display:flex;gap:14px;flex-wrap:wrap;align-items:center}.states button{border:1px solid var(--ctl);background:var(--card);border-radius:99px;padding:6px 14px;min-height:28px}
+.states .hov{background:var(--fillc)}.states .foc{outline:2px solid var(--ink);outline-offset:2px}.states .prs{transform:scale(.97);background:var(--fillc2)}.states .dis{opacity:.45;border-style:dashed}
+.states .pr{background:var(--mintbg);color:var(--mintfg);border-color:transparent;font-weight:600}
 @media (prefers-reduced-motion:no-preference){.notch{transition:all var(--dur) var(--ease)}}
+
+.notch{--isl-r:20px}.notch.expanded,.notch.tray{--isl-r:30px}
+.melt{height:12px;background:linear-gradient(#000,#3a3d3b);border-radius:0 0 var(--isl-r) var(--isl-r)}
+.notch.compact .clearlip{height:22px}
+.card.slim{display:flex;align-items:center;gap:12px;height:56px;padding:0 16px}
+.tb{display:flex;align-items:center;gap:8px;height:44px;padding:0 14px;border-bottom:1px solid var(--sep)}.tb b{font:600 15px var(--sans);margin:0 auto}.tl{width:12px;height:12px;border-radius:50%;background:#FF5F57;display:inline-block}.tl+.tl{background:#FEBC2E}.tl+.tl+.tl{background:#28C840}
+.win2{max-width:980px;margin:0 auto;background:var(--bg);border:1px solid var(--sep);border-radius:18px;overflow:hidden;box-shadow:var(--shadow)}
+.split{display:grid;grid-template-columns:220px 1fr;min-height:340px}.sbar{background:var(--sbar);padding:14px 10px;border-right:1px solid var(--sep)}.sbar p{padding:7px 12px;border-radius:10px;color:var(--text2)}.sbar p.on{background:var(--fillc);color:var(--text);font-weight:600}
+.det{padding:24px 28px}.det h2{font:400 22px/1.2 var(--serif)}.alist{display:flex;flex-direction:column;gap:2px;margin-top:14px}.alist div{display:grid;grid-template-columns:24px 1fr auto;gap:10px;padding:8px;border-radius:10px;align-items:center}.alist .sel{background:var(--fillc)}
+.mono{font:12px ui-monospace,"SF Mono",Menlo,monospace}.pathl{color:var(--text2)}
+
 
 .win{max-width:980px;margin:0 auto;background:var(--bg);border:1px solid var(--sep);border-radius:18px;padding:34px 36px;box-shadow:var(--shadow)}
 .win h2{font:400 40px/1.1 var(--serif);letter-spacing:-.01em}.win .sub{color:var(--text2);font-size:15px;margin:6px 0 24px}
 .row{display:grid;gap:14px}.top{grid-template-columns:1fr 2fr}
-.hero{background:var(--hero);color:var(--herofg);border-radius:20px;padding:24px}.hero .n{font:400 64px/1 var(--serif)}.hero p{opacity:.8;margin-top:10px}
-.card{background:var(--card);border:1px solid var(--sep);border-radius:20px;padding:20px}.card h3{font:600 15px var(--sans)}
-.needs{display:flex;gap:14px;align-items:center}.needs .ic{width:44px;height:44px;border-radius:14px;font-size:18px}
-.needs .acts{display:flex;gap:8px;margin-top:10px}.needs button{border:1px solid var(--sep);background:var(--bg);padding:6px 14px;border-radius:99px}.needs button.p{background:var(--mintbg);color:var(--mintfg);border-color:transparent;font-weight:600}
+.hero{background:var(--hero);color:var(--herofg);border-radius:14px;padding:24px}.hero .n{font:400 64px/1 var(--serif)}.hero p{opacity:.8;margin-top:10px}
+.card{background:var(--card);border:1px solid var(--sep);border-radius:14px;padding:16px}.card h3{font:600 15px var(--sans)}
+.needs{display:flex;gap:14px;align-items:center}.needs .ic{width:44px;height:44px;border-radius:14px;font-size:17px}
+.needs .acts{display:flex;gap:8px;margin-top:10px}.needs button{border:1px solid var(--ctl);background:var(--bg);padding:6px 14px;border-radius:99px}.needs button.p{background:var(--mintbg);color:var(--mintfg);border-color:transparent;font-weight:600}
 .mid{grid-template-columns:2fr 1fr;margin-top:14px}.bars{display:flex;gap:3px;align-items:flex-end;height:70px;margin:14px 0 6px}.bars i{flex:1;background:var(--text);opacity:.85;border-radius:3px}.bars i.t{background:var(--ink);opacity:1}
 .shelf{display:grid;grid-template-columns:22px 1fr auto;gap:8px;padding:6px 0}
 .quiet{margin-top:14px;display:flex;gap:26px;color:var(--text2)}.quiet b{font:400 22px var(--serif);color:var(--text);margin-right:6px}
 </style></head><body><div class="bar"><b>Proposal A · Paper &amp; Ink</b><span class="dim">Evolves today’s identity: warm paper, serif numerals, one mint ink. Glass only on things that float.</span><button data-t>Light / Dark</button></div>
 <h1>Overview</h1>
 <div class="win"><h2>Your Mac is in order.</h2><p class="sub">14 files placed today. Nothing needs you.</p>
-<div class="row top"><div class="hero"><span class="dim" style="color:inherit;opacity:.7;letter-spacing:.06em;font-size:11px;text-transform:uppercase">Kept in order</span><div class="n">56</div><p>files placed on the right shelf since October. 100% stayed where Kanso put them.</p></div>
+<div class="row top"><div class="hero"><span class="dim" style="color:inherit;opacity:.85;letter-spacing:.06em;font-size:11px;text-transform:uppercase">Kept in order</span><div class="n">56</div><p>files placed on the right shelf since October. 100% stayed where Kanso put them.</p></div>
 <div class="card"><h3>Needs you · 1</h3><div class="needs" style="margin-top:14px"><span class="ic butter">⧉</span><div><b>Copy of assets.zip</b><div class="dim">Same size and content as assets.zip in Archives. Held on Duplicates.</div><div class="acts"><button class="p">Move copy to Trash</button><button>Keep both</button><button>Later</button></div></div></div></div></div>
 <div class="row mid"><div class="card"><h3>October</h3><div class="dim">Files placed each day · busiest Oct 5</div><div class="bars"><i class="" style="height:40px"></i><i class="" style="height:22px"></i><i class="" style="height:34px"></i><i class="" style="height:26px"></i><i class="" style="height:60px"></i><i class="" style="height:18px"></i><i class="" style="height:30px"></i><i class="" style="height:14px"></i><i class="" style="height:22px"></i><i class="t" style="height:10px"></i></div><div class="dim" style="display:flex;justify-content:space-between"><span>1 Oct</span><span>Today</span></div></div>
 <div class="card"><h3>Where files went</h3><div class="shelf"><span>📄</span><span>Documents</span><span class="dim">11</span></div><div class="shelf"><span>🖼️</span><span>Images</span><span class="dim">11</span></div><div class="shelf"><span>📽️</span><span>Presentations</span><span class="dim">7</span></div><div class="shelf"><span>📊</span><span>Reports</span><span class="dim">6</span></div></div></div>
 <div class="quiet"><span><b>3</b>renamed</span><span><b>3</b>tagged</span><span><b>168 MB</b>copies held</span><span><b>0</b>installers ejected</span></div></div>
-<h1>Island</h1>
-<div class="stage">
-  <div class="notch compact"><span class="ic peri">✎</span><span class="t">Renamed Contract-Telia-2026-08.pdf</span><kbd>⌥⌘K</kbd></div>
-  <p class="cap">Compact island · notch skin · never takes focus</p>
-</div>
-<div class="stage">
-  <div class="notch expanded">
-    <div class="head"><span class="ic butter">⧉</span><b>Copy of assets.zip held</b><span class="dim"> · 59 min ago</span></div>
-    <div class="pair"><div><span class="dim">Kept</span><strong>assets.zip</strong><span class="dim">Archives</span></div><div><span class="dim">Extra copy · 120 MB</span><strong>assets (1).zip</strong><span class="dim">Duplicates</span></div></div>
-    <div class="acts"><button>Undo <kbd>⌘Z</kbd></button><button>Move copy to Trash <kbd>⌘⌫</kbd></button><button>Keep both</button></div>
-    <div class="ask">✦ Ask about these files… <kbd>Tab</kbd></div>
-    <div class="lip"><span class="dim">esc to close</span><span class="lipbtns"><i>⌨</i><i>⚙</i></span></div>
-  </div>
-  <p class="cap">Expanded island · needs-you card · ask field · lip</p>
-</div>
-<div class="stage">
-  <div class="capsule"><span class="ic mint">✓</span><span class="t">Nothing needs you · 14 handled</span></div>
-  <p class="cap">Capsule skin (no notch / below-the-notch mode) · Liquid Glass on macOS 26, material before, solid with Reduce Transparency</p>
-</div><h1>Tray (v2)</h1>
-<div class="traygrid">
- <figure><div class="notch tray empty"><div class="head"><b>Tray</b><span class="dim">Nothing carried yet</span></div>
-   <div class="well"><span>Drop files, links or text here</span><small>or paste with ⌘V</small></div>
-   <div class="lip"><span class="dim">esc to close</span><span class="lipbtns"><i>⌨</i><i>⚙</i></span></div></div>
-   <figcaption>1 · Empty (opened with the Tray button or ⌘T)</figcaption></figure>
- <figure><div class="notch tray hover"><div class="head"><b>Tray</b><span class="dim">Release to keep 3 things</span></div>
-   <div class="well on"><span>Release to add to the Tray</span><small>2 files · 1 link</small></div>
-   <div class="lip"><span class="dim">Nothing moves until you Organize</span></div></div>
-   <figcaption>2 · Drag over (the island grows toward the pointer)</figcaption></figure>
- <figure><div class="notch tray full"><div class="head"><b>Tray</b><span class="dim">Carrying 4</span><button class="go">Organize <kbd>↩</kbd></button></div>
-   <ul class="items"><li><i>📄</i><b>Lease-2026.pdf</b><span class="dim">file · Downloads</span><u>✕</u></li><li><i>🖼️</i><b>moodboard.png</b><span class="dim">file · Desktop</span><u>✕</u></li><li><i>🔗</i><b>apple.com/newsroom</b><span class="dim">link</span><u>✕</u></li><li><i>📝</i><b>“Call Marta re: keys…”</b><span class="dim">snippet</span><u>✕</u></li></ul>
-   <div class="ask">✦ Ask about the Tray… <kbd>Tab</kbd></div>
-   <div class="lip"><span class="dim">Files stay where they are until you Organize</span><span class="lipbtns"><i>⌨</i><i>⚙</i></span></div></div>
-   <figcaption>3 · Carrying (items are references; ✕ forgets, never deletes)</figcaption></figure>
- <figure><div class="notch tray plan"><div class="head"><b>Organize 4 things</b><span class="dim">Reviewed by you · moves only</span></div>
-   <ul class="items"><li><i>📄</i><b>Lease-2026.pdf</b><span class="dest">→ 📄 Documents</span><span class="conf">metadata</span></li><li><i>🖼️</i><b>moodboard.png</b><span class="dest">→ 🖼️ Images</span><span class="conf">metadata</span></li><li><i>🔗</i><b>apple.com/newsroom</b><span class="dest">→ 🔗 Links <em>new</em></span><span class="conf">asks Apple Intelligence</span></li><li><i>📝</i><b>Call Marta…</b><span class="dest">→ 📝 Notes <em>new</em></span><span class="conf">reads text on this Mac</span></li></ul>
-   <div class="acts"><button class="go">Move 4 <kbd>↩</kbd></button><button>Change a shelf…</button><button>Not now <kbd>esc</kbd></button></div>
-   <div class="lip"><span class="dim">Undo ⌘Z after. Nothing is trashed.</span></div></div>
-   <figcaption>4 · Organize plan (a preview, then one undoable run)</figcaption></figure>
-</div><script>document.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{const r=document.documentElement;r.dataset.theme=(r.dataset.theme==='dark'||(!r.dataset.theme&&matchMedia('(prefers-color-scheme:dark)').matches))?'light':'dark'})</script></body></html>
+<h1>Overview, nothing to do (the common state)</h1>
+<div class="win"><h2>Your Mac is in order.</h2><p class="sub">14 files placed today. Nothing needs you.</p>
+<div class="row top" style="grid-template-columns:1fr 2fr"><div class="hero"><span style="letter-spacing:.06em;font-size:11px;text-transform:uppercase;opacity:.85">Kept in order</span><div class="n">56</div><p>files placed on the right shelf since October.</p></div>
+<div class="card" style="display:flex;flex-direction:column;gap:10px"><div class="card slim" style="border:0;padding:0;height:56px"><span class="ic mint">✓</span><span><b>Nothing needs you</b> <span class="dim">· 14 handled</span></span></div><h3>October</h3><div class="bars" style="height:56px;margin:4px 0"><i style="height:40px"></i><i style="height:22px"></i><i style="height:34px"></i><i style="height:26px"></i><i style="height:48px"></i><i style="height:18px"></i><i style="height:30px"></i><i style="height:14px"></i><i style="height:22px"></i><i class="t" style="height:10px"></i></div></div></div>
+<p class="dim" style="margin-top:12px;font-size:11px">The Needs-you card collapses to a 56 pt line (spring, response 0.35 on the frame height) and the month chart rises into the freed space.</p></div>
+<h1>Activity detail, with toolbar and sidebar</h1>
+<div class="win2"><div class="tb"><span class="tl"></span><span class="tl"></span><span class="tl"></span><b>Activity</b></div>
+<div class="split"><div class="sbar"><p>Overview</p><p class="on">Activity <span class="dim">· 1</span></p><p>Sorting</p><p>Renaming</p><p>Duplicates</p></div>
+<div class="det"><h2>Copy of assets.zip was held</h2><p class="dim" style="margin-top:4px">Today, 09:41 · Downloads → Duplicates</p>
+<div class="card" style="margin-top:14px"><h3>How Kanso decided</h3><p class="dim" style="margin-top:6px">Same size and SHA-256 as <span class="mono">Archives/assets.zip</span>. The keeper stays.</p><p class="mono pathl" style="margin-top:8px">Downloads/assets (1).zip → My Shelves/Duplicates</p><div class="acts" style="display:flex;gap:8px;margin-top:12px"><button style="border:1px solid transparent;padding:6px 14px;border-radius:99px;font-weight:600;background:var(--mintbg);color:var(--mintfg)">Keep both</button><button style="border:1px solid var(--ctl);background:var(--bg);padding:6px 14px;border-radius:99px">Move copy to Trash</button></div></div>
+<div class="alist"><div class="sel"><span class="ic butter">⧉</span><span>Copy of assets.zip</span><span class="dim">09:41</span></div><div><span class="ic peri">✎</span><span>Contract-Telia-2026-08.pdf</span><span class="dim">Yesterday</span></div></div></div></div></div>
+<h1>Control states</h1><div class="states"><button>Default</button><button class="hov">Hover</button><button class="foc">Focus ring (2 pt ink, 2 pt offset)</button><button class="prs">Pressed</button><button class="dis" aria-disabled="true">Disabled</button><button class="pr">Primary</button></div>
+<h1>Island (notch skin, real two-row structure)</h1>
+<div class="stage swap" data-swap><div class="a"><div class="notch compact" style="--w:340px"><div class="n-r1"><span class="ic peri">✎</span><span class="cut" title="Hardware notch, about 200 x 32 pt (read from the screen's safe area)"></span><span class="chip">⌥⌘K</span></div><div class="t">Renamed Contract-Telia-2026-08.pdf</div><div class="clearlip"></div><div class="melt" aria-hidden="true"></div></div></div><div class="b"><div class="notch expanded"><div class="n-top"><span class="cut"></span></div><div class="xb">
+<div class="head"><span class="ic butter">⧉</span><b>Copy of assets.zip held</b><span class="dim"> · 59 min ago</span></div>
+<div class="pair"><div><span class="dim">Kept</span><strong>assets.zip</strong><span class="dim">Archives</span></div><div><span class="dim">Extra copy · 120 MB</span><strong>assets (1).zip</strong><span class="dim">Duplicates</span></div></div>
+<div class="acts"><button>Undo <kbd>⌘Z</kbd></button><button>Move copy to Trash <kbd>⌘⌫</kbd></button><button>Keep both</button></div>
+<div class="ask">✦ Ask about these files… <kbd>Tab</kbd></div></div>
+<div class="xlip"><span class="dim">esc to close</span><span class="lipbtns"><i aria-label="Keyboard shortcuts">⌨</i><i aria-label="Settings">⚙</i></span></div><div class="melt" aria-hidden="true"></div></div></div>
+<p class="cap">Click to switch compact / expanded. Compact: row 1 is the notch height (32 pt) with the 24 pt tile left, the 200 pt cutout, the chip right (room for 68 pt, so the key is not truncated); row 2 is the centred line; the last 12 pt melts into glass (owner decision, kept).</p></div>
+<div class="stage"><div class="capsule"><span class="ic mint">✓</span><span class="t">Nothing needs you · 14 handled</span><span class="chip">⌥⌘K</span></div><p class="cap">Capsule skin: 320 × 38, one row, glass at 92% fill so secondary text holds 4.5:1 over any backdrop.</p></div>
+<h1>Tray (v2, files only)</h1><div class="traygrid"><figure><div class="notch tray empty"><div class="n-top"><span class="cut"></span></div><div class="xb"><div class="head"><b>Tray</b><span class="dim">Nothing carried yet</span></div>
+<div class="well"><span>Drop files here</span><small>or paste with ⌘V · or use the Finder service “Add to Kanso Tray”</small></div></div><div class="xlip"><span class="dim">esc to close</span><span class="lipbtns"><i aria-label="Keyboard shortcuts">⌨</i><i aria-label="Settings">⚙</i></span></div><div class="melt" aria-hidden="true"></div></div>
+<figcaption>1 · Empty. Opened with the lip button or ⌘T. Files only in v2.</figcaption></figure>
+<figure><div class="notch tray on"><div class="n-top"><span class="cut"></span></div><div class="xb"><div class="head"><b>Tray</b><span class="dim">Release to add 3 files</span></div>
+<div class="well"><span>Release to add to the Tray</span><small>3 files · nothing moves until you Organize</small></div></div><div class="xlip"><span class="dim">The whole island is the drop target</span></div><div class="melt" aria-hidden="true"></div></div>
+<figcaption>2 · Drag over. Grows after a 250 ms dwell in the 160 × 44 pt zone; the dashed outline marks the drop target.</figcaption></figure>
+<figure><div class="notch tray"><div class="n-top"><span class="cut"></span></div><div class="xb"><div class="head"><b>Tray</b><span class="dim">Carrying 4</span><button class="go">Organize <kbd>↩</kbd></button></div>
+<ul class="items" role="list"><li><i>📄</i><span class="nm"><b>Lease-2026.pdf</b><small>Downloads</small></span><span class="src">file</span><button class="x" aria-label="Forget Lease-2026.pdf">✕</button></li>
+<li><i>🖼️</i><span class="nm"><b>moodboard.png</b><small>Desktop</small></span><span class="src">file</span><button class="x" aria-label="Forget moodboard.png">✕</button></li>
+<li><i>📦</i><span class="nm"><b>site-assets.zip</b><small>Downloads</small></span><span class="src">file</span><button class="x" aria-label="Forget site-assets.zip">✕</button></li>
+<li><i>🔒</i><span class="nm"><b>deploy.pem</b><small>Desktop · never read</small></span><span class="src">file</span><button class="x" aria-label="Forget deploy.pem">✕</button></li></ul><div class="ask">✦ Ask about the Tray… <kbd>Tab</kbd></div></div><div class="xlip"><span class="dim">Files stay where they are until you Organize</span><span class="lipbtns"><i aria-label="Keyboard shortcuts">⌨</i><i aria-label="Settings">⚙</i></span></div><div class="melt" aria-hidden="true"></div></div>
+<figcaption>3 · Carrying. Items are references; ✕ (44 pt hit area) forgets, never deletes. ⌥↑ ⌥↓ reorders.</figcaption></figure>
+<figure><div class="notch tray"><div class="n-top"><span class="cut"></span></div><div class="xb"><div class="head"><b>Organize 4 files</b><span class="dim">Moves only</span></div>
+<ul class="items" role="list"><li class="plan"><i>📄</i><span class="nm"><b>Lease-2026.pdf</b><small>Downloads · by file type</small></span><span class="dest">→ 📄 Documents</span></li><li class="plan"><i>🖼️</i><span class="nm"><b>moodboard.png</b><small>Desktop · by file type</small></span><span class="dest">→ 🖼️ Images</span></li><li class="plan"><i>🎨</i><span class="nm"><b>brand.afdesign</b><small>Downloads · asks Apple Intelligence</small></span><span class="dest">→ 🎨 Design <em>new shelf</em></span></li><li class="plan"><i>🔒</i><span class="nm"><b>deploy.pem</b><small>Desktop · by file type, never read</small></span><span class="dest">→ 🔑 Keys</span></li></ul><div class="acts"><button class="go">Move 4 <kbd>↩</kbd></button><button>Change a shelf…</button><button>Not now <kbd>esc</kbd></button></div></div><div class="xlip"><span class="dim">Undo ⌘Z after. Nothing is trashed.</span></div><div class="melt" aria-hidden="true"></div></div>
+<figcaption>4 · Plan. The basis sits on its own line under the name, so nothing wraps and no destination is truncated.</figcaption></figure></div><script>document.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{const r=document.documentElement;r.dataset.theme=(r.dataset.theme==='dark'||(!r.dataset.theme&&matchMedia('(prefers-color-scheme:dark)').matches))?'light':'dark'})document.querySelectorAll('[data-swap]').forEach(e=>e.onclick=()=>e.classList.toggle('open'));</script></body></html>
