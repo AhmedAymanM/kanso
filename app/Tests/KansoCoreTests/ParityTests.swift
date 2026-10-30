@@ -139,6 +139,52 @@ extension EngineTests {
         XCTAssertTrue(exists(root.appendingPathComponent("b.png")))
     }
 
+    // MARK: Saved views
+
+    func testSavedViewFiltersActionsAndNeverTouchesFiles() async {
+        file("a.pdf"); file("b.png")
+        let done = await run()
+        let before = Set((try? fm.contentsOfDirectory(atPath: shelf("Documents").path)) ?? [])
+        let docs = SavedView(name: "Docs", filter: "All", query: "", shelf: "Documents", days: 7)
+        XCTAssertEqual(done.filter { docs.includes($0) }.map(\.shelf), ["Documents"])
+        XCTAssertEqual(done.filter { SavedView(name: "q", query: "B.PNG").includes($0) }.map(\.shelf), ["Images"], "search is case-insensitive")
+        var old = done[0]; old.ts = Date().addingTimeInterval(-10 * 86400)
+        XCTAssertFalse(docs.includes(old), "older than 7 days")
+        XCTAssertEqual(Set((try? fm.contentsOfDirectory(atPath: shelf("Documents").path)) ?? []), before, "views only filter")
+    }
+
+    func testActivityFiltersMatchTheKindOfAction() {
+        var renamed = action(.renamed); renamed.tags = ["Invoice"]
+        var undone = action(.sorted); undone.undone = true
+        var installer = action(.trashed); installer.details["installer"] = "Figma"
+        let trashedCopy = action(.trashed)
+        XCTAssertTrue(ActivityFilter.renamed.includes(renamed))
+        XCTAssertTrue(ActivityFilter.tagged.includes(renamed))
+        XCTAssertFalse(ActivityFilter.renamed.includes(undone))
+        XCTAssertTrue(ActivityFilter.undone.includes(undone))
+        XCTAssertTrue(ActivityFilter.ejected.includes(installer))
+        XCTAssertFalse(ActivityFilter.duplicates.includes(installer))
+        XCTAssertTrue(ActivityFilter.duplicates.includes(trashedCopy))
+        XCTAssertFalse(ActivityFilter.needs.includes(renamed))
+    }
+
+    func testSavedViewsPersistAndReplaceByName() throws {
+        store.update {
+            XCTAssertTrue($0.saveView(SavedView(name: " Receipts ", filter: "Renamed", shelf: "Documents")))
+            XCTAssertTrue($0.saveView(SavedView(name: "receipts", filter: "Tagged")))   // same name: replaced
+            XCTAssertFalse($0.saveView(SavedView(name: "   ")))
+        }
+        XCTAssertEqual(store.settings.savedViews.count, 1)
+        XCTAssertEqual(store.settings.savedViews[0].filter, "Tagged")
+        let reloaded = Store(dir: tmp.appendingPathComponent("state"))
+        XCTAssertEqual(reloaded.settings.savedViews, store.settings.savedViews)
+        // A view with an unknown filter (from a newer build) still loads and falls back to All.
+        let json = #"{"savedViews": [{"name": "Future", "filter": "Archived"}, {"nope": 1}]}"#
+        let s = try Store.decoder.decode(Settings.self, from: Data(json.utf8))
+        XCTAssertEqual(s.savedViews.map(\.name), ["Future"])
+        XCTAssertTrue(s.savedViews[0].includes(action(.sorted)))
+    }
+
     // MARK: Excludes
 
     func testGlobalExcludesKeepMatchingItemsInPlace() async {
