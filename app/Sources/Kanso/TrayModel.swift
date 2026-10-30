@@ -18,6 +18,7 @@ final class TrayModel: ObservableObject {
 
     @Published var entries: [TrayEntry] = []
     @Published var phase = Phase.list
+    var focusedButton: (label: String, action: () -> Void)?   // the footer button that has keyboard focus (see TrayButton)
     @Published var plan: TrayPlan?
     @Published var overrides: [UUID: String] = [:]   // "Change a shelf…" choices
     @Published var selection = 0
@@ -86,6 +87,14 @@ final class TrayModel: ObservableObject {
     /// this Mac yet and is refused.
     func add(providers: [NSItemProvider]) {
         dropped = true
+        // A real Finder drag can reach SwiftUI as providers that list only the content type (com.adobe.pdf), with no
+        // public.file-url, so they would all be refused. The drag pasteboard still carries the file URLs: use it when it does.
+        let dragged = NSPasteboard(name: .drag).readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? []
+        if !dragged.isEmpty {
+            add(dragged)
+            Island.shared.dropFinished()
+            return
+        }
         var urls: [URL] = []
         var refused: [String] = []
         let group = DispatchGroup()
