@@ -183,6 +183,17 @@ final class AppModel: ObservableObject {
         Binding(get: { self.settings[keyPath: kp] }, set: { v in withAnimation(Motion.spring(0.35)) { self.set(kp, v) } })
     }
 
+    /// Saves a rule the user approved from a plain-English draft, creating its shelf type if it is new.
+    @discardableResult
+    func saveDraftedRule(_ rule: Rule, newShelf: NewShelf?) -> Bool {
+        let ok = engine.saveDraft(rule, newShelf: newShelf)
+        settings = store.settings
+        return ok
+    }
+
+    /// Why the plain-English rule field is hidden; nil when it can be used.
+    var ruleFieldReason: String? { RuleDrafting.unavailableReason(settings, model: ai) }
+
     func update(_ change: (inout Settings) -> Void) {
         store.update(change)
         settings = store.settings
