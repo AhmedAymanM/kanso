@@ -101,6 +101,42 @@ extension EngineTests {
         XCTAssertEqual(Engine.keeperReason(kept: b, copy: a, root: root, setting: .bestNamed), "Its name is as clean as the other copy's")
     }
 
+    // MARK: Excludes
+
+    func testGlobalExcludesKeepMatchingItemsInPlace() async {
+        make(pick: nil) { $0.excludes = ["*.LOG", " Draft* ", ""] }
+        file("a.log"); file("draft-1.pdf"); file("keep.pdf")
+        let plan = await engine.plan()
+        XCTAssertEqual(plan.moves.map(\.item.name), ["keep.pdf"])
+        XCTAssertTrue(plan.waiting.isEmpty)
+        _ = engine.apply(plan.moves)
+        XCTAssertTrue(exists(root.appendingPathComponent("a.log")))
+        XCTAssertTrue(exists(root.appendingPathComponent("draft-1.pdf")))
+    }
+
+    func testSubfolderExcludeIsPerWatchedFolder() async throws {
+        let other = tmp.appendingPathComponent("Desktop")
+        try fm.createDirectory(at: other.appendingPathComponent("Projects"), withIntermediateDirectories: true)
+        try fm.createDirectory(at: root.appendingPathComponent("Projects"), withIntermediateDirectories: true)
+        try fm.createDirectory(at: root.appendingPathComponent("Scratch"), withIntermediateDirectories: true)
+        make(pick: nil) {
+            $0.roots = [self.root.path, other.path]
+            $0.sortFolders = true
+            $0.rootExcludes = [self.root.path: ["projects"]]
+        }
+        let plan = await engine.plan()
+        let names = plan.moves.map { "\($0.item.root.lastPathComponent)/\($0.item.name)" }.sorted()
+        XCTAssertEqual(names, ["Desktop/Projects", "Downloads/Scratch"], "Projects is skipped only in Downloads")
+    }
+
+    func testExcludeAddedAfterPlanningStillWins() async {
+        file("late.pdf")
+        let plan = await engine.plan()
+        store.update { $0.excludes = ["late*"] }
+        XCTAssertTrue(engine.apply(plan.moves).isEmpty)
+        XCTAssertTrue(exists(root.appendingPathComponent("late.pdf")))
+    }
+
     // MARK: Rule preview
 
     func testRulePreviewListsMatchesWithoutSideEffects() throws {

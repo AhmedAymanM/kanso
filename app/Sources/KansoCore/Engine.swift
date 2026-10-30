@@ -105,7 +105,24 @@ public final class Engine: @unchecked Sendable {
     func ignored(_ url: URL) -> Bool {
         let n = url.lastPathComponent
         return n.hasPrefix(".") || n.hasPrefix("~$") || n == "Icon\r" || partialExtensions.contains { n.lowercased().hasSuffix($0) }
-            || Tags.read(url).contains(s.keepTag)
+            || excluded(url, settings: s) || Tags.read(url).contains(s.keepTag)
+    }
+
+    /// The user's excludes: a name glob that matches (any watched folder), or a subfolder named for its watched folder.
+    /// Only the name is looked at, so excluded items are never read, hashed or tagged.
+    func excluded(_ url: URL, settings: Settings) -> Bool {
+        let name = url.lastPathComponent.lowercased()
+        for glob in settings.excludes {
+            let g = glob.trimmingCharacters(in: .whitespaces).lowercased()
+            if !g.isEmpty && fnmatch(g, name, 0) == 0 { return true }
+        }
+        if !settings.rootExcludes.isEmpty {
+            let parent = url.deletingLastPathComponent().standardizedFileURL.path
+            for (root, names) in settings.rootExcludes where URL(fileURLWithPath: (root as NSString).expandingTildeInPath).standardizedFileURL.path == parent {
+                if names.contains(where: { $0.lowercased() == name }) { return true }
+            }
+        }
+        return false
     }
 
     func candidates(all: Bool, now: Date) -> ([(URL, URL, Planned.Stage, Bool)], [Waiting]) {

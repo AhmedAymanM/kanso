@@ -66,6 +66,7 @@ final class SettingsTests: XCTestCase {
             }
             else if v is String { dict[k] = "changed" }
             else if let a = v as? [Any] { dict[k] = (a.isEmpty || a.first is String) ? ["changed"] : [] }   // string lists, or lists of objects
+            else if let o = v as? [String: Any], o.isEmpty { dict[k] = ["changed": ["x"]] }   // a dictionary of string lists
             else if var o = v as? [String: Any] {   // the shortcut
                 for (ik, iv) in o { if let n = iv as? NSNumber { o[ik] = NSNumber(value: n.intValue + 1) } else { o[ik] = "changed" } }
                 dict[k] = o
