@@ -89,6 +89,7 @@ public final class Engine: @unchecked Sendable {
 
     public let store: Store
     public let classifier: Classifier
+    public let tray: TrayStore
     public var setIcon: (URL, String) -> Void = FolderIcon.set
     public var reading: @Sendable (String, Bool) -> Void = { _, _ in }   // (file name, started): lets the island show a slow read
     let fm = FileManager.default
@@ -96,6 +97,7 @@ public final class Engine: @unchecked Sendable {
     public init(store: Store, classifier: Classifier = AppleIntelligence()) {
         self.store = store
         self.classifier = classifier
+        self.tray = TrayStore(dir: store.dir)
     }
 
     var s: Settings { store.settings }
