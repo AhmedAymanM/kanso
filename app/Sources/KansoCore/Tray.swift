@@ -204,11 +204,14 @@ extension Engine {
 
     /// The plan Organize would carry out: the same `decide` as a normal sort (rules, screenshot flag, extension table,
     /// then Apple Intelligence on the name for unknown extensions), nothing read, nothing moved.
-    public func trayPlan() async -> TrayPlan {
+    public func trayPlan(progress: (@Sendable (Int, Int) -> Void)? = nil) async -> TrayPlan {
         var plan = TrayPlan()
         plan.modelOff = s.unknownFiles == .askModel && (s.modelChoice == .rulesOnly || !classifier.availability.ready)
         let manuals = s.activeRoots.map { $0.appendingPathComponent(Library.manual).standardizedFileURL }
-        for e in trayEntries() {
+        let entries = trayEntries()
+        for (i, e) in entries.enumerated() {
+            if Task.isCancelled { break }
+            progress?(i + 1, entries.count)
             var row = TrayRow(id: e.id, entry: e, basis: "")
             switch e.state {
             case .missing: row.stays = "Missing. Forget it to clear the row."; plan.rows.append(row); continue
