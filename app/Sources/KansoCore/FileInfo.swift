@@ -53,7 +53,8 @@ public enum Xattr {
 /// Finder tags.
 public enum Tags {
     public static func read(_ url: URL) -> [String] {
-        (try? url.resourceValues(forKeys: [.tagNamesKey]).tagNames) ?? []
+        // A URL caches resource values; plans hold URLs for minutes, so always ask a fresh one.
+        (try? URL(fileURLWithPath: url.path).resourceValues(forKeys: [.tagNamesKey]).tagNames) ?? []
     }
 
     /// `color` is a Finder label index (1 gray, 2 green, 3 purple, 4 blue, 5 yellow, 6 red, 7 orange), stored as "name\nindex".
