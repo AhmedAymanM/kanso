@@ -568,7 +568,7 @@ final class Island: ObservableObject {
     func toggleTray() {
         guard trayOn else { return }
         if tray { collapse(); return }
-        TrayModel.shared.refresh()
+        TrayModel.shared.refresh(retryMissing: true)
         notices = []
         selection = 0
         if !expanded { relayout(); panel?.alphaValue = 1; panel?.orderFrontRegardless() }
@@ -638,29 +638,26 @@ final class Island: ObservableObject {
         let t = TrayModel.shared
         openedByDrag = false   // the user is using it: it stays open
         dragClose?.cancel()
-        let opt = e.modifierFlags.contains(.option)
-        switch Int(e.keyCode) {
-        case kVK_Return, kVK_ANSI_KeypadEnter:
-            if cmd { return true }
-            switch t.phase { case .list: t.organize(); case .review: t.move(); default: break }
-            return true
-        case kVK_UpArrow where t.phase == .list: if opt { t.reorder(by: -1) } else { t.step(-1) }; return true
-        case kVK_DownArrow where t.phase == .list: if opt { t.reorder(by: 1) } else { t.step(1) }; return true
-        case kVK_UpArrow, kVK_DownArrow, kVK_LeftArrow, kVK_RightArrow: return true
-        case kVK_Delete, kVK_ForwardDelete:
-            if !cmd, t.phase == .list { t.forgetSelected() }   // ⌘⌫ is not used here
-            return true
-        case kVK_ANSI_V where cmd: if t.phase == .list { t.addFromPasteboard() }; return true
-        case kVK_ANSI_Z where cmd:
-            if t.canUndoForget { t.undoForget() } else if t.lastRun != nil { t.undoLastRun() }
-            return true
-        case kVK_ANSI_R where cmd:
-            if t.entries.indices.contains(t.selection) { AppModel.shared.reveal(t.entries[t.selection].url.path) }
-            return true
-        case kVK_Space: quickLook(); return true
-        case kVK_Escape, kVK_ANSI_Slash, kVK_ANSI_Comma: return false
-        default: return cmd
+        let phase: TrayKey.Phase
+        switch t.phase { case .list: phase = .list; case .planning: phase = .planning; case .review: phase = .review; case .moving: phase = .moving }
+        let r = panel?.firstResponder
+        let controlFocused = r is NSControl || r is NSText || (r.map { String(describing: type(of: $0)).contains("Button") } ?? false)
+        switch TrayKey.route(code: Int(e.keyCode), cmd: cmd, option: e.modifierFlags.contains(.option), phase: phase, controlFocused: controlFocused) {
+        case .passThrough: return false
+        case .consume: return true
+        case .organize: t.organize()
+        case .move: t.move()
+        case .step(let d): t.step(d)
+        case .reorder(let d): t.reorder(by: d)
+        case .planStep(let d): t.planStep(d)
+        case .cycleShelf(let d): t.cycleShelf(by: d)
+        case .forget: t.forgetSelected()
+        case .paste: t.addFromPasteboard()
+        case .undo: t.undo()
+        case .reveal: if t.entries.indices.contains(t.selection) { AppModel.shared.reveal(t.entries[t.selection].url.path) }
+        case .quickLook: quickLook()
         }
+        return true
     }
 
     // MARK: Helpers
