@@ -247,7 +247,7 @@ final class AppModel: ObservableObject {
                 let newRenames = self.store.pending.renames.count > self.pending.renames.count
                 self.refresh()
                 StatusItem.shared.update()
-                self.announce(done, renamesFound: newRenames)
+                self.announce(done, renamesFound: newRenames, trigger: trigger)
                 if !plan.waiting.isEmpty { self.schedule(after: TimeInterval(max(self.settings.settleSeconds, 5))) }
             }
         }
@@ -271,12 +271,18 @@ final class AppModel: ObservableObject {
         let done = engine.apply(moves, trigger: "sort-everything")
         preview = []
         refresh()
-        announce(done, renamesFound: !store.pending.renames.isEmpty)
+        announce(done, renamesFound: !store.pending.renames.isEmpty, trigger: "sort-everything")
     }
 
     /// Plain sorts are silent (PRODUCT.md): only renames, duplicates and needs-you items reach the island.
-    func announce(_ done: [Action], renamesFound: Bool) {
-        for a in done where a.kind == .renamed { Island.shared.show(.renamed(a)) }
+    /// A run the user started (Sort now, Sort everything) that touched several files gets one card with one Undo for the whole run;
+    /// its per-file rename notices are folded into it. Automatic runs never get a card.
+    func announce(_ done: [Action], renamesFound: Bool, trigger: String = "auto") {
+        if let b = Batch.summary(done, trigger: trigger) {
+            Island.shared.show(.batch(run: b.run, text: b.text))
+        } else {
+            for a in done where a.kind == .renamed { Island.shared.show(.renamed(a)) }
+        }
         for a in done where a.kind == .duplicate { Island.shared.show(.duplicate(a)) }
         if renamesFound { Island.shared.show(.renameReview(store.pending.renames.count)) }
     }
@@ -306,7 +312,12 @@ final class AppModel: ObservableObject {
         if n > 0 { Island.shared.show(.info(icon: "trash", text: "Moved \(n) extra \(n == 1 ? "copy" : "copies") to Trash")) }
     }
 
-    func applyRenames(_ p: [RenameProposal]) { engine.applyRenames(p); refresh() }
+    /// `announce: false` when the caller shows its own confirmation (the island overview).
+    func applyRenames(_ p: [RenameProposal], announce: Bool = true) {
+        let done = engine.applyRenames(p)
+        refresh()
+        if announce, let b = Batch.summary(done, trigger: "review") { Island.shared.show(.batch(run: b.run, text: b.text)) }
+    }
     func dismissRenames() { engine.dismissRenames(); refresh() }
     func acceptSuggestion(_ id: UUID) { engine.acceptSuggestion(id); refresh() }
     func dismissSuggestion(_ id: UUID) { engine.dismissSuggestion(id); refresh() }

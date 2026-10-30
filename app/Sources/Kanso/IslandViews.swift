@@ -511,6 +511,7 @@ struct SimpleBody: View {
         case .duplicate: return "Identical by size + hash."
         case .renameReview: return "Nothing changes until you review."
         case .sortingOff: return "Turn it on, or leave it off."
+        case .batch: return "Undo puts every file from this run back."
         default: return nil
         }
     }
