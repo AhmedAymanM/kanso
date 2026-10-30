@@ -12,6 +12,7 @@ enum IslandInk {
     static let text3 = Color.white.opacity(0.62)   // floor: 7.8:1 on black
     static let control = Color.white.opacity(0.14)
     static let rim = Color.white.opacity(0.18)
+    static let ring = Color(nsColor: NSColor(hex: 0xCFE8D8))   // keyboard focus on black: about 15:1 (needs 3:1)
 }
 
 /// The whole panel is transparent; only the island shape draws (and takes clicks), anchored at the top center.
@@ -30,6 +31,7 @@ struct IslandRoot: View {
             Spacer(minLength: 0)
         }
         .frame(width: Island.size.width, height: Island.size.height, alignment: .top)
+        .environment(\.focusRingColor, IslandInk.ring)
     }
 }
 

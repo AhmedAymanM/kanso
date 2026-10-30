@@ -35,6 +35,7 @@ struct OverviewPage: View {
                 .fixedSize(horizontal: false, vertical: true)
             }
             counters(all)
+            sortEverythingRow
         }
         .animation(Motion.spring(), value: needs.isEmpty)
         .task {
@@ -51,6 +52,20 @@ struct OverviewPage: View {
                 .font(.system(size: TS.emphasis)).foregroundStyle(K.text2)
         }
         .padding(.horizontal, 4).padding(.top, 6)
+    }
+
+    /// Sort everything: files already in the watched folders. Always a preview first (previewSortEverything); one undoable run after.
+    var sortEverythingRow: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Sort everything already in your folders").font(.system(size: TS.body, weight: .semibold)).foregroundStyle(K.text)
+                Text("You see a preview first. Nothing moves until you confirm, and the whole run can be undone.").font(.system(size: TS.small)).foregroundStyle(K.text2)
+            }
+            Spacer(minLength: 12)
+            Button { m.previewSortEverything() } label: { Label("Preview…", systemImage: "square.stack.3d.up") }
+                .buttonStyle(SecondaryStyle(small: true)).fixedSize().disabled(m.busy || !m.settings.onboarded)
+        }
+        .padding(.horizontal, 16).padding(.vertical, 12).card()
     }
 
     func hero(_ all: Stats) -> some View {
