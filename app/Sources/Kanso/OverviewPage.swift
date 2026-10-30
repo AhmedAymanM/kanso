@@ -207,7 +207,7 @@ struct NeedBody: View {
         switch need {
         case .duplicate(let a): Thumb(path: a.dst)
         case .renames(let p, _): Thumb(path: p.first?.path ?? "")
-        case .rule: Image(systemName: need.icon).font(.system(size: TS.title)).foregroundStyle(need.tint.fg).frame(width: 56, height: 56).background(Circle().fill(need.tint.bg))
+        case .rule, .shelf: Image(systemName: need.icon).font(.system(size: TS.title)).foregroundStyle(need.tint.fg).frame(width: 56, height: 56).background(Circle().fill(need.tint.bg))
         }
     }
     var kind: String {
@@ -215,6 +215,7 @@ struct NeedBody: View {
         case .duplicate(let a): return "Duplicate held · \((Int64(a.details["size"] ?? "") ?? 0).bytes)"
         case .renames: return "Rename suggestions"
         case .rule: return "Rule suggestion"
+        case .shelf: return "Shelf suggestion"
         }
     }
     var title: String {
@@ -222,6 +223,7 @@ struct NeedBody: View {
         case .duplicate(let a): return a.name
         case .renames(let p, _): return "\(p.count) files can be renamed"
         case .rule(let r): return "You moved \(r.files.count) files to \(r.shelf)"
+        case .shelf(let s): return "\(s.files.count) files could have their own shelf"
         }
     }
     var why: String {
@@ -229,6 +231,7 @@ struct NeedBody: View {
         case .duplicate(let a): return "Same bytes as \(((a.details["kept"] ?? a.name) as NSString).lastPathComponent) · \(a.shelf)"
         case .renames: return "Names from contents, page 1. You review every name first."
         case .rule: return "Make it a rule for next time?"
+        case .shelf(let s): return "\(s.emoji) \(s.name): \(s.description). Nothing moves until you accept."
         }
     }
 
@@ -242,6 +245,9 @@ struct NeedBody: View {
             Button { m.applyRenames(p) } label: { Label("Rename all", systemImage: "wand.and.sparkles") }.buttonStyle(SecondaryStyle(small: true)).fixedSize()
         case .rule(let r):
             Button("Create rule") { m.acceptSuggestion(r.id) }.buttonStyle(PrimaryStyle(tint: .rule, small: true)).fixedSize()
+        case .shelf(let s):
+            Button("Create \(s.name)") { m.acceptShelf(s.id) }.buttonStyle(PrimaryStyle(tint: .rule, small: true)).fixedSize()
+            Button("Dismiss") { m.dismissShelf(s.id) }.buttonStyle(SecondaryStyle(small: true)).fixedSize()
         }
         if m.needs.count > 1 { Button { next() } label: { HStack(spacing: 4) { Text("Later"); Image(systemName: "arrow.right").font(.system(size: TS.micro)) } }.buttonStyle(SecondaryStyle(small: true)).fixedSize() }
     }

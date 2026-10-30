@@ -481,6 +481,8 @@ final class Island: ObservableObject {
                 case .renames(let p, _): needs = [IslandAction(label: "Review names", key: "↩", icon: "checklist") { self.hide(); Windows.shared.showReview(tab: .renames) },
                                                   IslandAction(label: "Rename all", key: "⌘↩", icon: "wand.and.sparkles") { m.applyRenames(p, announce: false); self.confirm("Renamed \(p.count) files", undo: nil) }, later]
                 case .rule(let r): needs = [IslandAction(label: "Create rule", key: "↩", icon: "wand.and.stars") { m.acceptSuggestion(r.id); self.confirm("Rule created for \(r.shelf)", undo: nil) }, later]
+                case .shelf(let s): needs = [IslandAction(label: "Create \(s.name)", key: "↩", icon: "square.stack.3d.up") { m.acceptShelf(s.id); self.confirm("Moved \(s.files.count) files to \(s.name)", undo: nil) },
+                                             IslandAction(label: "Dismiss", key: "", icon: "xmark") { m.dismissShelf(s.id); self.confirm("Won't suggest \(s.name) again", undo: nil) }, later]
                 }
             }
             let recent = m.done.prefix(3).map { a in IslandAction(label: "Show \(a.name)", key: "↩") { m.reveal(a.dst) } }
