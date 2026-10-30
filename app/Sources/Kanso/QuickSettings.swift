@@ -184,7 +184,7 @@ struct FeatureTile: View {
         Button { withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) { on.toggle() } } label: {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
-                    Image(systemName: icon).font(.system(size: TS.body)).foregroundStyle(on ? K.text2 : K.text3)
+                    Image(systemName: icon).font(.system(size: TS.body, weight: on ? .semibold : .light)).foregroundStyle(on ? K.text : K.text3)
                     Spacer()
                     if on { Circle().fill(Tint.accent.fg).frame(width: 7, height: 7) } else { Circle().strokeBorder(K.controlStroke, lineWidth: 1).frame(width: 7, height: 7) }
                 }
