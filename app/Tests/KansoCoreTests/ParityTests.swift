@@ -139,6 +139,37 @@ extension EngineTests {
         XCTAssertTrue(exists(root.appendingPathComponent("b.png")))
     }
 
+    // MARK: No model
+
+    struct NoModel: Classifier {
+        var available: Bool { false }
+        func choose(facts: [(String, String)], options: [(String, String)], creating: Bool) async -> Pick? {
+            XCTFail("an unavailable model must never be asked")
+            return Pick(folder: "Documents")
+        }
+    }
+
+    func testSortingWorksWithoutAnyModel() async {
+        engine = Engine(store: store, classifier: NoModel())
+        engine.setIcon = { _, _ in }
+        file("report.pdf"); file("photo.jpg"); file("key.pem"); file("mystery.qqq")
+        let done = await run()
+        XCTAssertEqual(done.count, 4)
+        XCTAssertTrue(exists(shelf("Documents").appendingPathComponent("report.pdf")))
+        XCTAssertTrue(exists(shelf("Images").appendingPathComponent("photo.jpg")))
+        XCTAssertTrue(exists(shelf("Keys").appendingPathComponent("key.pem")))
+        XCTAssertTrue(exists(shelf(Shelf.unsorted).appendingPathComponent("mystery.qqq")), "unknown types wait in Unsorted")
+        XCTAssertEqual(done.first { $0.srcName == "mystery.qqq" }?.why, "unknown type")
+        XCTAssertTrue(store.settings.learnedExts.isEmpty)
+    }
+
+    func testTurningTheSettingOffAlsoSkipsTheModel() async {
+        make(pick: Pick(folder: "Documents")) { $0.appleIntelligence = false }
+        file("mystery.qqq")
+        _ = await run()
+        XCTAssertTrue(exists(shelf(Shelf.unsorted).appendingPathComponent("mystery.qqq")))
+    }
+
     // MARK: Saved views
 
     func testSavedViewFiltersActionsAndNeverTouchesFiles() async {

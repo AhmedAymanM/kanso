@@ -68,6 +68,18 @@ public struct AppleIntelligence: Classifier {
         return false
     }
 
+    /// Could turning Apple Intelligence on in System Settings make it available? False before macOS 26 and on Macs that can't run it,
+    /// so the UI offers no dead-end button there and says plainly that sorting works without it.
+    public var canBeTurnedOn: Bool {
+        #if canImport(FoundationModels)
+        if #available(macOS 26, *) {
+            if case .unavailable(.deviceNotEligible) = SystemLanguageModel.default.availability { return false }
+            return true
+        }
+        #endif
+        return false
+    }
+
     public var status: String {
         #if canImport(FoundationModels)
         if #available(macOS 26, *) {
