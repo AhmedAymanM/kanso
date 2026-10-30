@@ -55,7 +55,7 @@ final class SettingsTests: XCTestCase {
     /// A key that `init(from:)` forgot comes back as its default and the comparison fails with the key's name.
     func testEveryFieldSurvivesARoundTrip() throws {
         var dict = try XCTUnwrap(JSONSerialization.jsonObject(with: Store.encoder.encode(Settings())) as? [String: Any])
-        let enums: [String: String] = ["approach": "purpose", "recents": "hold", "keeper": "onShelf", "unknownFiles": "unsorted", "islandMode": "notch"]
+        let enums: [String: String] = ["approach": "purpose", "recents": "hold", "keeper": "onShelf", "unknownFiles": "unsorted", "islandMode": "notch", "modelChoice": "rulesOnly"]
         let dates: Set<String> = ["since", "sortingOffUntil", "sortingOffSince", "shortcutHintUntil"]
         for k in ["sortingOffUntil", "sortingOffSince"] { dict[k] = "2020-01-01T00:00:00Z" }
         // Lists of objects that must keep valid elements (an invalid one is skipped on load), so they get a real sample.
