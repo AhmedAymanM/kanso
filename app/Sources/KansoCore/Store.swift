@@ -175,7 +175,7 @@ public final class Store: @unchecked Sendable {
         data.append(0x0A)
         let url = dir.appendingPathComponent("journal.jsonl")
         do {
-            if let h = try? FileHandle(forWritingTo: url) {
+            if let h = try? FileHandle(forUpdating: url) {
                 defer { try? h.close() }
                 let end = try h.seekToEnd()
                 if end > 0 {

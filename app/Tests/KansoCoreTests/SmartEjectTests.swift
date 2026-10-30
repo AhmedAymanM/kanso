@@ -41,4 +41,14 @@ final class SmartEjectTests: XCTestCase {
         // Upgrade to the volume's version counts.
         XCTAssertTrue(SmartEject.appsSpent(volume: [app("a", v2)], installed: [app("a", v2)], before: was, mounted: 100, now: 300))
     }
+
+    func testPackageIDsFromARealFlatPackage() throws {
+        let pkgbuild = "/usr/bin/pkgbuild"
+        try XCTSkipUnless(FileManager.default.isExecutableFile(atPath: pkgbuild))
+        let vol = FileManager.default.temporaryDirectory.appendingPathComponent("kanso-pkg-test-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: vol, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: vol) }
+        XCTAssertNotNil(SmartEject.run(pkgbuild, ["--nopayload", "--identifier", "test.kanso", "--version", "1", vol.appendingPathComponent("t.pkg").path]))
+        XCTAssertEqual(SmartEject.packageIDs(onVolume: vol), ["test.kanso"])
+    }
 }

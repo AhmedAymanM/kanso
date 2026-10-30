@@ -704,9 +704,9 @@ public final class Engine: @unchecked Sendable {
             let lib = URL(fileURLWithPath: a.root).appendingPathComponent(Library.mine)
             let journaled = a.details["size"].flatMap(Int64.init)
             for shelf in (try? fm.contentsOfDirectory(atPath: lib.path)) ?? [] where shelf != a.shelf && shelf != Shelf.duplicates {
-                let found = lib.appendingPathComponent(shelf).appendingPathComponent(a.name)
+                let there = lib.appendingPathComponent(shelf).appendingPathComponent(a.name)
                 // Same name is not enough: a different file with the same name is not the one Kanso sorted.
-                if fm.fileExists(atPath: found.path), journaled == nil || Stat.size(found) == journaled {
+                if fm.fileExists(atPath: there.path), journaled == nil || Stat.size(there) == journaled {
                     let host = a.details["from"].flatMap { URL(string: $0)?.host }
                     found[a.id] = Correction(name: a.name, ext: (a.name as NSString).pathExtension.lowercased(), from: host, fromShelf: a.shelf, toShelf: shelf)
                     break
