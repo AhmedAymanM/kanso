@@ -34,6 +34,15 @@ public struct Planned: Identifiable, Sendable {
     public var link: URL?         // Recents folder to leave a symlink in
     public var details: [String: String] = [:]
     public var include = true
+    public var learning: Learning?   // applied by apply(), only if the move happens
+}
+
+/// What a model pick teaches: this extension belongs on that type. Carried in the plan so dry runs and unchecked items teach nothing.
+public struct Learning: Sendable, Equatable {
+    public var ext: String
+    public var type: String
+    public var emoji: String = "📁"
+    public var description: String = ""
 }
 
 /// Items not moved yet because they are still downloading or changing.
@@ -96,6 +105,7 @@ public final class Engine: @unchecked Sendable {
                 entries += r.map { recents.appendingPathComponent($0) }.filter { !Stat.isSymlink($0) }.map { ($0, true) }
             }
             for (url, inRecent) in entries {
+                if Stat.isSymlink(url) { continue }   // links at a root are never sorted, hashed or read through
                 guard let ctime = Stat.ctime(url), let mtime = Stat.mtime(url) else { continue }
                 if !inRecent && ctime < after { continue }
                 let name = url.lastPathComponent
@@ -130,7 +140,10 @@ public final class Engine: @unchecked Sendable {
 
     // MARK: Deciding
 
-    public struct Decision: Sendable { public var dest: String; public var tags: [String]; public var why: String; public var source: String }
+    public struct Decision: Sendable {
+        public var dest: String; public var tags: [String]; public var why: String; public var source: String
+        public var learning: Learning? = nil
+    }
 
     public static func matches(_ rule: Rule, _ item: Item) -> Bool {
         guard rule.enabled, !rule.conditions.isEmpty else { return false }
@@ -184,36 +197,40 @@ public final class Engine: @unchecked Sendable {
             return Decision(dest: Shelf.unsorted, tags: [], why: "apple-intelligence failed", source: "from name")
         }
         if options.contains(where: { $0.0 == pick.folder }) {
-            learn(item, pick.folder)
-            return Decision(dest: pick.folder, tags: [], why: "apple-intelligence \(pick.folder)", source: "from name")
+            return Decision(dest: pick.folder, tags: [], why: "apple-intelligence \(pick.folder)", source: "from name",
+                            learning: Learning(ext: item.ext, type: pick.folder))
         }
         let name = Brain.cleanName(pick.name)
         if creating, pick.folder == Brain.new, !name.isEmpty, !Brain.isCatchAll(name), !name.lowercased().contains(item.ext) {  // "Qx7 files" says nothing
             let existing = settings.types.first { $0.name.lowercased() == name.lowercased() }?.name ?? name
-            learn(item, existing, emoji: Brain.cleanEmoji(pick.emoji), description: String(pick.description.trimmingCharacters(in: .whitespaces).prefix(200)))
-            return Decision(dest: existing, tags: [], why: "apple-intelligence new type \(existing)", source: "from name")
+            return Decision(dest: existing, tags: [], why: "apple-intelligence new type \(existing)", source: "from name",
+                            learning: Learning(ext: item.ext, type: existing, emoji: Brain.cleanEmoji(pick.emoji),
+                                               description: String(pick.description.trimmingCharacters(in: .whitespaces).prefix(200))))
         }
         return Decision(dest: Shelf.unsorted, tags: [], why: "apple-intelligence unsure", source: "from name")
     }
 
     /// Remember the type for this extension, so the next file like it skips the model.
-    func learn(_ item: Item, _ name: String, emoji: String = "📁", description: String = "") {
-        guard !item.ext.isEmpty, !item.isDir else { return }
+    func learn(_ l: Learning) {
+        guard !l.ext.isEmpty else { return }
         store.update { s in
-            if !s.learnedExts.contains(item.ext) { s.learnedExts.append(item.ext) }
-            if let i = s.types.firstIndex(where: { $0.name == name }) {
-                if !s.types[i].match.contains(item.ext) { s.types[i].match.append(item.ext) }
+            if !s.learnedExts.contains(l.ext) { s.learnedExts.append(l.ext) }
+            if let i = s.types.firstIndex(where: { $0.name == l.type }) {
+                if !s.types[i].match.contains(l.ext) { s.types[i].match.append(l.ext) }
             } else {
                 let at = s.types.firstIndex { $0.name == Shelf.unsorted } ?? s.types.endIndex
-                s.types.insert(FileType(name, emoji, description, [item.ext], learned: true), at: at)
+                s.types.insert(FileType(l.type, l.emoji, l.description, [l.ext], learned: true), at: at)
             }
         }
     }
 
     /// "Images" → <root>/My Shelves/Images. Absolute or ~ paths are used as-is.
     public func resolve(_ root: URL, _ dest: String) -> URL {
+        let mine = root.appendingPathComponent(Library.mine)
+        // A rule destination with ".." could climb out of My Shelves (or out of the path it names): park the file in Unsorted instead.
+        if dest.split(separator: "/").contains(where: { $0 == ".." }) { return mine.appendingPathComponent(Shelf.unsorted) }
         if dest.hasPrefix("/") || dest.hasPrefix("~") { return URL(fileURLWithPath: (dest as NSString).expandingTildeInPath) }
-        return dest.split(separator: "/").reduce(root.appendingPathComponent(Library.mine)) { $0.appendingPathComponent(String($1)) }
+        return dest.split(separator: "/").reduce(mine) { $0.appendingPathComponent(String($1)) }
     }
 
     // MARK: Planning
@@ -236,6 +253,7 @@ public final class Engine: @unchecked Sendable {
             let item = Item.inspect(url, root: root)
             let d = await decide(item)
             var m = Planned(item: item, dest: resolve(root, d.dest), shelf: d.dest, tags: d.tags, why: d.why, source: d.source)
+            m.learning = d.learning
             if settings.recents == .links && fresh { m.link = root.appendingPathComponent(Library.recents) }
             if let w = item.whereFrom.first { m.details["from"] = w }
 
@@ -249,6 +267,7 @@ public final class Engine: @unchecked Sendable {
                 m.details["size"] = String(item.size)
                 m.tags = []
                 m.link = nil
+                m.learning = nil
                 moves.append(m)
                 continue
             }
@@ -372,6 +391,24 @@ public final class Engine: @unchecked Sendable {
         }
     }
 
+    /// A file name Kanso is willing to create: one path component, nothing hidden, nothing the Finder shows as a path.
+    public static func validName(_ n: String) -> Bool {
+        !n.isEmpty && !n.contains("/") && !n.contains(":") && !n.contains("\0") && !n.hasPrefix(".") && n.utf8.count <= 255
+    }
+
+    static func log(_ message: String) { FileHandle.standardError.write(Data("kanso: \(message)\n".utf8)) }
+
+    /// ADR 0002: a duplicate may only go to the Trash on its own if the keeper still holds the same bytes right now.
+    func keeperStillHolds(_ keeper: String?, _ copy: URL) -> Bool {
+        guard let keeper, !keeper.isEmpty else { return false }
+        let k = URL(fileURLWithPath: keeper)
+        guard Stat.isRegular(k), Stat.isRegular(copy), k.standardizedFileURL != copy.standardizedFileURL,
+              !Placeholder.isPlaceholder(k), !Placeholder.isPlaceholder(copy) else { return false }
+        let size = Stat.size(copy)
+        guard size > 0, Stat.size(k) == size, let a = Duplicates.digest(k), let b = Duplicates.digest(copy) else { return false }
+        return a == b
+    }
+
     @discardableResult
     public func apply(_ moves: [Planned], trigger: String = "auto") -> [Action] {
         let run = String(UUID().uuidString.prefix(8)).lowercased()
@@ -380,29 +417,53 @@ public final class Engine: @unchecked Sendable {
         var movedTo: [String: String] = [:]  // a keeper that moved earlier in this run
         for m in moves where m.include {
             let src = m.item.url
-            let name = m.newName ?? m.item.name
+            // The plan may be old (review window): the file may be gone, replaced by a link, or tagged Keep since.
+            guard Stat.exists(src), !Stat.isSymlink(src), !ignored(src) else { continue }
+            var name = m.newName ?? m.item.name
+            if !Engine.validName(name) { name = m.item.name }
             if m.dest.standardizedFileURL == src.deletingLastPathComponent().standardizedFileURL && name == m.item.name { continue }
+            var dest = m.dest
+            var shelf = m.shelf
+            var why = m.why
             if m.kind == .duplicate && s.duplicatesToTrash {
                 // The user chose "extra copies go to the Trash" (ADR 0002 amendment); journaled, one ⌘Z away.
-                var result: NSURL?
-                guard (try? fm.trashItem(at: src, resultingItemURL: &result)) != nil, let t = result as URL? else { continue }
-                var a = Action(run: run, kind: .duplicate, src: src.path, dst: t.path, root: m.item.root.path, shelf: "Trash", why: m.why + " · moved to Trash (your setting)", source: m.source)
-                a.trigger = trigger
-                a.details = m.details
-                store.append(a)
-                done.append(a)
-                continue
+                // Identical bytes are re-checked now: if the keeper changed or vanished, the copy is held on the shelf instead.
+                let keeper = m.details["kept"].map { movedTo[$0] ?? $0 }
+                if keeperStillHolds(keeper, src) {
+                    var result: NSURL?
+                    guard (try? fm.trashItem(at: src, resultingItemURL: &result)) != nil, let t = result as URL? else { continue }
+                    var a = Action(run: run, kind: .duplicate, src: src.path, dst: t.path, root: m.item.root.path, shelf: "Trash", why: m.why + " · moved to Trash (your setting)", source: m.source)
+                    a.trigger = trigger
+                    a.details = m.details
+                    if let keeper { a.details["kept"] = keeper }
+                    store.append(a)
+                    done.append(a)
+                    continue
+                }
+                dest = resolve(m.item.root, Shelf.duplicates)
+                shelf = Shelf.duplicates
+                why = m.why + " · kept on the shelf (the other copy changed)"
+                if dest.standardizedFileURL == src.deletingLastPathComponent().standardizedFileURL { continue }
             }
-            ensureLibrary(for: m.dest)
-            makeDir(m.dest)
-            let dst = Engine.unique(m.dest.appendingPathComponent(name))
-            do { try fm.moveItem(at: src, to: dst) } catch { continue }
-            var a = Action(run: run, kind: m.kind, src: src.path, dst: dst.path, root: m.item.root.path, shelf: m.shelf, why: m.why, source: m.source)
+            ensureLibrary(for: dest)
+            makeDir(dest)
+            var dst = Engine.unique(dest.appendingPathComponent(name))
+            do { try fm.moveItem(at: src, to: dst) } catch {
+                // The new name may be what the volume refuses: keep the file's own name before giving up.
+                guard name != m.item.name else { Engine.log("could not move \(src.path): \(error.localizedDescription)"); continue }
+                name = m.item.name
+                dst = Engine.unique(dest.appendingPathComponent(name))
+                do { try fm.moveItem(at: src, to: dst) } catch { Engine.log("could not move \(src.path): \(error.localizedDescription)"); continue }
+            }
+            if let l = m.learning { learn(l) }
+            var a = Action(run: run, kind: m.kind, src: src.path, dst: dst.path, root: m.item.root.path, shelf: shelf, why: why, source: m.source)
             a.trigger = trigger
             a.details = m.details
+            if !m.item.isDir && a.details["size"] == nil { a.details["size"] = String(Stat.size(dst)) }   // corrections check it later
             if let k = a.details["kept"], let moved = movedTo[k] { a.details["kept"] = moved }
             movedTo[src.path] = dst.path
-            if m.newName != nil {
+            let renamedNow = name != m.item.name
+            if renamedNow {
                 a.oldName = m.item.name
                 if a.kind == .sorted { a.kind = .renamed }
                 if s.keepOriginalSearchable { Renamer.keepOriginal(dst, m.item.name) }
@@ -418,8 +479,8 @@ public final class Engine: @unchecked Sendable {
                 Tags.add(dst, m.tags)
                 a.tags = Tags.read(dst).filter { !before.contains($0) }
             }
-            if let p = m.proposedName, p != dst.lastPathComponent {
-                proposals.append(RenameProposal(path: dst.path, newName: p, shelf: m.shelf, source: m.source, details: m.details))
+            if let p = m.proposedName, p != dst.lastPathComponent, Engine.validName(p) {
+                proposals.append(RenameProposal(path: dst.path, newName: p, shelf: shelf, source: m.source, details: m.details))
             }
             store.append(a)
             done.append(a)
@@ -441,14 +502,15 @@ public final class Engine: @unchecked Sendable {
         var done: [Action] = []
         for p in proposals {
             let src = URL(fileURLWithPath: p.path)
-            guard fm.fileExists(atPath: src.path), !p.newName.isEmpty, p.newName != src.lastPathComponent else { continue }
+            guard Stat.exists(src), !Stat.isSymlink(src), Engine.validName(p.newName), p.newName != src.lastPathComponent else { continue }
             let dst = Engine.unique(src.deletingLastPathComponent().appendingPathComponent(p.newName))
-            do { try fm.moveItem(at: src, to: dst) } catch { continue }
+            do { try fm.moveItem(at: src, to: dst) } catch { Engine.log("could not rename \(src.path): \(error.localizedDescription)"); continue }
             if s.keepOriginalSearchable { Renamer.keepOriginal(dst, src.lastPathComponent) }
             var a = Action(run: run, kind: .renamed, src: src.path, dst: dst.path, root: rootFor(src)?.path ?? "", shelf: p.shelf, why: "rename review", source: p.source)
             a.oldName = src.lastPathComponent
             a.trigger = "review"
             a.details = p.details
+            if Stat.isRegular(dst) { a.details["size"] = String(Stat.size(dst)) }
             store.append(a)
             done.append(a)
         }
@@ -466,7 +528,7 @@ public final class Engine: @unchecked Sendable {
     public func renameFile(_ id: UUID, to newName: String) -> Action? {
         let name = newName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let a = store.actions.first(where: { $0.id == id }), fm.fileExists(atPath: a.dst),
-              !name.isEmpty, !name.contains("/"), !name.hasPrefix("."), name != a.name else { return nil }
+              Engine.validName(name), name != a.name else { return nil }
         let src = URL(fileURLWithPath: a.dst)
         let dst = Engine.unique(src.deletingLastPathComponent().appendingPathComponent(name))
         guard (try? fm.moveItem(at: src, to: dst)) != nil else { return nil }
@@ -475,6 +537,7 @@ public final class Engine: @unchecked Sendable {
         r.oldName = src.lastPathComponent
         r.trigger = "menu"
         r.tags = a.tags
+        if Stat.isRegular(dst) { r.details["size"] = String(Stat.size(dst)) }
         store.append(r)
         return r
     }
@@ -483,30 +546,48 @@ public final class Engine: @unchecked Sendable {
 
     // MARK: Undo
 
-    /// Undo the most recent run that still has something to undo.
+    /// Undo the most recent run that still has something to undo. A run whose files are all gone is retired
+    /// (marked undone) and the next older run is tried, so one vanished file never blocks Undo forever.
     @discardableResult
     public func undoLast() -> [Action] {
-        guard let run = store.actions.last(where: { !$0.undone })?.run else { return [] }
-        return undo(Set(store.actions.filter { $0.run == run && !$0.undone }.map(\.id)))
+        var runs: [String] = []
+        for a in store.actions.reversed() where !a.undone && !runs.contains(a.run) { runs.append(a.run) }
+        for run in runs {
+            let restored = undo(Set(store.actions.filter { $0.run == run && !$0.undone }.map(\.id)))
+            if !restored.isEmpty { return restored }
+        }
+        return []
     }
 
     /// Put items back where they were (with their original names). Restored items get the keep tag so they stay put.
+    /// If something else sits at the old path, the item comes back under a free name. An item that no longer exists
+    /// anywhere is marked undone with a "gone" detail instead of staying in the list forever.
     @discardableResult
     public func undo(_ ids: Set<UUID>) -> [Action] {
         var restored: [Action] = []
+        var gone = Set<UUID>()
+        var relocated: [UUID: String] = [:]
         for a in store.actions.reversed() where ids.contains(a.id) && !a.undone {
             let dst = URL(fileURLWithPath: a.dst), src = URL(fileURLWithPath: a.src)
-            if let l = a.link, Stat.isSymlink(URL(fileURLWithPath: l)) { try? fm.removeItem(atPath: l) }
-            guard fm.fileExists(atPath: dst.path), !fm.fileExists(atPath: src.path) else { continue }
-            try? fm.createDirectory(at: src.deletingLastPathComponent(), withIntermediateDirectories: true)
-            guard (try? fm.moveItem(at: dst, to: src)) != nil else { continue }
-            if !a.tags.isEmpty { Tags.remove(src, a.tags) }
-            if a.renamed { removexattr(src.path, "app.kanso.original-name", XATTR_NOFOLLOW) }
-            if src.deletingLastPathComponent().lastPathComponent != Library.recents && a.kind != .trashed { Tags.add(src, [s.keepTag]) }
+            if !Stat.exists(dst) {
+                gone.insert(a.id)
+                if let l = a.link, Stat.isSymlink(URL(fileURLWithPath: l)) { try? fm.removeItem(atPath: l) }
+                continue
+            }
+            let target = Stat.exists(src) ? Engine.unique(src) : src
+            try? fm.createDirectory(at: target.deletingLastPathComponent(), withIntermediateDirectories: true)
+            guard (try? fm.moveItem(at: dst, to: target)) != nil else { continue }
+            if let l = a.link, Stat.isSymlink(URL(fileURLWithPath: l)) { try? fm.removeItem(atPath: l) }   // only now that the file is back
+            if target != src { relocated[a.id] = target.path }
+            if !a.tags.isEmpty { Tags.remove(target, a.tags) }
+            if a.renamed, let old = a.oldName { Renamer.forgetOriginal(target, old) }
+            if target.deletingLastPathComponent().lastPathComponent != Library.recents && a.kind != .trashed { Tags.add(target, [s.keepTag]) }
             restored.append(a)
         }
         let done = Set(restored.map(\.id))
         store.modify(done) { $0.undone = true; $0.pending = false }
+        if !gone.isEmpty { store.modify(gone) { $0.undone = true; $0.pending = false; $0.details["gone"] = "true" } }
+        for (id, path) in relocated { store.modify([id]) { $0.details["restoredTo"] = path } }
         // Putting back a trashed copy makes its duplicate decision pending again.
         let putBack = restored.filter { $0.kind == .trashed }.compactMap { $0.details["action"].flatMap(UUID.init) }
         if !putBack.isEmpty { store.modify(Set(putBack)) { $0.pending = true } }
@@ -515,10 +596,21 @@ public final class Engine: @unchecked Sendable {
 
     // MARK: Duplicates
 
+    /// A held copy is only ever trashed if it is still the file Kanso journaled: a real file in this root's Duplicates
+    /// shelf, the size it had when it was held.
+    func isHeldCopy(_ a: Action) -> Bool {
+        guard a.kind == .duplicate, a.pending, !a.undone, !a.root.isEmpty else { return false }
+        let url = URL(fileURLWithPath: a.dst).standardizedFileURL
+        let shelfDir = resolve(URL(fileURLWithPath: a.root), Shelf.duplicates).standardizedFileURL
+        guard url.deletingLastPathComponent().path == shelfDir.path, Stat.isRegular(url),
+              let journaled = a.details["size"].flatMap(Int64.init), Stat.size(url) == journaled else { return false }
+        return true
+    }
+
     /// Move a held copy to the Trash. Only ever called from a user action.
     @discardableResult
     public func trash(_ id: UUID) -> Action? {
-        guard let a = store.actions.first(where: { $0.id == id }) else { return nil }
+        guard let a = store.actions.first(where: { $0.id == id }), isHeldCopy(a) else { return nil }
         let url = URL(fileURLWithPath: a.dst)
         var result: NSURL?
         guard (try? fm.trashItem(at: url, resultingItemURL: &result)) != nil, let t = result as URL? else { return nil }
@@ -585,6 +677,8 @@ public final class Engine: @unchecked Sendable {
         let run = String(UUID().uuidString.prefix(8)).lowercased()
         for a in store.actions where a.kind == .duplicate && a.pending && !a.undone && fm.fileExists(atPath: a.dst) {
             let url = URL(fileURLWithPath: a.dst)
+            // ADR 0002: only while the copy is what was journaled and the keeper still has the same bytes.
+            guard isHeldCopy(a), keeperStillHolds(a.details["kept"], url) else { continue }
             let opened = (try? url.resourceValues(forKeys: [.contentAccessDateKey]).contentAccessDate) ?? .distantPast
             guard now.timeIntervalSince(max(a.ts, opened)) >= limit else { continue }
             var result: NSURL?
@@ -608,8 +702,11 @@ public final class Engine: @unchecked Sendable {
         var found: [UUID: Correction] = [:]
         for a in recent {
             let lib = URL(fileURLWithPath: a.root).appendingPathComponent(Library.mine)
+            let journaled = a.details["size"].flatMap(Int64.init)
             for shelf in (try? fm.contentsOfDirectory(atPath: lib.path)) ?? [] where shelf != a.shelf && shelf != Shelf.duplicates {
-                if fm.fileExists(atPath: lib.appendingPathComponent(shelf).appendingPathComponent(a.name).path) {
+                let found = lib.appendingPathComponent(shelf).appendingPathComponent(a.name)
+                // Same name is not enough: a different file with the same name is not the one Kanso sorted.
+                if fm.fileExists(atPath: found.path), journaled == nil || Stat.size(found) == journaled {
                     let host = a.details["from"].flatMap { URL(string: $0)?.host }
                     found[a.id] = Correction(name: a.name, ext: (a.name as NSString).pathExtension.lowercased(), from: host, fromShelf: a.shelf, toShelf: shelf)
                     break
@@ -679,6 +776,7 @@ public final class Engine: @unchecked Sendable {
         guard (try? fm.moveItem(atPath: a.dst, toPath: dst.path)) != nil else { return nil }
         var m = Action(run: String(UUID().uuidString.prefix(8)).lowercased(), kind: .sorted, src: a.dst, dst: dst.path, root: a.root, shelf: shelf, why: "moved by you", source: "you")
         m.trigger = "menu"
+        if Stat.isRegular(dst) { m.details["size"] = String(Stat.size(dst)) }
         store.append(m)
         let c = Correction(name: a.name, ext: (a.name as NSString).pathExtension.lowercased(), from: a.details["from"].flatMap { URL(string: $0)?.host }, fromShelf: a.shelf, toShelf: shelf)
         store.updatePending { $0.corrections.append(c) }
@@ -707,7 +805,7 @@ final class Duplicates {
             while let u = e?.nextObject() as? URL {
                 if u.lastPathComponent == Shelf.duplicates { e?.skipDescendants(); continue }
                 let v = try? u.resourceValues(forKeys: [.fileSizeKey, .isRegularFileKey])
-                if v?.isRegularFile == true, let sz = v?.fileSize, sz > 0 { i[Int64(sz), default: []].append(u) }
+                if v?.isRegularFile == true, let sz = v?.fileSize, sz > 0, !Placeholder.isPlaceholder(u) { i[Int64(sz), default: []].append(u) }
             }
         }
         bySize[root.path] = i
@@ -716,13 +814,18 @@ final class Duplicates {
 
     func hash(_ url: URL) -> Digest? {
         if let h = hashes[url.path] { return h }
-        guard let fh = try? FileHandle(forReadingFrom: url) else { return nil }
+        guard let d = Duplicates.digest(url) else { return nil }
+        hashes[url.path] = d
+        return d
+    }
+
+    /// SHA-256 of a regular file that is really on this Mac: never through a link, never a download of an iCloud placeholder.
+    static func digest(_ url: URL) -> Digest? {
+        guard Stat.isRegular(url), !Placeholder.isPlaceholder(url), let fh = try? FileHandle(forReadingFrom: url) else { return nil }
         defer { try? fh.close() }
         var hasher = SHA256()
         while let chunk = try? fh.read(upToCount: 1 << 20), !chunk.isEmpty { hasher.update(data: chunk) }
-        let d = hasher.finalize()
-        hashes[url.path] = d
-        return d
+        return hasher.finalize()
     }
 
     /// The file this item duplicates, if any.

@@ -229,6 +229,10 @@ struct SortingPage: View {
                     if i < m.settings.roots.count - 1 { Rectangle().fill(K.separator).frame(height: 0.75).padding(.leading, 58) }
                 }
             }
+            if m.settings.roots.isEmpty {   // the section's Add folder… button stays in its header
+                Text("No folders watched").font(.system(size: TS.body)).foregroundStyle(K.text2)
+                    .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 16).padding(.vertical, 12)
+            }
         }
     }
 
@@ -425,7 +429,7 @@ struct RenamingPage: View {
     var dateExample: String {
         let f = DateFormatter(); f.locale = Locale(identifier: "en_US_POSIX"); f.dateFormat = m.settings.dateFormat
         var c = DateComponents(); c.year = 2026; c.month = 3; c.day = 12
-        return f.string(from: Calendar.current.date(from: c)!)
+        return f.string(from: Calendar.current.date(from: c) ?? Date())
     }
 
     var preview: String {

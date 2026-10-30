@@ -14,6 +14,20 @@ func out(_ a: Action) {
 switch args.first {
 case "run":
     let all = args.contains("--all"), dry = args.contains("--dry-run")
+    if !dry {
+        // Moving files is only for a finished setup, or an isolated KANSO_HOME with roots chosen on purpose.
+        let isolated = ProcessInfo.processInfo.environment["KANSO_HOME"] != nil
+        let defaults = Settings().roots
+        let explicit = isolated && !store.settings.roots.isEmpty && store.settings.roots != defaults
+        guard store.settings.onboarded || explicit else {
+            print("""
+                Refusing to sort: Kanso hasn't been set up, so this would touch your real Downloads, Desktop and Documents.
+                Finish onboarding in the app, or set KANSO_HOME to a scratch folder whose settings.json lists the roots to sort.
+                Use --dry-run to preview without moving anything.
+                """)
+            exit(1)
+        }
+    }
     if !dry { engine.cleanRecents() }
     let plan = await engine.plan(all: all, trigger: all ? "sort-everything" : "menu")
     if dry {

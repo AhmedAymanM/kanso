@@ -16,6 +16,7 @@ enum IslandInk {
 /// The whole panel is transparent; only the island shape draws (and takes clicks), anchored at the top center.
 struct IslandRoot: View {
     @EnvironmentObject var island: Island
+    @ObservedObject private var a11y = AccessibilityOptions.shared   // re-render when Reduce Transparency etc. change
     var body: some View {
         VStack(spacing: 0) {
             if island.visible {
@@ -59,6 +60,7 @@ struct IslandShape: Shape {
 struct IslandBody: View {
     @EnvironmentObject var island: Island
     @EnvironmentObject var m: AppModel
+    @ObservedObject private var a11y = AccessibilityOptions.shared
 
     var notchSkin: Bool { island.skin == .notch }
     var width: CGFloat { island.expanded ? 480 : (notchSkin ? max(290, island.notch.width + 110) : 320) }
@@ -146,9 +148,11 @@ struct IslandBody: View {
 struct IslandFill: View {
     var shape: IslandShape
     var expanded: Bool
+    @ObservedObject private var a11y = AccessibilityOptions.shared
     var body: some View {
-        if Motion.solid {
+        if Motion.solid || Motion.contrast {   // Increase Contrast: opaque, with a 1 pt edge so the shape reads on any wallpaper
             shape.fill(Color.black)
+                .overlay { if Motion.contrast { shape.stroke(K.text.opacity(0.6), lineWidth: 1) } }
         } else {
             let stops: [Gradient.Stop] = expanded
                 ? [.init(color: .black, location: 0), .init(color: .black, location: 0.7), .init(color: .black.opacity(0.55), location: 0.84), .init(color: .clear, location: 1)]
@@ -221,6 +225,7 @@ struct IslandGlassButton: View {
     var symbol: String, label: String
     var action: () -> Void
     @Environment(\.inLipCapsule) private var inCapsule
+    @ObservedObject private var a11y = AccessibilityOptions.shared
     @State private var hover = false
     var body: some View {
         Button(action: action) {
