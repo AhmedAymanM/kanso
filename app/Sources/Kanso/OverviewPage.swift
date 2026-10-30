@@ -338,7 +338,7 @@ struct ShelvesCard: View {
             if rows.isEmpty { Text("Shelves appear with the first sorted file.").font(.system(size: TS.small)).foregroundStyle(K.text2) }
             Spacer(minLength: 0)
         }
-        .padding(16).frame(maxHeight: .infinity, alignment: .topLeading)
+        .padding(16).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(RoundedRectangle(cornerRadius: 24, style: .continuous).fill(K.card))
         .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).strokeBorder(K.separator, lineWidth: 0.75))
     }
