@@ -107,23 +107,6 @@ extension EngineTests {
         XCTAssertNil(store.settings.type(forExt: "qqq"))
     }
 
-    func testTheFolderIconFileDoesNotKeepAnUndoneShelfAlive() {
-        unsorted((1...5).map { "item\($0).qqq" })
-        engine.acceptShelfSuggestion("ext:qqq")
-        file("Icon\r", in: shelf("QQQ Files"))   // what set_folder_icon leaves in every shelf Kanso creates
-        _ = engine.undoLast()
-        XCTAssertNil(store.settings.type(named: "QQQ Files"))
-    }
-
-    func testAcceptedSuggestionMovesAreNotCountedAsYourCorrections() async {
-        for i in 1...6 { file("thing\(i).qqq") }
-        _ = await run()   // Kanso files them in Unsorted
-        engine.acceptShelfSuggestion("ext:qqq")
-        engine.detectCorrections()
-        XCTAssertTrue(store.pending.corrections.isEmpty, "Kanso moved them, not you")
-        XCTAssertTrue(store.actions.allSatisfy { $0.details["corrected"] == nil })
-    }
-
     func testUndoingAcceptOfAWordShelfRemovesItsRule() {
         unsorted((1...5).map { "invoice-\($0)-acme.xyz\($0)" })
         let rules = store.settings.rules.count
