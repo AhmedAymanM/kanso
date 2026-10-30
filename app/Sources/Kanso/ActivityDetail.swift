@@ -697,7 +697,7 @@ struct EntryDetail: View {
                     Hairline()
                     DecisionRow(icon: "touchid", label: "Same hash", source: "metadata only") { Text("Identical, byte for byte") }
                     Hairline()
-                    DecisionRow(icon: "checkmark.shield", label: "Kept", source: "metadata only") { Text("The \(m.settings.keeper == .bestNamed ? "better-named" : "older") copy") }
+                    DecisionRow(icon: "checkmark.shield", label: "Kept", source: "metadata only") { Text(a.details["keptWhy"] ?? "The \(m.settings.keeper == .bestNamed ? "better-named" : "older") copy") }
                 }
                 .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(K.separator, lineWidth: 0.75))
             }

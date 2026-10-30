@@ -1,0 +1,319 @@
+import XCTest
+@testable import KansoCore
+
+/// Tests for the v1 parity features. They reuse the fixtures of EngineTests (temp root, store, fake classifier).
+extension EngineTests {
+    // MARK: Destination safety
+
+    var outside: URL {
+        let u = tmp.appendingPathComponent("Outside")
+        try? fm.createDirectory(at: u, withIntermediateDirectories: true)
+        return u
+    }
+
+    func testModelCannotCreateOrPickProtectedShelves() async {
+        for name in ["Manual Shelves", "keys", "Ｍａｎｕａｌ Ｓｈｅｌｖｅｓ", "Recents", "My Shelves", "Duplicates"] {
+            make(pick: Pick(folder: Brain.new, name: name, emoji: "📁", description: "x"))
+            let u = file("a.xyz")
+            _ = await run()
+            XCTAssertTrue(exists(shelf(Shelf.unsorted).appendingPathComponent("a.xyz")), "\(name) must end in Unsorted")
+            XCTAssertNil(store.settings.type(named: name), "\(name) must not become a type")
+            XCTAssertFalse(exists(u))
+            try? fm.removeItem(at: root)
+            try? fm.createDirectory(at: root, withIntermediateDirectories: true)
+        }
+    }
+
+    func testModelCannotPickKeysEvenIfAskedFor() async {
+        make(pick: Pick(folder: "Keys"))
+        file("a.xyz")
+        _ = await run()
+        XCTAssertTrue(exists(shelf(Shelf.unsorted).appendingPathComponent("a.xyz")))
+        XCTAssertFalse(Brain.options(store.settings).contains { $0.0 == "Keys" })
+    }
+
+    func testExtensionTableStillFilesKeys() async {
+        file("id.pem")
+        _ = await run()
+        XCTAssertTrue(exists(shelf("Keys").appendingPathComponent("id.pem")))
+    }
+
+    func testAutomaticRuleCannotLeaveMyShelves() async {
+        let out = outside
+        make(pick: nil) {
+            var r = Rule([Condition(.ext, "zzz")], dest: out.path)
+            r.automatic = true
+            $0.rules = [r]
+        }
+        file("a.zzz")
+        _ = await run()
+        XCTAssertTrue(exists(shelf(Shelf.unsorted).appendingPathComponent("a.zzz")))
+        XCTAssertEqual((try? fm.contentsOfDirectory(atPath: out.path))?.count, 0)
+    }
+
+    func testUserWrittenAbsoluteDestinationStillWorks() async {
+        let out = outside
+        make(pick: nil) { $0.rules = [Rule([Condition(.ext, "zzz")], dest: out.path)] }
+        file("a.zzz")
+        _ = await run()
+        XCTAssertTrue(exists(out.appendingPathComponent("a.zzz")))
+    }
+
+    func testRelativeDestinationsNeverReachOwnFoldersOrEscapeThroughSymlinks() throws {
+        let mine = root.appendingPathComponent(Library.mine)
+        try fm.createDirectory(at: mine, withIntermediateDirectories: true)
+        try fm.createSymbolicLink(at: mine.appendingPathComponent("Escape"), withDestinationURL: outside)
+        for dest in ["Manual Shelves", "Documents/Recents", "manual shelves", "Escape", "Escape/deeper", "/etc", "~/Desktop"] {
+            XCTAssertEqual(engine.resolve(root, dest).lastPathComponent, Shelf.unsorted, dest)
+        }
+        XCTAssertEqual(engine.resolve(root, "Documents/Invoices").path, mine.appendingPathComponent("Documents/Invoices").path)
+        XCTAssertEqual(engine.resolve(root, "/tmp/x", userPath: true).path, "/tmp/x")
+    }
+
+    // MARK: Duplicate keeper reason
+
+    func testKeeperReasonIsJournaled() async {
+        make(pick: nil) { $0.duplicates = true }
+        file("invoice.pdf", "same bytes", in: shelf("Documents"))
+        file("invoice (1).pdf", "same bytes")
+        file("contract.pdf", "other bytes", in: root.appendingPathComponent(Library.manual))
+        file("contract copy.pdf", "other bytes")
+        let done = await run().filter { $0.kind == .duplicate }
+        XCTAssertEqual(done.count, 2)
+        XCTAssertEqual(done.first { $0.srcName == "invoice (1).pdf" }?.details["keptWhy"], "The other copy was already filed on a shelf")
+        XCTAssertEqual(done.first { $0.srcName == "contract copy.pdf" }?.details["keptWhy"], "The other copy is already in your Manual Shelves")
+        let reloaded = Store(dir: tmp.appendingPathComponent("state"))
+        XCTAssertNotNil(reloaded.actions.first { $0.kind == .duplicate }?.details["keptWhy"], "the reason survives a restart")
+    }
+
+    func testKeeperReasonForTwoLooseCopies() async {
+        make(pick: nil) { $0.duplicates = true }
+        file("a.pdf", "same")
+        Thread.sleep(forTimeInterval: 1.1)
+        file("a copy.pdf", "same")
+        let dup = await run().first { $0.kind == .duplicate }
+        XCTAssertEqual(dup?.details["keptWhy"], "Both arrived together, and its name is cleaner")
+    }
+
+    func testKeeperReasonWording() {
+        let a = file("a.pdf"), b = file("a (1).pdf")
+        XCTAssertEqual(Engine.keeperReason(kept: a, copy: b, root: root, setting: .bestNamed), "Its name is cleaner than \u{201C}a (1).pdf\u{201D}")
+        XCTAssertEqual(Engine.keeperReason(kept: b, copy: a, root: root, setting: .bestNamed), "Its name is as clean as the other copy's")
+    }
+
+    // MARK: Batch undo card
+
+    func action(_ kind: Action.Kind, run: String = "r1", src: String = "/d/a.pdf", dst: String = "/d/My Shelves/Documents/a.pdf") -> Action {
+        Action(run: run, kind: kind, src: src, dst: dst, root: "/d", shelf: "Documents", why: "extension", source: "metadata only")
+    }
+
+    func testBatchSummaryOnlyForUserStartedRunsOfSeveralFiles() {
+        let three = [action(.sorted), action(.sorted), action(.sorted)]
+        XCTAssertNil(Batch.summary(three, trigger: "auto"), "plain sorts stay silent")
+        XCTAssertNil(Batch.summary([action(.sorted)], trigger: "menu"), "one file needs no card")
+        let b = Batch.summary(three, trigger: "menu")
+        XCTAssertEqual(b?.text, "Sorted 3 files")
+        XCTAssertEqual(b?.run, "r1")
+        XCTAssertEqual(b?.count, 3)
+        XCTAssertNotNil(Batch.summary(three, trigger: "sort-everything"))
+    }
+
+    func testBatchSummaryWording() {
+        let mixed = [action(.sorted), action(.sorted), action(.renamed), action(.duplicate)]
+        XCTAssertEqual(Batch.summary(mixed, trigger: "menu")?.text, "Sorted 3 files, renamed 1, held 1 copy")
+        let inPlace = [action(.renamed, src: "/d/x/a.pdf", dst: "/d/x/b.pdf"), action(.renamed, src: "/d/x/c.pdf", dst: "/d/x/d.pdf")]
+        XCTAssertEqual(Batch.summary(inPlace, trigger: "review")?.text, "Renamed 2 files")
+        var undone = action(.sorted); undone.undone = true
+        XCTAssertNil(Batch.summary([undone, action(.sorted)], trigger: "menu"), "undone entries don't count")
+    }
+
+    func testOneUndoRevertsTheWholeUserStartedRun() async {
+        file("a.pdf"); file("b.png"); file("c.zip")
+        let done = await run(trigger: "menu")
+        let b = Batch.summary(done, trigger: "menu")
+        XCTAssertEqual(b?.count, 3)
+        XCTAssertEqual(Set(done.map(\.run)).count, 1, "one run, so one Undo")
+        let restored = engine.undoLast()
+        XCTAssertEqual(restored.count, 3)
+        XCTAssertTrue(exists(root.appendingPathComponent("a.pdf")))
+        XCTAssertTrue(exists(root.appendingPathComponent("b.png")))
+    }
+
+    // MARK: No model
+
+    struct NoModel: Classifier {
+        var available: Bool { false }
+        func choose(facts: [(String, String)], options: [(String, String)], creating: Bool) async -> Pick? {
+            XCTFail("an unavailable model must never be asked")
+            return Pick(folder: "Documents")
+        }
+    }
+
+    func testSortingWorksWithoutAnyModel() async {
+        engine = Engine(store: store, classifier: NoModel())
+        engine.setIcon = { _, _ in }
+        file("report.pdf"); file("photo.jpg"); file("key.pem"); file("mystery.qqq")
+        let done = await run()
+        XCTAssertEqual(done.count, 4)
+        XCTAssertTrue(exists(shelf("Documents").appendingPathComponent("report.pdf")))
+        XCTAssertTrue(exists(shelf("Images").appendingPathComponent("photo.jpg")))
+        XCTAssertTrue(exists(shelf("Keys").appendingPathComponent("key.pem")))
+        XCTAssertTrue(exists(shelf(Shelf.unsorted).appendingPathComponent("mystery.qqq")), "unknown types wait in Unsorted")
+        XCTAssertEqual(done.first { $0.srcName == "mystery.qqq" }?.why, "unknown type")
+        XCTAssertTrue(store.settings.learnedExts.isEmpty)
+    }
+
+    func testTurningTheSettingOffAlsoSkipsTheModel() async {
+        make(pick: Pick(folder: "Documents")) { $0.appleIntelligence = false }
+        file("mystery.qqq")
+        _ = await run()
+        XCTAssertTrue(exists(shelf(Shelf.unsorted).appendingPathComponent("mystery.qqq")))
+    }
+
+    // MARK: Saved views
+
+    func testSavedViewFiltersActionsAndNeverTouchesFiles() async {
+        file("a.pdf"); file("b.png")
+        let done = await run()
+        let before = Set((try? fm.contentsOfDirectory(atPath: shelf("Documents").path)) ?? [])
+        let docs = SavedView(name: "Docs", filter: "All", query: "", shelf: "Documents", days: 7)
+        XCTAssertEqual(done.filter { docs.includes($0) }.map(\.shelf), ["Documents"])
+        XCTAssertEqual(done.filter { SavedView(name: "q", query: "B.PNG").includes($0) }.map(\.shelf), ["Images"], "search is case-insensitive")
+        var old = done[0]; old.ts = Date().addingTimeInterval(-10 * 86400)
+        XCTAssertFalse(docs.includes(old), "older than 7 days")
+        XCTAssertEqual(Set((try? fm.contentsOfDirectory(atPath: shelf("Documents").path)) ?? []), before, "views only filter")
+    }
+
+    func testActivityFiltersMatchTheKindOfAction() {
+        var renamed = action(.renamed); renamed.tags = ["Invoice"]
+        var undone = action(.sorted); undone.undone = true
+        var installer = action(.trashed); installer.details["installer"] = "Figma"
+        let trashedCopy = action(.trashed)
+        XCTAssertTrue(ActivityFilter.renamed.includes(renamed))
+        XCTAssertTrue(ActivityFilter.tagged.includes(renamed))
+        XCTAssertFalse(ActivityFilter.renamed.includes(undone))
+        XCTAssertTrue(ActivityFilter.undone.includes(undone))
+        XCTAssertTrue(ActivityFilter.ejected.includes(installer))
+        XCTAssertFalse(ActivityFilter.duplicates.includes(installer))
+        XCTAssertTrue(ActivityFilter.duplicates.includes(trashedCopy))
+        XCTAssertFalse(ActivityFilter.needs.includes(renamed))
+    }
+
+    func testSavedViewsPersistAndReplaceByName() throws {
+        store.update {
+            XCTAssertTrue($0.saveView(SavedView(name: " Receipts ", filter: "Renamed", shelf: "Documents")))
+            XCTAssertTrue($0.saveView(SavedView(name: "receipts", filter: "Tagged")))   // same name: replaced
+            XCTAssertFalse($0.saveView(SavedView(name: "   ")))
+        }
+        XCTAssertEqual(store.settings.savedViews.count, 1)
+        XCTAssertEqual(store.settings.savedViews[0].filter, "Tagged")
+        let reloaded = Store(dir: tmp.appendingPathComponent("state"))
+        XCTAssertEqual(reloaded.settings.savedViews, store.settings.savedViews)
+        // A view with an unknown filter (from a newer build) still loads and falls back to All.
+        let json = #"{"savedViews": [{"name": "Future", "filter": "Archived"}, {"nope": 1}]}"#
+        let s = try Store.decoder.decode(Settings.self, from: Data(json.utf8))
+        XCTAssertEqual(s.savedViews.map(\.name), ["Future"])
+        XCTAssertTrue(s.savedViews[0].includes(action(.sorted)))
+    }
+
+    // MARK: Excludes
+
+    func testGlobalExcludesKeepMatchingItemsInPlace() async {
+        make(pick: nil) { $0.excludes = ["*.LOG", " Draft* ", ""] }
+        file("a.log"); file("draft-1.pdf"); file("keep.pdf")
+        let plan = await engine.plan()
+        XCTAssertEqual(plan.moves.map(\.item.name), ["keep.pdf"])
+        XCTAssertTrue(plan.waiting.isEmpty)
+        _ = engine.apply(plan.moves)
+        XCTAssertTrue(exists(root.appendingPathComponent("a.log")))
+        XCTAssertTrue(exists(root.appendingPathComponent("draft-1.pdf")))
+    }
+
+    func testSubfolderExcludeIsPerWatchedFolder() async throws {
+        let other = tmp.appendingPathComponent("Desktop")
+        try fm.createDirectory(at: other.appendingPathComponent("Projects"), withIntermediateDirectories: true)
+        try fm.createDirectory(at: root.appendingPathComponent("Projects"), withIntermediateDirectories: true)
+        try fm.createDirectory(at: root.appendingPathComponent("Scratch"), withIntermediateDirectories: true)
+        make(pick: nil) {
+            $0.roots = [self.root.path, other.path]
+            $0.sortFolders = true
+            $0.rootExcludes = [self.root.path: ["projects"]]
+        }
+        let plan = await engine.plan()
+        let names = plan.moves.map { "\($0.item.root.lastPathComponent)/\($0.item.name)" }.sorted()
+        XCTAssertEqual(names, ["Desktop/Projects", "Downloads/Scratch"], "Projects is skipped only in Downloads")
+    }
+
+    func testExcludeAddedAfterPlanningStillWins() async {
+        file("late.pdf")
+        let plan = await engine.plan()
+        store.update { $0.excludes = ["late*"] }
+        XCTAssertTrue(engine.apply(plan.moves).isEmpty)
+        XCTAssertTrue(exists(root.appendingPathComponent("late.pdf")))
+    }
+
+    // MARK: Rule preview
+
+    func testRulePreviewListsMatchesWithoutSideEffects() throws {
+        file("a.pdf"); file("b.pdf"); file("c.png")
+        let before = try fm.contentsOfDirectory(atPath: root.path).sorted()
+        let draft = Rule([Condition(.ext, "pdf")], dest: "Invoices")
+        let p = engine.previewRule(draft)
+        XCTAssertEqual(p.count, 2)
+        XCTAssertEqual(p.hits.map(\.name), ["a.pdf", "b.pdf"])
+        XCTAssertEqual(p.hits.first?.otherwise, "Documents")
+        XCTAssertEqual(p.scanned, 3)
+        XCTAssertEqual(p.shadowedCount, 0)
+        XCTAssertEqual(try fm.contentsOfDirectory(atPath: root.path).sorted(), before, "nothing moved, nothing created")
+        XCTAssertTrue(store.actions.isEmpty)
+        XCTAssertFalse(store.settings.rules.contains { $0.id == draft.id }, "the draft is not saved")
+        XCTAssertFalse(exists(root.appendingPathComponent(Library.mine)))
+    }
+
+    func testRulePreviewShowsFirstMatchWinsAndLimits() {
+        make(pick: nil) { $0.rules.append(Rule([Condition(.ext, "pdf")], dest: "Reports")) }
+        file("a.pdf"); file("a2.txt")
+        for i in 0..<9 { file("note\(i).txt") }
+        let draft = Rule([Condition(.name, "a*")], dest: "Notes")
+        let p = engine.previewRule(draft)
+        XCTAssertEqual(p.count, 1)                          // a2.txt
+        XCTAssertEqual(p.shadowedCount, 1)                  // a.pdf goes to the earlier .pdf rule
+        XCTAssertEqual(p.shadowed.first?.shadowedBy, ".pdf")
+        let all = engine.previewRule(Rule([Condition(.ext, "txt")], dest: "Notes"), limit: 3)
+        XCTAssertEqual(all.count, 10)
+        XCTAssertEqual(all.hits.count, 3, "only the first few are listed")
+    }
+
+    func testRulePreviewWorksForASwitchedOffSavedRule() {
+        var r = Rule([Condition(.ext, "png")], dest: "Images")
+        r.enabled = false
+        store.update { $0.rules.append(r) }
+        file("c.png")
+        XCTAssertEqual(engine.previewRule(r).count, 1)
+        XCTAssertEqual(engine.previewRule(r).shadowedCount, 0)
+    }
+
+    func testDestinationWarning() {
+        XCTAssertNil(Engine.destinationWarning("Documents/Invoices"))
+        XCTAssertNotNil(Engine.destinationWarning("~/Taxes"))
+        XCTAssertTrue(Engine.destinationWarning("/Users/me/Downloads/Manual Shelves/x")?.contains("Manual Shelves") == true)
+    }
+
+    func testSuggestionsAndCorrectionsNeverTeachKeys() {
+        let sug = RuleSuggestion(condition: Condition(.ext, "zzz"), shelf: "Keys", files: ["a.zzz"])
+        store.updatePending { $0.suggestions = [sug] }
+        let before = store.settings.rules.count
+        engine.acceptSuggestion(sug.id)
+        XCTAssertEqual(store.settings.rules.count, before)
+        XCTAssertTrue(store.pending.suggestions.isEmpty)
+
+        engine.teach(Correction(name: "a.zzz", ext: "zzz", from: nil, fromShelf: "Documents", toShelf: "Keys"))
+        XCTAssertFalse(store.settings.learnedExts.contains("zzz"))
+
+        let ok = RuleSuggestion(condition: Condition(.ext, "zzz"), shelf: "Documents", files: [])
+        store.updatePending { $0.suggestions = [ok] }
+        engine.acceptSuggestion(ok.id)
+        XCTAssertEqual(store.settings.rules.first?.dest, "Documents")
+        XCTAssertEqual(store.settings.rules.first?.automatic, true)
+    }
+}

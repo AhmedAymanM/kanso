@@ -37,7 +37,8 @@ public enum Brain {
     }
 
     public static func options(_ s: Settings) -> [(String, String)] {
-        s.types.filter { ![Shelf.unsorted, Shelf.screenshots].contains($0.name) }.map { ($0.name, $0.description) }
+        // Keys is never offered: a model can't route files into the security shelf (the extension table does that).
+        s.types.filter { ![Shelf.unsorted, Shelf.screenshots].contains($0.name) && Engine.automaticShelfAllowed($0.name) }.map { ($0.name, $0.description) }
     }
 
     public static func cleanName(_ n: String) -> String {
@@ -63,6 +64,18 @@ public struct AppleIntelligence: Classifier {
     public var available: Bool {
         #if canImport(FoundationModels)
         if #available(macOS 26, *) { return SystemLanguageModel.default.availability == .available }
+        #endif
+        return false
+    }
+
+    /// Could turning Apple Intelligence on in System Settings make it available? False before macOS 26 and on Macs that can't run it,
+    /// so the UI offers no dead-end button there and says plainly that sorting works without it.
+    public var canBeTurnedOn: Bool {
+        #if canImport(FoundationModels)
+        if #available(macOS 26, *) {
+            if case .unavailable(.deviceNotEligible) = SystemLanguageModel.default.availability { return false }
+            return true
+        }
         #endif
         return false
     }

@@ -43,7 +43,6 @@ struct OnboardingView: View {
         .frame(minWidth: 600, maxWidth: .infinity, minHeight: 540, maxHeight: .infinity)
         .background(K.window)
         .ignoresSafeArea()
-        .focusEffectDisabled()
         .onAppear { if chosen.isEmpty { chosen = Set(m.settings.roots) } }
     }
 
@@ -60,7 +59,7 @@ struct OnboardingView: View {
         VStack(alignment: .leading, spacing: 22) {
             title("Kanso needs to open \(folderCount).", "")
             VStack(alignment: .leading, spacing: 8) {
-                ForEach([("square.3.layers.3d", "Only the top level is sorted; shelves go inside the same folder."), ("laptopcomputer", "Nothing leaves this Mac."), ("checkmark.shield", "macOS asks once per folder. Uncheck one to leave it out.")], id: \.1) { b in
+                ForEach([("square.3.layers.3d", "Only the top level is sorted; shelves go inside the same folder."), ("laptopcomputer", "Your files never leave this Mac. The only network use is a daily update check (switch it off in Settings)."), ("checkmark.shield", "macOS asks once per folder. Uncheck one to leave it out.")], id: \.1) { b in
                     Label { Text(b.1).font(.system(size: TS.body)).foregroundStyle(K.text2) } icon: { Image(systemName: b.0).foregroundStyle(Tint.accent.fg).frame(width: 18) }
                 }
             }
@@ -144,14 +143,20 @@ struct OnboardingView: View {
     }
 
     var aiStep: some View {
-        VStack(alignment: .leading, spacing: 22) {
-            title("Turn on Apple Intelligence?", "Kanso uses it on this Mac for file types it doesn't know yet. Without it, those files go to ❓ Unsorted and everything else works the same.")
-            RowGroup {
-                Row(icon: "sparkles", title: "Apple Intelligence", desc: "\(m.ai.status). Turn it on in System Settings → Apple Intelligence & Siri.", last: true) {
-                    Button("Open System Settings") { NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Siri-Settings.extension")!) }.buttonStyle(SecondaryStyle(small: true))
+        let canTurnOn = m.ai.canBeTurnedOn
+        return VStack(alignment: .leading, spacing: 22) {
+            if canTurnOn {
+                title("Turn on Apple Intelligence?", "Kanso uses it on this Mac for file types it doesn't know yet. Without it, those files go to ❓ Unsorted and everything else works the same.")
+                RowGroup {
+                    Row(icon: "sparkles", title: "Apple Intelligence", desc: "\(m.ai.status). Turn it on in System Settings → Apple Intelligence & Siri.", last: true) {
+                        Button("Open System Settings") { NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Siri-Settings.extension")!) }.buttonStyle(SecondaryStyle(small: true))
+                    }
                 }
+            } else {
+                // macOS 14-15 and Macs that can't run it: nothing to turn on, so no button, and the way forward is the same as everywhere.
+                title("Sorting works without Apple Intelligence.", "\(m.ai.status). Kanso sorts every known file type by its extension. Files it doesn't know go to ❓ Unsorted, and you can move them yourself. Nothing else is missing.")
             }
-            Text("Nothing leaves this Mac either way. You can change this later in Settings → Privacy & AI.").font(.system(size: TS.small)).foregroundStyle(K.text2)
+            Text("Your files never leave this Mac either way. You can change this later in Settings → Privacy & AI.").font(.system(size: TS.small)).foregroundStyle(K.text2)
         }
     }
 
