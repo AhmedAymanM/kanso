@@ -55,7 +55,7 @@ struct ShowAllButton: View {
         Button(action: action) {
             HStack(spacing: 8) {
                 Text(label).font(.system(size: TS.body, weight: .semibold)).foregroundStyle(K.text)
-                Image(systemName: "arrow.right").font(.system(size: TS.micro, weight: .bold)).foregroundStyle(tint.fg)
+                Image(systemName: "arrow.right").font(.system(size: TS.meta, weight: .bold)).foregroundStyle(tint.fg)
                     .frame(width: 22, height: 16).background(RoundedRectangle(cornerRadius: 5).fill(tint.fg.opacity(0.18)))
             }
             .padding(.horizontal, 12).frame(height: 28)
@@ -116,7 +116,7 @@ struct GlyphHero<Extra: View>: View {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .top, spacing: 14) {
                     Group {
-                        if let emoji { Text(emoji).font(.system(size: TS.headline)) }
+                        if let emoji { Text(emoji).font(.system(size: TS.emoji)) }
                         else if let glyph { Image(systemName: glyph).font(.system(size: TS.title, weight: .medium)).foregroundStyle(tint.fg) }
                     }
                     .frame(width: 56, height: 56).background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(K.card.opacity(0.7))).accessibilityHidden(true)
@@ -344,7 +344,7 @@ struct TagRow: View {
                 .accessibilityElement(children: .combine)
             }
             Button { open = true } label: {
-                HStack(spacing: 4) { Image(systemName: "plus").font(.system(size: TS.micro, weight: .semibold)); Text("Add tag").font(.system(size: TS.meta, weight: .medium)) }
+                HStack(spacing: 4) { Image(systemName: "plus").font(.system(size: TS.meta, weight: .semibold)); Text("Add tag").font(.system(size: TS.meta, weight: .medium)) }
                     .foregroundStyle(tint.fg).padding(.horizontal, 8).frame(height: 22)
                     .overlay(Capsule().strokeBorder(tint.stroke.opacity(2), lineWidth: 0.75)).contentShape(Capsule())
             }

@@ -58,19 +58,23 @@ enum K {
     static let sidebar = Color.dyn(0xECE8E1, 0x232325)
     static let sidebarText2 = Color.dyn(0x5E5E63, 0xA1A1A6)   // secondary text on the sidebar material: 5.3:1 light, 5.9:1 dark
     static let rowSelected = Color.dyn(0x000000, 0xFFFFFF, 0.08, 0.10)   // selected sidebar row, hovered pop-up row
-    static let glass = Color.dyn(0xFBFAF8, 0x2A2A2C, 0.90, 0.92)
+    static let glass = Color.dyn(0xFBFAF8, 0x2A2A2C, 0.92, 0.92)
     static let card = Color.dyn(0xFFFFFF, 0x2C2C2E)
     static let cardSoft = Color.dyn(0xFFFFFF, 0x3A3A3C, 0.70, 0.55)
     static let text = Color.dyn(0x1D1D1F, 0xF5F5F7)
-    static let text2 = Color.dyn(0x6E6E73, 0xA1A1A6)
-    static let text3 = Color.dyn(0x8A8A8E, 0x8E8E93)
+    static let text2 = Color.dyn(0x636368, 0xA1A1A6)      // 5.34:1 on window, 5.97 on card (light)
+    static let text3 = Color.dyn(0x666669, 0x9C9CA2)      // text: 5.12:1 light, 5.10 on card dark
+    static let controlStroke = Color.dyn(0x8A8A8E, 0x78787D)   // button, field and well edges: 3:1 or better
+    static let glassText2 = Color.dyn(0x636368, 0xC0C0C7)  // secondary text on glass
     static let separator = Color.dyn(0x000000, 0xFFFFFF, 0.10, 0.12)
     static let fill = Color.dyn(0x000000, 0xFFFFFF, 0.04, 0.07)
     static let segThumb = Color.dyn(0xFFFFFF, 0x4A4A4C)   // raised pill in the Activity filter
     static let fillStrong = Color.dyn(0x000000, 0xFFFFFF, 0.06, 0.10)
     static let neutralBg = Tint.neutral.bg
     static let off = Color.dyn(0x000000, 0xFFFFFF, 0.12, 0.16)   // k2-switch-off
-    static let focus = Tint.accent.fg
+    static let innerRadius: CGFloat = 8   // control inside a card (outer radius 14 - padding 16, floored at 8)
+    static let hero = Color.dyn(0x2E5A4B, 0x243A33)
+    static let heroText = Color.dyn(0xF4F2EE, 0xE8F3EC)
     static let switchOn = Color.dyn(0x34C759, 0x30D158)   // native switch green (design: k3-switch-on)
 }
 
@@ -79,7 +83,7 @@ struct FocusRing: ViewModifier {
     var radius: CGFloat
     @Environment(\.isFocused) private var focused
     func body(content: Content) -> some View {
-        content.overlay(RoundedRectangle(cornerRadius: radius + 2).stroke(K.focus, lineWidth: 2).padding(-2).opacity(focused ? 1 : 0))
+        content.overlay(RoundedRectangle(cornerRadius: radius + 2).stroke(K.accent, lineWidth: 2).padding(-2).opacity(focused ? 1 : 0))
     }
 }
 
@@ -96,6 +100,10 @@ enum Motion {
     /// Critically damped (docs/design-validation §9): no overshoot, interruptible.
     static func spring(_ response: Double = 0.35) -> Animation { reduced ? .easeOut(duration: 0.2) : .spring(response: response, dampingFraction: 1) }
 }
+
+/// Motion constants (docs/design/proposals/final-direction.md).
+enum Ease { static let standard = Animation.timingCurve(0.2, 0.8, 0.2, 1, duration: Dur.base) }
+enum Dur { static let fast = 0.12, base = 0.22, island = 0.42 }
 
 /// Publishes changes to the system's accessibility display options (Reduce Transparency, Increase Contrast, Reduce Motion),
 /// so views that read `Motion` re-render while the app runs instead of on their next redraw.
@@ -117,24 +125,20 @@ final class AccessibilityOptions: ObservableObject {
 
 /// The type scale (DESIGN_SYSTEM.md §3). Every text and glyph size comes from here; icons smaller than text (8–9 pt chevrons) stay literal.
 enum TS {
-    static let micro: CGFloat = 10      // chart labels, tiny badges
-    static let meta: CGFloat = 11       // eyebrows, times, sources, key hints, badges
+    static let meta: CGFloat = 11       // eyebrows, times, chart labels, badges, key hints (no font goes below 11)
     static let small: CGFloat = 12      // descriptions, secondary lines
     static let body: CGFloat = 13       // rows, buttons, body text
-    static let emphasis: CGFloat = 15   // card and section titles, names, page title
+    static let emphasis: CGFloat = 15   // card and section titles, names, toolbar title
     static let heading: CGFloat = 17    // file names in notices
-    static let title: CGFloat = 20      // wordmark, large values
-    static let title2: CGFloat = 22     // Activity headline
-    static let headline: CGFloat = 26   // showcase headline, folder emoji
-    static let display: CGFloat = 30    // statements, numerals
-    static let statement: CGFloat = 34  // Overview headline
-    static let hero: CGFloat = 40       // showcase glyph, big emoji, month total
-    static let numeral: CGFloat = 52    // Overview hero number
+    static let title: CGFloat = 22      // serif statements, page headlines
+    static let display: CGFloat = 40    // serif display, big glyphs
+    static let numeral: CGFloat = 64    // Overview hero number (serif, monospaced digits)
+    static let emoji: CGFloat = 26      // folder emoji: an icon size, not a text step
 }
 
 extension View {
     func eyebrow() -> some View { font(.system(size: TS.meta, weight: .semibold)).kerning(0.5).foregroundStyle(K.text2).textCase(.uppercase) }
-    func card(radius: CGFloat = 12) -> some View {
+    func card(radius: CGFloat = 14) -> some View {
         background(RoundedRectangle(cornerRadius: radius).fill(K.card))
             .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(K.separator, lineWidth: 0.75))
     }
@@ -279,7 +283,7 @@ struct Chip: View {
     var onCard = false
     var body: some View {
         HStack(spacing: 4) {
-            if let icon { Image(systemName: icon).font(.system(size: TS.micro, weight: .semibold)) }
+            if let icon { Image(systemName: icon).font(.system(size: TS.meta, weight: .semibold)) }
             Text(text).font(.system(size: TS.meta, weight: .semibold))
         }
         .foregroundStyle(tint.fg)
@@ -299,7 +303,7 @@ struct Badge: View {
             if let on {
                 Circle().fill(on ? K.accent : .clear).overlay(Circle().strokeBorder(on ? .clear : K.text3, lineWidth: 1)).frame(width: 6, height: 6)
             } else {
-                Image(systemName: icon).font(.system(size: TS.micro))
+                Image(systemName: icon).font(.system(size: TS.meta))
             }
             Text(text).font(.system(size: TS.meta, weight: .medium))
         }
@@ -395,7 +399,7 @@ struct Row<Trailing: View>: View {
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 6) {
                         Text(title).font(.system(size: TS.body, weight: .medium)).foregroundStyle(dim ? K.text3 : K.text)
-                        if let badge { Text(badge).font(.system(size: TS.micro, weight: .medium)).foregroundStyle(K.text2).padding(.horizontal, 5).frame(height: 16).background(RoundedRectangle(cornerRadius: 4).fill(K.fill)) }
+                        if let badge { Text(badge).font(.system(size: TS.meta, weight: .medium)).foregroundStyle(K.text2).padding(.horizontal, 5).frame(height: 16).background(RoundedRectangle(cornerRadius: 4).fill(K.fill)) }
                     }
                     if let desc { Text(desc).font(.system(size: TS.small)).foregroundStyle(dim ? K.text3 : K.text2).fixedSize(horizontal: false, vertical: true) }
                 }
@@ -464,7 +468,7 @@ struct MenuPicker<T: Hashable>: View {
             HStack(spacing: 8) {
                 if let emoji { Text(emoji(value)).font(.system(size: TS.emphasis)) }
                 Text(options.first { $0.0 == value }?.1 ?? "").font(.system(size: TS.body, weight: .medium)).foregroundStyle(K.text)
-                Image(systemName: "chevron.up.chevron.down").font(.system(size: TS.micro, weight: .semibold)).foregroundStyle(K.text2)
+                Image(systemName: "chevron.up.chevron.down").font(.system(size: TS.meta, weight: .semibold)).foregroundStyle(K.text2)
             }
             .padding(.horizontal, 12).frame(height: 30)
             .contentShape(Capsule())
@@ -511,7 +515,7 @@ struct PageHeader<Trailing: View>: View {
             }
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 10) {
-                    Text(title).font(.system(size: TS.title2, weight: .bold)).kerning(-0.3).foregroundStyle(K.text)
+                    Text(title).font(.system(size: TS.title, weight: .bold)).kerning(-0.3).foregroundStyle(K.text)
                     if let badge { Badge(icon: badge.0, text: badge.1) }
                 }
                 Text(subtitle).font(.system(size: TS.body)).foregroundStyle(K.text2)
@@ -589,7 +593,7 @@ struct LiquidModifier<S: Shape>: ViewModifier {
         if #available(macOS 26, *), Glass26.on, !onGlass {
             content.glassEffect(SwiftUI.Glass.regular.tint(tint).interactive(interactive), in: shape)
         } else {
-            content.background(shape.fill(tint ?? fallback)).overlay(shape.stroke(K.separator, lineWidth: 0.75))
+            content.background(shape.fill(tint ?? fallback)).overlay(shape.stroke(Motion.contrast ? K.controlStroke : K.controlStroke.opacity(0.6), lineWidth: 0.75))
         }
     }
 }
