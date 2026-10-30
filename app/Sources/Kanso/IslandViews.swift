@@ -7,9 +7,9 @@ import SwiftUI
 
 enum IslandInk {
     static let text = Color(nsColor: NSColor(hex: 0xF5F5F7))
-    static let text2 = Color.white.opacity(0.6)
-    static let text3 = Color.white.opacity(0.6)   // 6.2:1 on black; 40% failed 4.5:1 for 11 pt text
-    static let control = Color.white.opacity(0.12)
+    static let text2 = Color.white.opacity(0.7)
+    static let text3 = Color.white.opacity(0.62)   // floor: 7.8:1 on black
+    static let control = Color.white.opacity(0.14)
     static let rim = Color.white.opacity(0.18)
 }
 
@@ -63,7 +63,7 @@ struct IslandBody: View {
     @ObservedObject private var a11y = AccessibilityOptions.shared
 
     var notchSkin: Bool { island.skin == .notch }
-    var width: CGFloat { island.expanded ? 480 : (notchSkin ? max(290, island.notch.width + 110) : 320) }
+    var width: CGFloat { island.expanded ? 480 : (notchSkin ? max(290, island.notch.width + 140) : 320) }
     var radius: CGFloat { island.expanded ? 30 : (notchSkin ? 20 : 22) }
     /// Text never enters the clear lip: expanded 64 pt, compact 30 pt (capsule compact 14).
     var lip: CGFloat { island.expanded ? 92 : (notchSkin ? 34 : 14) }
@@ -154,15 +154,21 @@ struct IslandFill: View {
             shape.fill(Color.black)
                 .overlay { if Motion.contrast { shape.stroke(K.text.opacity(0.6), lineWidth: 1) } }
         } else {
-            let stops: [Gradient.Stop] = expanded
-                ? [.init(color: .black, location: 0), .init(color: .black, location: 0.7), .init(color: .black.opacity(0.55), location: 0.84), .init(color: .clear, location: 1)]
-                : [.init(color: .black, location: 0), .init(color: .black, location: 0.58), .init(color: .black.opacity(0.65), location: 0.77), .init(color: .clear, location: 1)]
-            ZStack {
-                if #available(macOS 26, *) { Color.clear.glassEffect(.regular, in: shape) }   // the lip shows real frosted Liquid Glass
-                shape.fill(LinearGradient(stops: stops, startPoint: .top, endPoint: .bottom))
-                shape.stroke(LinearGradient(stops: [.init(color: .clear, location: 0), .init(color: .white.opacity(0.25), location: 0.85), .init(color: .white.opacity(0.85), location: 1)], startPoint: .top, endPoint: .bottom), lineWidth: 1.5)
-                shape.stroke(Color.white.opacity(0.18), lineWidth: 6).blur(radius: 7).mask(LinearGradient(colors: [.clear, .white], startPoint: .init(x: 0.5, y: 0.8), endPoint: .bottom))
+            // The melt into glass is confined to the last 12 pt; everything above, including the esc row, is solid black.
+            GeometryReader { g in
+                let h = max(g.size.height, 1), m0 = max(0, 1 - 12 / h)
+                let stops: [Gradient.Stop] = [.init(color: .black, location: 0), .init(color: .black, location: m0), .init(color: .black.opacity(0.55), location: m0 + (1 - m0) * 0.5), .init(color: .clear, location: 1)]
+                fill(stops)
             }
+        }
+    }
+
+    @ViewBuilder private func fill(_ stops: [Gradient.Stop]) -> some View {
+        ZStack {
+            if #available(macOS 26, *) { Color.clear.glassEffect(.regular, in: shape) }   // the lip shows real frosted Liquid Glass
+            shape.fill(LinearGradient(stops: stops, startPoint: .top, endPoint: .bottom))
+            shape.stroke(LinearGradient(stops: [.init(color: .clear, location: 0), .init(color: .white.opacity(0.25), location: 0.85), .init(color: .white.opacity(0.85), location: 1)], startPoint: .top, endPoint: .bottom), lineWidth: 1.5)
+            shape.stroke(Color.white.opacity(0.18), lineWidth: 6).blur(radius: 7).mask(LinearGradient(colors: [.clear, .white], startPoint: .init(x: 0.5, y: 0.8), endPoint: .bottom))
         }
     }
 }
@@ -175,7 +181,7 @@ struct IslandLip: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            Text(hints).font(.system(size: TS.meta)).foregroundStyle(Color.white.opacity(0.5)).lineLimit(1)
+            Text(hints).font(.system(size: TS.meta)).foregroundStyle(IslandInk.text3).lineLimit(1)
             Spacer()
             LipButtons {
                 IslandGlassButton(symbol: "keyboard", label: "Keyboard shortcuts") { withAnimation(Motion.spring()) { island.shortcuts.toggle() } }.keyboardShortcut("/")
@@ -842,9 +848,9 @@ struct IslandKey: View {
     var text: String
     var dark: Bool
     var body: some View {
-        Text(text).font(.system(size: TS.meta, weight: .medium)).foregroundStyle(dark ? .white.opacity(0.7) : K.text2)
+        Text(text).font(.system(size: TS.meta, weight: .medium)).fixedSize().foregroundStyle(dark ? .white.opacity(0.7) : K.text2)
             .padding(.horizontal, 6).frame(height: 18)
-            .background(RoundedRectangle(cornerRadius: 5).fill(dark ? .white.opacity(0.12) : K.fill))
+            .background(RoundedRectangle(cornerRadius: 5).fill(dark ? .white.opacity(0.14) : K.fill))
     }
 }
 
