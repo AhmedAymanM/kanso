@@ -65,7 +65,7 @@ struct OverviewPage: View {
                     .font(.system(size: TS.numeral, weight: .regular, design: .serif)).tracking(-1.5).foregroundStyle(Heroes.ink).lineLimit(1).minimumScaleFactor(0.6)
                 Text("files").font(.system(size: TS.body)).foregroundStyle(Heroes.ink.opacity(0.85))
             }
-            Text("placed on the right shelf\(since). \(stayed)% stayed where Kanso put them.")
+            Text(all.sorted == 0 ? "Nothing sorted yet. New files are placed on a shelf as they arrive, and you can undo any of it." : "placed on the right shelf\(since). \(stayed)% stayed where Kanso put them.")
                 .font(.system(size: TS.small)).foregroundStyle(Heroes.ink.opacity(0.85)).fixedSize(horizontal: false, vertical: true).padding(.top, 6)
         }
         .padding(16).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
