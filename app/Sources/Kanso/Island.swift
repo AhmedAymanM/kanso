@@ -543,7 +543,7 @@ final class Island: ObservableObject {
 
     private func announce(_ text: String) {
         NSAccessibility.post(element: NSApp as Any, notification: .announcementRequested,
-                             userInfo: [.announcement: text, .priority: NSAccessibilityPriorityLevel.high.rawValue])
+                             userInfo: [.announcement: text, .priority: NSAccessibilityPriorityLevel.medium.rawValue])
     }
 
     /// Full-screen apps and Focus-like moments: notices collect quietly with the menu bar dot.
