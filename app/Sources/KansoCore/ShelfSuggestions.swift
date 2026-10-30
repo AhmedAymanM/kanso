@@ -31,6 +31,8 @@ public extension Engine {
         var files: [UFile] = []
         for root in settings.activeRoots {
             let dir = root.appendingPathComponent(Library.mine).appendingPathComponent(Shelf.unsorted)
+            // A symlinked Unsorted (or My Shelves) would point suggestions at files outside the library.
+            guard !Stat.isSymlink(dir), !Stat.isSymlink(dir.deletingLastPathComponent()) else { continue }
             guard let names = try? fm.contentsOfDirectory(atPath: dir.path) else { continue }
             for n in names where !n.hasPrefix(".") {
                 let u = dir.appendingPathComponent(n)
@@ -77,18 +79,27 @@ public extension Engine {
     @discardableResult
     func acceptShelfSuggestion(_ id: String) -> [Action] {
         guard let sug = suggestedShelves().first(where: { $0.id == id }), Engine.automaticShelfAllowed(sug.name) else { return [] }
+        var ruleID: UUID?
+        var addedExt = false
         store.update { s in
             let at = s.types.firstIndex { $0.name == Shelf.unsorted } ?? s.types.endIndex
             switch sug.kind {
             case .ext:
                 s.types.insert(FileType(sug.name, sug.emoji, sug.description, [sug.key], learned: true), at: at)
-                if !s.learnedExts.contains(sug.key) { s.learnedExts.append(sug.key) }
+                if !s.learnedExts.contains(sug.key) { s.learnedExts.append(sug.key); addedExt = true }
             case .word:
                 s.types.insert(FileType(sug.name, sug.emoji, sug.description, []), at: at)
                 var rule = Rule([Condition(.name, sug.key + "*")], dest: sug.name)
                 rule.automatic = true
+                ruleID = rule.id
                 s.rules.append(rule)
             }
+        }
+        // What Accept added to the settings is written on the run's first action, so undoing the whole run takes it back out.
+        func record(_ a: inout Action) {
+            a.details[Engine.createdTypeKey] = sug.name
+            if addedExt { a.details[Engine.createdExtKey] = sug.key }
+            if let ruleID { a.details[Engine.createdRuleKey] = ruleID.uuidString }
         }
         let moves: [Planned] = sug.files.compactMap { path in
             let url = URL(fileURLWithPath: path)
@@ -96,7 +107,41 @@ public extension Engine {
             return Planned(item: Item(url: url, root: root), dest: resolve(root, sug.name), shelf: sug.name,
                            why: "new shelf \(sug.name)", source: "your Unsorted shelf")
         }
-        return apply(moves, trigger: "suggestion")
+        let done = apply(moves, trigger: "suggestion")
+        guard let first = done.first else {
+            retractCreatedShelf(name: sug.name, ext: addedExt ? sug.key : nil, rule: ruleID)   // nothing moved: leave no empty shelf type behind
+            return []
+        }
+        store.modify([first.id]) { record(&$0) }
+        return done.map { a in var a = a; if a.id == first.id { record(&a) }; return a }
+    }
+
+    static let createdTypeKey = "createdType", createdExtKey = "createdExt", createdRuleKey = "createdRule"
+
+    /// Removes the settings entries an Accept created (the type, its learned extension, its word rule). Folders are never touched.
+    func retractCreatedShelf(name: String, ext: String?, rule: UUID?) {
+        store.update { s in
+            s.types.removeAll { $0.name == name }
+            if let ext { s.learnedExts.removeAll { $0 == ext } }
+            if let rule { s.rules.removeAll { $0.id == rule } }
+        }
+    }
+
+    /// After an undo: when every action of the Accept's run is undone and the shelf holds nothing, the shelf type goes too.
+    func retractCreatedShelves(after ids: Set<UUID>) {
+        let runs = Set(store.actions.filter { ids.contains($0.id) }.map(\.run))
+        // The record sits on the run's first action, which an earlier partial undo may already have handled.
+        for a in store.actions where runs.contains(a.run) {
+            guard let name = a.details[Engine.createdTypeKey] else { continue }
+            guard store.actions.filter({ $0.run == a.run }).allSatisfy(\.undone) else { continue }
+            let roots = Set(s.activeRoots.map(\.path) + store.actions.filter { $0.run == a.run }.map(\.root).filter { !$0.isEmpty })
+            let occupied = roots.contains { r in
+                let dir = resolve(URL(fileURLWithPath: r), name)
+                return ((try? fm.contentsOfDirectory(atPath: dir.path)) ?? []).contains { !$0.hasPrefix(".") }
+            }
+            if occupied { continue }
+            retractCreatedShelf(name: name, ext: a.details[Engine.createdExtKey], rule: a.details[Engine.createdRuleKey].flatMap(UUID.init))
+        }
     }
 
     /// Dismiss: remembered, so the same suggestion doesn't come back.
