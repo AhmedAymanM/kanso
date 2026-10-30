@@ -96,6 +96,8 @@ struct RuleRow: View {
     var toggle: () -> Void
     var close: () -> Void
     @State private var edit: Rule?
+    @State private var matches: RulePreview?
+    @State private var showMatches = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -144,7 +146,6 @@ struct RuleRow: View {
 
     @ViewBuilder var editor: some View {
         let b = Binding(get: { edit ?? rule }, set: { edit = $0 })
-        let preview = previewCount(b.wrappedValue)
         VStack(alignment: .leading, spacing: 10) {
             Text("MATCH").font(.system(size: TS.micro, weight: .semibold)).kerning(0.6).foregroundStyle(Tint.rule.fg)
             HStack(spacing: 8) {
@@ -185,13 +186,14 @@ struct RuleRow: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityLabel("Warning: \(warning)")
             }
+            matchesBlock
             HStack(spacing: 8) {
-                Text("Matches \(preview) \(preview == 1 ? "file" : "files") in your watched folders now").font(.system(size: TS.small)).foregroundStyle(K.text2)
                 Spacer()
                 Button { m.update { $0.rules.removeAll { $0.id == rule.id } }; close() } label: { Image(systemName: "trash") }.buttonStyle(PlainRowStyle()).foregroundStyle(K.text3).help("Delete rule").accessibilityLabel("Delete rule")
                 Button { close() } label: { HStack(spacing: 6) { Text("Cancel"); Text("esc").font(.system(size: TS.meta)).foregroundStyle(K.text2) } }.buttonStyle(SecondaryStyle(small: true)).keyboardShortcut(.cancelAction)
                 Button {
-                    let r = b.wrappedValue
+                    var r = b.wrappedValue
+                    if r.dest.hasPrefix("/") || r.dest.hasPrefix("~") { r.automatic = false }   // a path you typed is yours
                     m.update { s in if let i = s.rules.firstIndex(where: { $0.id == r.id }) { s.rules[i] = r } else { s.rules.append(r) } }
                     close()
                 } label: { HStack(spacing: 6) { Text("Save rule"); Image(systemName: "return").font(.system(size: TS.micro)) } }
@@ -200,6 +202,50 @@ struct RuleRow: View {
             .padding(.top, 6)
         }
         .padding(.top, 4)
+        .task(id: edit) {   // a dry run, off the main thread, a moment after the last keystroke
+            guard let r = edit else { return }
+            try? await Task.sleep(nanoseconds: 250_000_000)
+            if Task.isCancelled { return }
+            let engine = m.engine
+            matches = await Task.detached(priority: .utility) { engine.previewRule(r) }.value
+        }
+    }
+
+    /// "What would match": the files waiting in your folders that this rule would take, and the ones an earlier rule takes first.
+    @ViewBuilder var matchesBlock: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Button { withAnimation(Motion.spring(0.3)) { showMatches.toggle() } } label: {
+                Label(matchesSummary, systemImage: showMatches ? "chevron.down" : "chevron.right").labelStyle(.titleAndIcon)
+            }
+            .buttonStyle(LinkStyle(color: K.text2))
+            .accessibilityHint(showMatches ? "Hides the list" : "Shows which files would match. Nothing is moved.")
+            if showMatches, let p = matches {
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(p.hits) { h in
+                        Text("\(h.name)" + (h.otherwise.map { " · otherwise \(m.settings.emoji(for: $0)) \($0)" } ?? " · no type claims it"))
+                            .font(.system(size: TS.small)).foregroundStyle(K.text).lineLimit(1).truncationMode(.middle)
+                    }
+                    if p.count > p.hits.count { Text("and \(p.count - p.hits.count) more").font(.system(size: TS.small)).foregroundStyle(K.text2) }
+                    ForEach(p.shadowed) { h in
+                        Text("\(h.name) · taken first by \(h.shadowedBy ?? "an earlier rule")")
+                            .font(.system(size: TS.small)).foregroundStyle(K.text2).lineLimit(1).truncationMode(.middle)
+                    }
+                    if p.shadowedCount > p.shadowed.count { Text("and \(p.shadowedCount - p.shadowed.count) more taken by earlier rules").font(.system(size: TS.small)).foregroundStyle(K.text2) }
+                    if p.count == 0 && p.shadowedCount == 0 { Text("None of the \(p.scanned) files waiting to be sorted match.").font(.system(size: TS.small)).foregroundStyle(K.text2) }
+                    Text("Preview only: nothing is moved. The first rule that matches wins.").font(.system(size: TS.micro)).foregroundStyle(K.text3).padding(.top, 2)
+                }
+                .padding(.leading, 20)
+                .accessibilityElement(children: .combine)
+            }
+        }
+    }
+
+    var matchesSummary: String {
+        guard let p = matches else { return "What would match…" }
+        let n = p.count
+        var line = "What would match: \(n) \(n == 1 ? "file" : "files") waiting in your folders"
+        if p.shadowedCount > 0 { line += " · \(p.shadowedCount) taken first by an earlier rule" }
+        return line
     }
 
     func shelfOptions(_ current: String) -> [(String, String)] {
@@ -226,18 +272,6 @@ struct RuleRow: View {
 
     func placeholder(_ f: Condition.Field) -> String {
         switch f { case .name: return "invoice"; case .ext: return "dmg"; case .from: return "github.com"; case .size: return "2 GB" }
-    }
-
-    /// Files at the top level of the watched folders that this rule would take.
-    func previewCount(_ r: Rule) -> Int {
-        var n = 0
-        var r = r; r.enabled = true
-        for root in m.settings.activeRoots {
-            for name in (try? FileManager.default.contentsOfDirectory(atPath: root.path)) ?? [] where !name.hasPrefix(".") && !Library.all.contains(name) {
-                if Engine.matches(r, Item.inspect(root.appendingPathComponent(name), root: root)) { n += 1 }
-            }
-        }
-        return n
     }
 }
 
