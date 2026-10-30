@@ -199,6 +199,7 @@ struct SortingPage: View {
         Group {
             PageSection(title: "Watched folders", subtitle: "Kanso sorts new files in these folders.", action: ("Add folder…", { m.addFolders() })) { folders }
             PageSection(title: "Behavior") { behavior }
+            PageSection(title: "Unknown file types") { unknown }
             ExcludesSection()
             RulesSection()
         }
@@ -235,6 +236,20 @@ struct SortingPage: View {
                     .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 16).padding(.vertical, 12)
             }
         }
+    }
+
+    /// Sorting never depends on a model: the extension table decides every known type. The model only sees types it doesn't know.
+    var unknown: some View {
+        RowGroup {
+            Row(icon: "sparkles", title: "Ask Apple Intelligence", desc: unknownLine, last: true) {
+                KToggle(on: m.binding(\.appleIntelligence), label: "Ask Apple Intelligence about unknown file types").disabled(!m.ai.available)
+            }
+        }
+    }
+
+    var unknownLine: String {
+        if !m.ai.available { return "\(m.ai.status). Sorting works the same without it: known types sort by extension, anything else goes to ❓ Unsorted." }
+        return m.settings.appleIntelligence ? "Only for types Kanso doesn't know yet, from the name, on this Mac. Known types never use it." : "Off. Types Kanso doesn't know go to ❓ Unsorted."
     }
 
     var behavior: some View {
