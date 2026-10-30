@@ -99,6 +99,8 @@ struct RuleRow: View {
     @State private var edit: Rule?
     @State private var matches: RulePreview?
     @State private var showMatches = false
+    @State private var previewed: Rule?      // the rule value `matches` was computed for
+    @State private var saveError: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -196,25 +198,38 @@ struct RuleRow: View {
                     var r = b.wrappedValue
                     if r.dest.hasPrefix("/") || r.dest.hasPrefix("~") { r.automatic = false }   // a path you typed is yours
                     if let n = newShelf, !m.settings.rules.contains(where: { $0.id == r.id }) {
-                        m.saveDraftedRule(r, newShelf: n)
+                        // Refused (the shelf or destination is not allowed): stay open and say so instead of closing as if it saved.
+                        guard m.saveDraftedRule(r, newShelf: n) else { saveError = "Kanso couldn't save this rule: that shelf isn't allowed for a rule made by a model. Pick another shelf."; return }
                     } else {
                         m.update { s in if let i = s.rules.firstIndex(where: { $0.id == r.id }) { s.rules[i] = r } else { s.rules.append(r) } }
                     }
                     close()
                 } label: { HStack(spacing: 6) { Text("Save rule"); Image(systemName: "return").font(.system(size: TS.meta)) } }
-                    .buttonStyle(SaveRuleStyle()).keyboardShortcut(.defaultAction).disabled(b.wrappedValue.conditions.contains { $0.value.trimmingCharacters(in: .whitespaces).isEmpty })
+                    .buttonStyle(SaveRuleStyle()).keyboardShortcut(.defaultAction)
+                    .disabled(b.wrappedValue.conditions.contains { $0.value.trimmingCharacters(in: .whitespaces).isEmpty } || (mustPreview && previewed != b.wrappedValue))
             }
             .padding(.top, 6)
+            if let e = saveError {
+                Label(e, systemImage: "exclamationmark.triangle.fill").font(.system(size: TS.small)).foregroundStyle(Tint.duplicate.fg)
+                    .fixedSize(horizontal: false, vertical: true).accessibilityLabel("Error: \(e)")
+            }
         }
         .padding(.top, 4)
-        .task(id: edit) {   // a dry run, off the main thread, a moment after the last keystroke
-            guard let r = edit else { return }
+        .task(id: edit ?? rule) {   // a dry run, off the main thread, a moment after the last keystroke
+            let r = edit ?? rule
+            saveError = nil
             try? await Task.sleep(nanoseconds: 250_000_000)
             if Task.isCancelled { return }
             let engine = m.engine
-            matches = await Task.detached(priority: .utility) { engine.previewRule(r) }.value
+            let result = await Task.detached(priority: .utility) { engine.previewRule(r) }.value
+            if Task.isCancelled { return }   // a newer edit started: don't let this older answer overwrite it
+            matches = result
+            previewed = r
         }
     }
+
+    /// A rule a model drafted, or one that creates a shelf, can't be saved before its "What would match" has loaded for what is on screen.
+    var mustPreview: Bool { newShelf != nil || (rule.automatic && !m.settings.rules.contains { $0.id == rule.id }) }
 
     /// "What would match": the files waiting in your folders that this rule would take, and the ones an earlier rule takes first.
     @ViewBuilder var matchesBlock: some View {

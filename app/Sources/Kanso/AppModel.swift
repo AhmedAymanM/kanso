@@ -340,7 +340,14 @@ final class AppModel: ObservableObject {
         if announce, let b = Batch.summary(done, trigger: "review") { Island.shared.show(.batch(run: b.run, text: b.text)) }
     }
     func dismissRenames() { engine.dismissRenames(); refresh() }
-    func acceptShelf(_ id: String) { engine.acceptShelfSuggestion(id); refresh() }
+    /// Accept a suggested shelf: the files move as one run; the island shows one card with one Undo for it.
+    @discardableResult
+    func acceptShelf(_ id: String) -> [Action] {
+        let done = engine.acceptShelfSuggestion(id)
+        refresh()
+        if let b = Batch.summary(done, trigger: "suggestion") { Island.shared.show(.batch(run: b.run, text: b.text)) }
+        return done
+    }
     func dismissShelf(_ id: String) { engine.dismissShelfSuggestion(id); refresh() }
     func acceptSuggestion(_ id: UUID) { engine.acceptSuggestion(id); refresh() }
     func dismissSuggestion(_ id: UUID) { engine.dismissSuggestion(id); refresh() }
