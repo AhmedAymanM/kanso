@@ -190,6 +190,8 @@ Three steps, learning by doing; approach, feature switches and details live in S
 | **v1.1** | **The ask field** (macOS 26+, ADR 0001 safety rules, an evaluation set before shipping); the island reserves its slot from v1 |
 | **By purpose release** | content reading within the limits above, adopting folder names, earned trust, status and reminder tags, per-folder profiles |
 | **v2** | **the Tray** (drop files, links and snippets on the island; AI organizing; own design session), the full model picker (benchmarked local LLMs, BYOK, paid cloud), natural-language rules UI, suggested new shelves |
+
+**v2 status (2026-10-30):** built on `feat/v2-rules-models`: local model picker (Apple Intelligence, Rules and extensions only, Kanso Local shown as not available yet), plain-English rules (draft, preview, explicit Save), suggested shelves (5+ Unsorted items). **Decided: no BYOK, no cloud, no network call to any model.** Still open: the Tray, benchmarked local LLMs (Kanso Local), model-written shelf names.
 | **Later** | chat with your files (needs a stored index, so it gets its own opt-in and is revisited then), Mac App Store build |
 
 ## 9. Success criteria
