@@ -1,6 +1,7 @@
 import AppKit
 import KansoCore
 import SwiftUI
+import UniformTypeIdentifiers
 
 // The island's views (design handoff 2026-09-30). The black island fades into a clear Liquid Glass lip at the bottom;
 // text stays on the black part, and only glass controls sit in the lip. Fixed palette, not themed.
@@ -61,6 +62,7 @@ struct IslandBody: View {
     @EnvironmentObject var island: Island
     @EnvironmentObject var m: AppModel
     @ObservedObject private var a11y = AccessibilityOptions.shared
+    @ObservedObject private var trayModel = TrayModel.shared
 
     var notchSkin: Bool { island.skin == .notch }
     var width: CGFloat { island.expanded ? 480 : (notchSkin ? max(290, island.notch.width + 140) : 320) }
@@ -77,12 +79,19 @@ struct IslandBody: View {
         .padding(.horizontal, notchSkin ? 10 : 0)   // room for the ears
         .frame(width: width)
         .background { IslandFill(shape: IslandShape(ears: notchSkin, radius: radius), expanded: island.expanded) }
+        .overlay { if island.tray && island.expanded && trayModel.planning && !Motion.reduced && !Motion.snapshot { IslandBeam(shape: IslandShape(ears: notchSkin, radius: radius), top: notchSkin ? island.notch.height : 0).allowsHitTesting(false) } }
+        .overlay { if island.tray && island.expanded && trayModel.over { IslandShape(ears: notchSkin, radius: radius).stroke(Color(nsColor: NSColor(hex: 0xCFE8D8)), style: StrokeStyle(lineWidth: 2, dash: [7, 5])).padding(1).allowsHitTesting(false) } }
         .overlay { if case .reading? = island.current, !Motion.reduced, !Motion.snapshot, !island.expanded { IslandBeam(shape: IslandShape(ears: notchSkin, radius: radius), top: notchSkin ? island.notch.height : 0).allowsHitTesting(false) } }
         .clipShape(IslandShape(ears: notchSkin, radius: radius))
         .environment(\.colorScheme, .dark)
         .contentShape(IslandShape(ears: notchSkin, radius: radius))
         .onHover { island.hover($0) }
         .onTapGesture { if !island.expanded { island.expand() } }
+        .onDrop(of: [.fileURL, .item], isTargeted: Binding(get: { false }, set: { if $0 && island.tray { trayModel.over = true } })) { providers in
+            guard island.trayOn, island.tray else { return false }
+            trayModel.add(providers: providers)
+            return true
+        }
         .padding(.top, notchSkin ? 0 : 2)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Kanso")
@@ -184,6 +193,7 @@ struct IslandLip: View {
             Text(hints).font(.system(size: TS.meta)).foregroundStyle(IslandInk.text3).lineLimit(1)
             Spacer()
             LipButtons {
+                if island.trayOn { TrayLipButton() }
                 IslandGlassButton(symbol: "keyboard", label: "Keyboard shortcuts") { withAnimation(Motion.spring()) { island.shortcuts.toggle() } }.keyboardShortcut("/")
                 IslandGlassButton(symbol: "gearshape", label: "Settings") { island.hide(); Windows.shared.showSettings() }.keyboardShortcut(",")
             }
@@ -194,6 +204,7 @@ struct IslandLip: View {
     /// Only esc to close, plus the arrows when they do something in this state. Actions show their own keys.
     var hints: String {
         if island.shortcuts { return "esc back" }
+        if island.tray { return TrayModel.shared.phase == .list ? "↑ ↓ select · ⌥↑ ⌥↓ reorder · ⌫ forget · esc back" : "esc back" }
         var parts: [String] = []
         let rows = island.overview ? min(m.needs.count, 3) + min(m.done.count, 3) : (island.fanned || island.stacked ? 0 : island.notices.count)
         if island.overview && m.needs.count > 1 { parts.append("← → cycle cards") }
@@ -261,13 +272,14 @@ struct IslandExpanded: View {
             if island.skin == .notch { Color.clear.frame(height: island.notch.height) }
             Group {
                 if island.shortcuts { ShortcutsList() }
+                else if island.tray && island.overview { TrayBody() }
                 else if island.askState.isProposal { AskProposal().stagger(0) }
                 else if island.overview { OverviewBody() }
                 else if let n = island.current { notice(n).id(n.id) }
             }
             .padding(.horizontal, 20).padding(.top, 2)   // the black island starts right under the notch: no extra space
             .transition(.opacity)
-            if island.askAvailable && !island.shortcuts && !island.overview {
+            if island.askAvailable && !island.shortcuts && !island.overview && !island.tray {
                 AskField().padding(.horizontal, 20).padding(.top, 10).stagger(4)
             }
         }
@@ -623,6 +635,7 @@ struct FanBody: View {
 }
 
 struct ShortcutsList: View {
+    @EnvironmentObject var island: Island
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
@@ -631,10 +644,18 @@ struct ShortcutsList: View {
                 Spacer()
                 IslandKey(text: "esc", dark: true)
             }
+            if island.tray {
+                HStack(alignment: .top, spacing: 10) {
+                    group("The Tray", [("Organize, then Move", "↩"), ("Add copied files", "⌘V"), ("Forget the row", "⌫"), ("Put a row back", "⌘Z")])
+                    group("Rows", [("Select", "↑ ↓"), ("Reorder", "⌥↑ ⌥↓"), ("Quick Look", "Space"), ("Reveal in Finder", "⌘R")])
+                    group("The island", [("Open / close Tray", "⌘T"), ("Back", "esc"), ("Settings", "⌘,"), ("This list", "⌘/")])
+                }
+            } else {
             HStack(alignment: .top, spacing: 10) {
                 group("This notice", [("Run selected action", "↩"), ("Undo", "⌘Z"), ("Previous / next file", "← →"), ("Move to Trash", "⌘⌫")])
                 group("This file", [("Quick Look", "Space"), ("Reveal in Finder", "⌘R"), ("Open", "⌘O"), ("Copy new name", "⌘C")])
                 group("The island", [("Open / close", "⌥⌘K"), ("Collapse", "esc"), ("Settings", "⌘,"), ("This list", "⌘/")])
+            }
             }
         }
     }

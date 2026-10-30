@@ -129,6 +129,9 @@ final class Island: ObservableObject {
     @Published var index = 0           // which notice, when several counted up
     @Published var expanded = false
     @Published var overview = false
+    @Published var tray = false         // the Tray page (beta, files only) replaces the overview body
+    var openedByDrag = false            // the Tray opened because a file drag reached the island: it shrinks again after the drop
+    private var dragClose: Task<Void, Never>?
     @Published var selection = 0
     @Published var confirmation: (text: String, undo: UUID?)?   // overview: one line for 3 s after acting on a card
     @Published var handled = 0         // cards handled since the overview opened
@@ -174,6 +177,7 @@ final class Island: ObservableObject {
         }
         if !expanded { index = notices.count - 1 }
         overview = false
+        tray = false
         present()
     }
 
@@ -192,6 +196,7 @@ final class Island: ObservableObject {
 
     func openOverview() {
         notices = []
+        tray = false
         selection = 0
         relayout()
         panel?.alphaValue = 1
@@ -229,6 +234,11 @@ final class Island: ObservableObject {
     func collapse() {
         if shortcuts { withAnimation(Motion.spring()) { shortcuts = false }; return }
         if fanned { withAnimation(Motion.spring()) { fanned = false }; return }
+        if tray {   // esc: preview or planning first, then back to the overview, then close
+            if TrayModel.shared.escape() { return }
+            withAnimation(Motion.spring()) { tray = false }
+            return
+        }
         guard expanded else { hide(); return }
         withAnimation(Motion.spring()) { expanded = false }
         removeMonitors()
@@ -236,6 +246,7 @@ final class Island: ObservableObject {
     }
 
     func hide() {
+        dragClose?.cancel()
         removeMonitors()
         let wasNeeds = notices.contains(where: \.needsYou)
         dismissAt = .distantFuture
@@ -251,6 +262,10 @@ final class Island: ObservableObject {
             self.expanded = false
             self.shortcuts = false
             self.fanned = false
+            self.tray = false
+            self.openedByDrag = false
+            Island.screenOverride = nil
+            TrayModel.shared.over = false
             self.index = 0
             self.card = 0
             self.handled = 0
@@ -308,7 +323,9 @@ final class Island: ObservableObject {
 
     // MARK: Geometry
 
-    static var activeScreen: NSScreen? { NSScreen.main ?? NSScreen.screens.first }
+    /// While a file drag is live the island follows the pointer's screen, not the main one.
+    static var screenOverride: NSScreen?
+    static var activeScreen: NSScreen? { screenOverride ?? NSScreen.main ?? NSScreen.screens.first }
 
     static func notchSize(_ s: NSScreen) -> CGSize? {
         guard s.safeAreaInsets.top > 0, let l = s.auxiliaryTopLeftArea, let r = s.auxiliaryTopRightArea else { return nil }
@@ -358,7 +375,7 @@ final class Island: ObservableObject {
             MainActor.assumeIsolated { self.key(e) ? nil : e }
         }
         clickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { _ in
-            MainActor.assumeIsolated { self.collapse() }   // a click anywhere else collapses
+            MainActor.assumeIsolated { if self.tray { self.hide() } else { self.collapse() } }   // a click anywhere else collapses
         }
     }
 
@@ -371,6 +388,8 @@ final class Island: ObservableObject {
     private func key(_ e: NSEvent) -> Bool {
         let cmd = e.modifierFlags.contains(.command)
         let acts = actions()
+        if trayOn, cmd, Int(e.keyCode) == kVK_ANSI_T { toggleTray(); return true }
+        if tray, trayOn, trayKey(e, cmd: cmd) { return true }
         if askFocus && !cmd {   // typing: only Return, ↑ (recall) and Esc are ours
             switch Int(e.keyCode) {
             case kVK_Return, kVK_ANSI_KeypadEnter: submitAsk(); return true
@@ -379,7 +398,7 @@ final class Island: ObservableObject {
             default: return false
             }
         }
-        if !askFocus, askAvailable, !cmd, e.modifierFlags.intersection([.control, .option]).isEmpty, Int(e.keyCode) == kVK_Tab || (e.charactersIgnoringModifiers?.first?.isLetter == true && !askState.isProposal) {
+        if !askFocus, askAvailable, !tray, !cmd, e.modifierFlags.intersection([.control, .option]).isEmpty, Int(e.keyCode) == kVK_Tab || (e.charactersIgnoringModifiers?.first?.isLetter == true && !askState.isProposal) {
             askFocus = true
             if Int(e.keyCode) != kVK_Tab, let ch = e.characters { askText += ch }
             return true
@@ -452,6 +471,7 @@ final class Island: ObservableObject {
 
     func quickLook() {
         let path: String? = {
+            if tray { let t = TrayModel.shared; return t.entries.indices.contains(t.selection) && t.entries[t.selection].state != .missing ? t.entries[t.selection].url.path : nil }
             switch current {
             case .renamed(let a)?, .duplicate(let a)?: return a.dst
             default: return nil
@@ -520,6 +540,7 @@ final class Island: ObservableObject {
     /// Opens one item from the overview as a notice, with its details and actions.
     func focus(_ n: Notice) {
         overview = false
+        tray = false
         notices = [n]
         index = 0
         selection = 0
@@ -537,6 +558,109 @@ final class Island: ObservableObject {
         index = min(index, max(notices.count - 1, 0))
         selection = 0
         if notices.isEmpty { hide() }
+    }
+
+    // MARK: Tray (beta, files only; docs/design/proposals/tray.md)
+
+    var trayOn: Bool { AppModel.shared.settings.trayEnabled }
+
+    /// ⌘T inside the island, and the lip button. No new global hot key.
+    func toggleTray() {
+        guard trayOn else { return }
+        if tray { collapse(); return }
+        TrayModel.shared.refresh()
+        notices = []
+        selection = 0
+        if !expanded { relayout(); panel?.alphaValue = 1; panel?.orderFrontRegardless() }
+        withAnimation(Motion.spring(0.35)) { overview = true; tray = true; expanded = true; shortcuts = false }
+        present(expand: true, fast: true)
+        announceTray("Tray, \(TrayModel.shared.count) \(TrayModel.shared.count == 1 ? "item" : "items")")
+    }
+
+    /// A compatible file drag reached the top of `screen`: the island grows as the drop target. It never opens for anything else.
+    func openTrayForDrag(on screen: NSScreen?) {
+        guard trayOn, !openedByDrag else { return }
+        Island.screenOverride = screen
+        TrayModel.shared.beginDrag()
+        TrayModel.shared.over = true
+        TrayModel.shared.refresh()
+        notices = []
+        selection = 0
+        openedByDrag = true
+        relayout()
+        panel?.alphaValue = 1
+        panel?.orderFrontRegardless()
+        withAnimation(Motion.spring(0.42)) { overview = true; tray = true; expanded = true; shortcuts = false }
+        present(expand: true, fast: true)
+    }
+
+    /// The pointer left (or the drag ended without a drop): shrink back and let go of the screen.
+    func closeTrayForDrag() {
+        TrayModel.shared.over = false
+        guard openedByDrag else { return }
+        if TrayModel.shared.dropped { return }
+        openedByDrag = false
+        hide()
+    }
+
+    /// After a drop: the Tray shows "Added N" for 2 s, then shrinks. Never when the user began using it, never under VoiceOver.
+    func dropFinished() {
+        TrayModel.shared.over = false
+        guard openedByDrag, !NSWorkspace.shared.isVoiceOverEnabled else { return }
+        dragClose?.cancel()
+        dragClose = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            guard !Task.isCancelled, self.openedByDrag, self.tray, TrayModel.shared.phase == .list else { return }
+            self.openedByDrag = false
+            self.hide()
+        }
+    }
+
+    /// Organize finished: the island shrinks to the undo card (the same one a Sort now run gets).
+    func finishTray(text: String, run: String?, single: UUID?) {
+        dragClose?.cancel()
+        openedByDrag = false
+        removeMonitors()
+        withAnimation(Motion.spring()) { tray = false; overview = false; expanded = false; notices = [] }
+        if let single { show(.info(icon: "tray.and.arrow.up", text: text, undo: single)) }
+        else if let run { show(.batch(run: run, text: text)) }
+        else { hide() }
+    }
+
+    /// Polite by default; only failures interrupt.
+    func announceTray(_ text: String, high: Bool = false) {
+        NSAccessibility.post(element: NSApp as Any, notification: .announcementRequested,
+                             userInfo: [.announcement: text, .priority: (high ? NSAccessibilityPriorityLevel.high : .medium).rawValue])
+    }
+
+    /// Keys on the Tray page. Return, ⌘Z and ⌘⌫ never reach the overview's actions from here (no trash, ADR 0001).
+    private func trayKey(_ e: NSEvent, cmd: Bool) -> Bool {
+        let t = TrayModel.shared
+        openedByDrag = false   // the user is using it: it stays open
+        dragClose?.cancel()
+        let opt = e.modifierFlags.contains(.option)
+        switch Int(e.keyCode) {
+        case kVK_Return, kVK_ANSI_KeypadEnter:
+            if cmd { return true }
+            switch t.phase { case .list: t.organize(); case .review: t.move(); default: break }
+            return true
+        case kVK_UpArrow where t.phase == .list: if opt { t.reorder(by: -1) } else { t.step(-1) }; return true
+        case kVK_DownArrow where t.phase == .list: if opt { t.reorder(by: 1) } else { t.step(1) }; return true
+        case kVK_UpArrow, kVK_DownArrow, kVK_LeftArrow, kVK_RightArrow: return true
+        case kVK_Delete, kVK_ForwardDelete:
+            if !cmd, t.phase == .list { t.forgetSelected() }   // ⌘⌫ is not used here
+            return true
+        case kVK_ANSI_V where cmd: if t.phase == .list { t.addFromPasteboard() }; return true
+        case kVK_ANSI_Z where cmd:
+            if t.canUndoForget { t.undoForget() } else if t.lastRun != nil { t.undoLastRun() }
+            return true
+        case kVK_ANSI_R where cmd:
+            if t.entries.indices.contains(t.selection) { AppModel.shared.reveal(t.entries[t.selection].url.path) }
+            return true
+        case kVK_Space: quickLook(); return true
+        case kVK_Escape, kVK_ANSI_Slash, kVK_ANSI_Comma: return false
+        default: return cmd
+        }
     }
 
     // MARK: Helpers
