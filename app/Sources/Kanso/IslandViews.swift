@@ -819,11 +819,7 @@ struct NeedCard: View {
         switch need {
         case .duplicate(let a): PreviewTile(path: a.dst, size: CGSize(width: 86, height: 112))
         case .renames(let p, _): PreviewTile(path: p.first?.path ?? "", size: CGSize(width: 86, height: 112), eye: false)
-<<<<<<< HEAD
-        case .rule, .shelf: Image(systemName: need.icon).font(.system(size: TS.display)).foregroundStyle(need.tint.islandGlyph).frame(width: 86, height: 86).background(Circle().fill(need.tint.islandFill))
-=======
-        case .rule: Image(systemName: need.icon).font(.system(size: TS.title)).foregroundStyle(need.tint.islandGlyph).frame(width: 86, height: 86).background(Circle().fill(need.tint.islandFill))
->>>>>>> origin/feat/design-polish
+        case .rule, .shelf: Image(systemName: need.icon).font(.system(size: TS.title)).foregroundStyle(need.tint.islandGlyph).frame(width: 86, height: 86).background(Circle().fill(need.tint.islandFill))
         }
     }
 }
