@@ -9,15 +9,53 @@ public struct Pick: Sendable, Equatable {
     public var name = ""
     public var emoji = ""
     public var description = ""
-    public init(folder: String, name: String = "", emoji: String = "", description: String = "") {
-        self.folder = folder; self.name = name; self.emoji = emoji; self.description = description
+    /// 0...1 when the model reports how sure it is; nil when it gives no score (Apple's guided generation doesn't).
+    public var confidence: Double?
+    public init(folder: String, name: String = "", emoji: String = "", description: String = "", confidence: Double? = nil) {
+        self.folder = folder; self.name = name; self.emoji = emoji; self.description = description; self.confidence = confidence
     }
+}
+
+/// What a model can be asked to do. A model that lacks a capability is never asked for it.
+public enum ModelCapability: String, Sendable, Hashable, CaseIterable {
+    case classify       // pick a shelf for an unknown file type
+    case compileRules   // turn a plain-English sentence into a typed rule draft
+    case ask            // the island's ask field
+}
+
+/// Whether a model can be used right now, with the plain reason when it can't.
+public struct ModelAvailability: Sendable, Equatable {
+    public var ready: Bool
+    public var reason: String   // "Ready", or why not
+    public init(ready: Bool, reason: String) { self.ready = ready; self.reason = reason }
+    public static let ready = ModelAvailability(ready: true, reason: "Ready")
 }
 
 public protocol Classifier: Sendable {
     var available: Bool { get }
+    /// Shown in the model picker.
+    var name: String { get }
+    var capabilities: Set<ModelCapability> { get }
+    var availability: ModelAvailability { get }
     /// facts: metadata only. options: {shelf: description}. creating: whether "new" is allowed.
     func choose(facts: [(String, String)], options: [(String, String)], creating: Bool) async -> Pick?
+}
+
+public extension Classifier {
+    // Defaults keep small conformers (tests, fakes) to `available` and `choose`.
+    var name: String { "Model" }
+    var capabilities: Set<ModelCapability> { [.classify] }
+    var availability: ModelAvailability { available ? .ready : ModelAvailability(ready: false, reason: "Unavailable") }
+}
+
+/// No model at all: the extension table, rules and screenshot flag decide, and unknown types wait in Unsorted.
+public struct RulesOnly: Classifier {
+    public init() {}
+    public var available: Bool { false }
+    public var name: String { "Rules and extensions only" }
+    public var capabilities: Set<ModelCapability> { [] }
+    public var availability: ModelAvailability { ModelAvailability(ready: false, reason: "No model selected") }
+    public func choose(facts: [(String, String)], options: [(String, String)], creating: Bool) async -> Pick? { nil }
 }
 
 public enum Brain {
@@ -79,6 +117,10 @@ public struct AppleIntelligence: Classifier {
         #endif
         return false
     }
+
+    public var name: String { "Apple Intelligence" }
+    public var capabilities: Set<ModelCapability> { [.classify, .compileRules, .ask] }
+    public var availability: ModelAvailability { ModelAvailability(ready: available, reason: status) }
 
     public var status: String {
         #if canImport(FoundationModels)

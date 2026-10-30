@@ -321,6 +321,7 @@ func title(_ e: Entry) -> String {
     case .need(.duplicate(let a)): return a.name
     case .need(.renames(let p, _)): return "\(p.count) files can be renamed"
     case .need(.rule(let r)): return r.files.first ?? "Rule suggestion"
+    case .need(.shelf(let s)): return "\(s.files.count) files could have their own shelf"
     case .action(let a): return a.kind == .trashed ? a.srcName : a.name
     case .batch(_, let a): return "\(a.count) files"
     case .waiting(let w): return w.partial ? w.url.deletingPathExtension().lastPathComponent : w.url.lastPathComponent
@@ -333,6 +334,7 @@ func title(_ e: Entry) -> String {
     case .need(.duplicate(let a)): return "Copy held · " + (Int64(a.details["size"] ?? "") ?? 0).bytes
     case .need(.renames): return "Review before renaming"
     case .need(.rule(let r)): return "Rule suggested · \(r.shelf) shelf"
+    case .need(.shelf(let s)): return "Shelf suggested · \(s.name)"
     case .action(let a):
         if a.undone { return "Undone · " + summary(a).lowercased() }
         switch a.kind {
@@ -364,6 +366,7 @@ struct ListRow: View {
         case .need(.duplicate): return "🪞"
         case .need(.renames): return "✏️"
         case .need(.rule(let r)): return m.settings.emoji(for: r.shelf)
+        case .need(.shelf(let s)): return s.emoji
         case .action(let a): return a.kind == .trashed ? "🗑️" : a.kind == .duplicate ? "🪞" : m.settings.emoji(for: a.shelf)
         case .batch: return "📦"
         case .waiting: return "⏳"

@@ -308,6 +308,10 @@ struct RulesSection: View {
     @EnvironmentObject var m: AppModel
     @State private var open: UUID?
     @State private var draft: Rule?
+    @State private var draftShelf: NewShelf?
+    @State private var sentence = ""
+    @State private var drafting = false
+    @State private var draftError: String?
 
     var mine: [Rule] { m.settings.rules.filter { !$0.builtIn } }
 
@@ -317,7 +321,8 @@ struct RulesSection: View {
                 let rules = mine + (draft.map { d in mine.contains { $0.id == d.id } ? [] : [d] } ?? [])
                 ForEach(rules) { r in
                     RuleRow(rule: r, open: open == r.id, count: m.actions.filter { $0.why == "rule \(Engine.describe(r))" && !$0.undone }.count,
-                            toggle: { withAnimation(Motion.spring(0.35)) { open = open == r.id ? nil : r.id } }, close: { withAnimation(Motion.spring(0.35)) { open = nil; draft = nil } })
+                            toggle: { withAnimation(Motion.spring(0.35)) { open = open == r.id ? nil : r.id } }, close: { withAnimation(Motion.spring(0.35)) { open = nil; draft = nil; draftShelf = nil } },
+                            newShelf: r.id == draft?.id ? draftShelf : nil)
                     if r.id != rules.last?.id { Rectangle().fill(K.separator).frame(height: 0.75) }
                 }
                 if rules.isEmpty {
@@ -325,11 +330,54 @@ struct RulesSection: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
+            describeField
             HStack {
                 Spacer()
                 Button { let r = Rule([Condition(.name, "")], dest: "Documents"); withAnimation(Motion.spring(0.35)) { draft = r; open = r.id } } label: { Label("Add rule", systemImage: "plus") }.buttonStyle(CapsuleStyle())
             }
         }
+        suggestedFromMoves
+    }
+
+    /// "Describe a rule": on-device model, a draft you review and save yourself. Hidden, with the reason, when no model can do it.
+    @ViewBuilder var describeField: some View {
+        if let why = m.ruleFieldReason {
+            Label(why, systemImage: "sparkles").font(.system(size: TS.small)).foregroundStyle(K.text2)
+                .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 4)
+        } else {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 8) {
+                    Image(systemName: "sparkles").foregroundStyle(Tint.rule.fg)
+                    TextField("Describe a rule: Move invoices from Stripe to Invoices", text: $sentence).textFieldStyle(.plain).font(.system(size: TS.body))
+                        .onSubmit { draftRule() }.disabled(drafting).accessibilityLabel("Describe a rule in plain English")
+                    if drafting { ProgressView().controlSize(.small) }
+                    else { Button("Draft rule") { draftRule() }.buttonStyle(CapsuleStyle()).disabled(sentence.trimmingCharacters(in: .whitespaces).isEmpty) }
+                }
+                .padding(.horizontal, 12).frame(height: 36).background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(K.fill))
+                Text(draftError ?? "Apple Intelligence on this Mac writes a draft. You preview it and press Save; nothing is saved or moved before that.")
+                    .font(.system(size: TS.small)).foregroundStyle(draftError == nil ? K.text2 : Tint.duplicate.fg).padding(.horizontal, 4)
+            }
+        }
+    }
+
+    func draftRule() {
+        let text = sentence
+        guard !drafting, !text.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+        drafting = true; draftError = nil
+        let settings = m.settings, ai = m.ai
+        Task {
+            let result = await RuleDrafting.draft(text, settings: settings, model: ai, compiler: ai)
+            drafting = false
+            switch result {
+            case .failure(let e): draftError = e.message
+            case .success(let d):
+                sentence = ""
+                withAnimation(Motion.spring(0.35)) { draft = d.rule; draftShelf = d.newShelf; open = d.rule.id }
+            }
+        }
+    }
+
+    @ViewBuilder var suggestedFromMoves: some View {
         if !m.pending.suggestions.isEmpty {
             PageSection(title: "Suggested from your moves") {
                 VStack(spacing: 8) {

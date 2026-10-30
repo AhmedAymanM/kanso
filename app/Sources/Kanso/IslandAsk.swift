@@ -17,7 +17,7 @@ enum AskState: Equatable {
 
 extension Island {
     /// macOS 26 with Apple Intelligence on; hidden otherwise (v1 reserves the slot).
-    var askAvailable: Bool { Motion.snapshot || AppModel.shared.ai.available }
+    var askAvailable: Bool { Motion.snapshot || AppModel.shared.aiReady }
 
     /// The closed set of files the model may name: the shown notices, else the last few sorts.
     func askContext() -> [Action] {
