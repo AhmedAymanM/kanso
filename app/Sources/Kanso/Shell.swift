@@ -295,7 +295,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if !m.settings.onboarded { Windows.shared.showOnboarding() }
             else if ProcessInfo.processInfo.arguments.contains("--show") {
                 let args = ProcessInfo.processInfo.arguments
-                let page = args.firstIndex(of: "--page").flatMap { i in args.indices.contains(i + 1) ? Page.allCases.first { $0.rawValue.lowercased().hasPrefix(args[i + 1].lowercased()) } : nil }
+                let page = args.firstIndex(of: "--page").flatMap { i in args.indices.contains(i + 1) ? Page.allCases.first { $0.rawValue.lowercased().filter(\.isLetter).hasPrefix(args[i + 1].lowercased().filter(\.isLetter)) } : nil }   // letters only, so "smart-eject" finds Smart Eject
                 Windows.shared.showMain(page)
             }
             if let k = ProcessInfo.processInfo.environment["KANSO_ACTIVITY"] {   // open Activity on one entry (a rule or action kind), for README shots
