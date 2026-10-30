@@ -61,13 +61,13 @@ struct ApproachCard: View {
             HStack(spacing: 10) {
                 Circle().strokeBorder(selected ? K.accent : K.text3, lineWidth: selected ? 5 : 1.5).frame(width: 18, height: 18)
                 Text(title).font(.system(size: TS.heading, weight: .semibold))
-                if !selected { Text(badge).font(.system(size: TS.meta, weight: .medium)).foregroundStyle(K.text2).padding(.horizontal, 6).frame(height: 17).background(RoundedRectangle(cornerRadius: 4).fill(K.fill)) }
+                if !selected { Text(badge).font(.system(size: TS.micro, weight: .medium)).foregroundStyle(K.text2).padding(.horizontal, 6).frame(height: 17).background(RoundedRectangle(cornerRadius: 4).fill(K.fill)) }
                 Spacer()
                 if selected { Text(badge).font(.system(size: TS.small, weight: .medium)).foregroundStyle(K.accent) }
             }
             HStack {
                 ForEach(examples, id: \.1) { e in
-                    VStack(spacing: 6) { Text(e.0).font(.system(size: TS.emoji)); Text(e.1).font(.system(size: TS.meta)).foregroundStyle(K.text2) }.frame(maxWidth: .infinity)
+                    VStack(spacing: 6) { Text(e.0).font(.system(size: TS.headline)); Text(e.1).font(.system(size: TS.meta)).foregroundStyle(K.text2) }.frame(maxWidth: .infinity)
                 }
             }
             .padding(.vertical, 14)
@@ -115,7 +115,7 @@ struct RuleRow: View {
                 }
                 .opacity(rule.enabled ? 1 : 0.45)
                 Spacer()
-                Image(systemName: "chevron.down").font(.system(size: TS.meta, weight: .semibold)).foregroundStyle(K.text2).rotationEffect(.degrees(open ? 180 : 0))
+                Image(systemName: "chevron.down").font(.system(size: TS.micro, weight: .semibold)).foregroundStyle(K.text2).rotationEffect(.degrees(open ? 180 : 0))
             }
             .contentShape(Rectangle())
                 }
@@ -150,12 +150,12 @@ struct RuleRow: View {
     @ViewBuilder var editor: some View {
         let b = Binding(get: { edit ?? rule }, set: { edit = $0 })
         VStack(alignment: .leading, spacing: 10) {
-            Text("MATCH").font(.system(size: TS.meta, weight: .semibold)).kerning(0.6).foregroundStyle(Tint.rule.fg)
+            Text("MATCH").font(.system(size: TS.micro, weight: .semibold)).kerning(0.6).foregroundStyle(Tint.rule.fg)
             HStack(spacing: 8) {
                 MenuPicker(options: [(false, "all"), (true, "any")], value: b.matchAny)
                 Text("of these conditions").font(.system(size: TS.small)).foregroundStyle(K.text2)
             }
-            Text("IF").font(.system(size: TS.meta, weight: .semibold)).kerning(0.6).foregroundStyle(Tint.rule.fg).padding(.top, 4)
+            Text("IF").font(.system(size: TS.micro, weight: .semibold)).kerning(0.6).foregroundStyle(Tint.rule.fg).padding(.top, 4)
             ForEach(b.wrappedValue.conditions.indices, id: \.self) { i in
                 HStack(spacing: 8) {
                     MenuPicker(options: [(Condition.Field.name, "Name"), (.ext, "Extension"), (.from, "Downloaded from"), (.size, "Size")], value: b.conditions[i].field).frame(width: 150, alignment: .leading)
@@ -168,7 +168,7 @@ struct RuleRow: View {
                 }
             }
             Button { b.wrappedValue.conditions.append(Condition(.ext, "")) } label: { Label("Add condition", systemImage: "plus") }.buttonStyle(LinkStyle())
-            Text("THEN").font(.system(size: TS.meta, weight: .semibold)).kerning(0.6).foregroundStyle(Tint.rule.fg).padding(.top, 4)
+            Text("THEN").font(.system(size: TS.micro, weight: .semibold)).kerning(0.6).foregroundStyle(Tint.rule.fg).padding(.top, 4)
             let custom = b.wrappedValue.dest.hasPrefix("/") || b.wrappedValue.dest.hasPrefix("~")
             HStack(spacing: 8) {
                 MenuPicker(options: [(0, custom ? "Move to folder" : "Move to shelf")], value: .constant(0)).frame(width: 150, alignment: .leading)
@@ -204,7 +204,7 @@ struct RuleRow: View {
                         m.update { s in if let i = s.rules.firstIndex(where: { $0.id == r.id }) { s.rules[i] = r } else { s.rules.append(r) } }
                     }
                     close()
-                } label: { HStack(spacing: 6) { Text("Save rule"); Image(systemName: "return").font(.system(size: TS.meta)) } }
+                } label: { HStack(spacing: 6) { Text("Save rule"); Image(systemName: "return").font(.system(size: TS.micro)) } }
                     .buttonStyle(SaveRuleStyle()).keyboardShortcut(.defaultAction)
                     .disabled(b.wrappedValue.conditions.contains { $0.value.trimmingCharacters(in: .whitespaces).isEmpty } || (mustPreview && previewed != b.wrappedValue))
             }
@@ -257,7 +257,7 @@ struct RuleRow: View {
                     }
                     if p.shadowedCount > p.shadowed.count { Text("and \(p.shadowedCount - p.shadowed.count) more taken by earlier rules").font(.system(size: TS.small)).foregroundStyle(K.text2) }
                     if p.count == 0 && p.shadowedCount == 0 { Text("None of the \(p.scanned) files waiting to be sorted match.").font(.system(size: TS.small)).foregroundStyle(K.text2) }
-                    Text("Preview only: nothing is moved. The first rule that matches wins.").font(.system(size: TS.meta)).foregroundStyle(K.text3).padding(.top, 2)
+                    Text("Preview only: nothing is moved. The first rule that matches wins.").font(.system(size: TS.micro)).foregroundStyle(K.text3).padding(.top, 2)
                 }
                 .padding(.leading, 20)
                 .accessibilityElement(children: .combine)
@@ -382,7 +382,7 @@ struct BarChart: View {
                 VStack(spacing: 4) {
                     RoundedRectangle(cornerRadius: 3).fill(i == highlight ? color : color.opacity(0.15))
                         .frame(height: max(6, CGFloat(v) / CGFloat(mx) * 44))
-                    Text(i < labels.count ? labels[i] : "").font(.system(size: TS.meta, weight: i == highlight ? .semibold : .regular)).foregroundStyle(i == highlight ? K.text : K.text2)
+                    Text(i < labels.count ? labels[i] : "").font(.system(size: TS.micro, weight: i == highlight ? .semibold : .regular)).foregroundStyle(i == highlight ? K.text : K.text2)
                 }
                 .frame(maxWidth: .infinity)
             }

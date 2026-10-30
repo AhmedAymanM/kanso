@@ -14,18 +14,3 @@ jobs:
         run: swift --version && xcodebuild -version
       - name: swift test
         run: cd app && swift test
-      - name: swift build
-        run: cd app && swift build
-      - name: Snapshots
-        continue-on-error: true
-        timeout-minutes: 3
-        run: |
-          cd app
-          mkdir -p "$RUNNER_TEMP/shots"
-          KANSO_HOME="$RUNNER_TEMP/k" .build/debug/Kanso --snapshot "$RUNNER_TEMP/shots"
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: snapshots
-          path: ${{ runner.temp }}/shots
-          if-no-files-found: warn

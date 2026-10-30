@@ -72,36 +72,6 @@ enum Snapshot {
                 }
                 island.shortcuts = false; island.fanned = false; island.askState = .idle; island.askText = ""
             }
-            // The Tray (beta): empty, drag over, items, planning, preview, partial failure.
-            m.engine.store.update { $0.trayEnabled = true }
-            m.refresh()
-            let tm = TrayModel.shared
-            let docs = "/Users/demo/Downloads", desk = "/Users/demo/Desktop"
-            func ent(_ name: String, _ dir: String, _ state: TrayState = .ready, locked: Bool = false) -> TrayEntry { TrayEntry(url: URL(fileURLWithPath: dir + "/" + name), state: state, locked: locked) }
-            let carrying = [ent("Lease-2026.pdf", docs), ent("IMG_2041.heic", desk), ent("id_ed25519.pem", docs, locked: true), ent("old-notes.txt", desk, .missing)]
-            func prow(_ e: TrayEntry, _ shelf: String?, _ basis: String, new: Bool = false, stays: String? = nil) -> TrayRow { TrayRow(entry: e, shelf: shelf, basis: basis, newShelf: new, stays: stays, willMove: stays == nil) }
-            var preview = TrayPlan()
-            preview.rows = [prow(carrying[0], "Documents", "by file type"), prow(carrying[1], "Images", "by file type"), prow(carrying[2], "Keys", "by file type, never read"),
-                            prow(TrayEntry(url: URL(fileURLWithPath: desk + "/mockup.qx7")), "Mockups", "by Apple Intelligence", new: true), prow(carrying[3], nil, "", stays: "Missing. Forget it to clear the row.")]
-            let trays: [(String, () -> Void)] = [
-                ("empty", { tm.demo(entries: []) }),
-                ("over", { tm.demo(entries: Array(carrying.prefix(2)), note: nil, over: true) }),
-                ("items", { tm.demo(entries: carrying, note: "Added 3 to the Tray", selection: 1) }),
-                ("planning", { tm.demo(entries: carrying, phase: .planning(3, 4)) }),
-                ("preview", { tm.demo(entries: carrying, phase: .review, plan: preview) }),
-                ("error", { tm.demo(entries: [carrying[0]], error: "Moved 3 of 4. 1 stayed in the Tray: Lease-2026.pdf. Couldn't move it. It may be open in another app, or the shelf isn't writable.") }),
-            ]
-            for skin in [Island.Skin.notch, .capsule] {
-                island.skin = skin
-                island.notices = []; island.expanded = true; island.overview = true; island.tray = true; island.shortcuts = false; island.askState = .idle
-                for (name, setup) in trays {
-                    setup()
-                    shot("island-\(skin == .notch ? "notch" : "capsule")-tray-\(name)", CGSize(width: Island.size.width, height: Island.size.height), IslandBackdrop(skin: skin))
-                }
-            }
-            island.tray = false; tm.demo(entries: [])
-            m.engine.store.update { $0.trayEnabled = false }
-            m.refresh()
             island.notices = []; island.expanded = false; island.overview = false
             shot("icon", CGSize(width: 256, height: 256), AppIcon().padding(20))
         }

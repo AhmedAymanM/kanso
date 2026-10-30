@@ -15,7 +15,7 @@ struct ExcludesSection: View {
                 VStack(alignment: .leading, spacing: 10) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Names").font(.system(size: TS.body, weight: .medium)).foregroundStyle(K.text)
-                        Text(verbatim: "Patterns like *.tmp or Draft*, for every watched folder. Capital letters don't matter.").font(.system(size: TS.small)).foregroundStyle(K.text2)
+                        Text("Patterns like *.tmp or Draft*, for every watched folder. Capital letters don't matter.").font(.system(size: TS.small)).foregroundStyle(K.text2)
                     }
                     ForEach(m.settings.excludes, id: \.self) { g in
                         removable(Text(g).font(.system(size: TS.small, design: .monospaced)).foregroundStyle(K.text), label: "Remove pattern \(g)") {
