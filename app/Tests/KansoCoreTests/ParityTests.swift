@@ -101,6 +101,47 @@ extension EngineTests {
         XCTAssertEqual(Engine.keeperReason(kept: b, copy: a, root: root, setting: .bestNamed), "Its name is as clean as the other copy's")
     }
 
+    // MARK: Rule preview
+
+    func testRulePreviewListsMatchesWithoutSideEffects() throws {
+        file("a.pdf"); file("b.pdf"); file("c.png")
+        let before = try fm.contentsOfDirectory(atPath: root.path).sorted()
+        let draft = Rule([Condition(.ext, "pdf")], dest: "Invoices")
+        let p = engine.previewRule(draft)
+        XCTAssertEqual(p.count, 2)
+        XCTAssertEqual(p.hits.map(\.name), ["a.pdf", "b.pdf"])
+        XCTAssertEqual(p.hits.first?.otherwise, "Documents")
+        XCTAssertEqual(p.scanned, 3)
+        XCTAssertEqual(p.shadowedCount, 0)
+        XCTAssertEqual(try fm.contentsOfDirectory(atPath: root.path).sorted(), before, "nothing moved, nothing created")
+        XCTAssertTrue(store.actions.isEmpty)
+        XCTAssertFalse(store.settings.rules.contains { $0.id == draft.id }, "the draft is not saved")
+        XCTAssertFalse(exists(root.appendingPathComponent(Library.mine)))
+    }
+
+    func testRulePreviewShowsFirstMatchWinsAndLimits() {
+        make(pick: nil) { $0.rules.append(Rule([Condition(.ext, "pdf")], dest: "Reports")) }
+        file("a.pdf"); file("a2.txt")
+        for i in 0..<9 { file("note\(i).txt") }
+        let draft = Rule([Condition(.name, "a*")], dest: "Notes")
+        let p = engine.previewRule(draft)
+        XCTAssertEqual(p.count, 1)                          // a2.txt
+        XCTAssertEqual(p.shadowedCount, 1)                  // a.pdf goes to the earlier .pdf rule
+        XCTAssertEqual(p.shadowed.first?.shadowedBy, ".pdf")
+        let all = engine.previewRule(Rule([Condition(.ext, "txt")], dest: "Notes"), limit: 3)
+        XCTAssertEqual(all.count, 10)
+        XCTAssertEqual(all.hits.count, 3, "only the first few are listed")
+    }
+
+    func testRulePreviewWorksForASwitchedOffSavedRule() {
+        var r = Rule([Condition(.ext, "png")], dest: "Images")
+        r.enabled = false
+        store.update { $0.rules.append(r) }
+        file("c.png")
+        XCTAssertEqual(engine.previewRule(r).count, 1)
+        XCTAssertEqual(engine.previewRule(r).shadowedCount, 0)
+    }
+
     func testDestinationWarning() {
         XCTAssertNil(Engine.destinationWarning("Documents/Invoices"))
         XCTAssertNotNil(Engine.destinationWarning("~/Taxes"))

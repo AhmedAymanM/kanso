@@ -17,6 +17,23 @@ public func lowBattery() -> Bool {
     return false
 }
 
+/// "What would match": a dry run of one rule over the files waiting to be sorted. Nothing is moved, journaled or learned.
+public struct RulePreview: Sendable, Equatable {
+    public struct Hit: Identifiable, Sendable, Equatable {
+        public var id: String { path }
+        public var path: String
+        public var name: String
+        public var otherwise: String?   // where the file type would put it without the rule; nil when no type claims it
+        public var shadowedBy: String?  // the earlier rule that takes it first (first match wins)
+    }
+    public var hits: [Hit] = []         // files this rule would take (the first few)
+    public var count = 0                // how many in all
+    public var shadowed: [Hit] = []     // files it matches but an earlier rule takes
+    public var shadowedCount = 0
+    public var scanned = 0              // files waiting to be sorted that were checked
+    public init() {}
+}
+
 /// One planned move. The review window can uncheck it (`include`) or edit `newName`.
 public struct Planned: Identifiable, Sendable {
     public enum Stage: Sendable { case recent, sort }
@@ -158,6 +175,35 @@ public final class Engine: @unchecked Sendable {
             }
         }
         return rule.matchAny ? rule.conditions.contains(where: test) : rule.conditions.allSatisfy(test)
+    }
+
+    /// Dry run of `rule` (saved or being edited) over the current candidates, in the order the real run uses (first match wins).
+    /// Reads metadata only and never asks a model, so a file no rule or type claims simply shows no "otherwise".
+    public func previewRule(_ rule: Rule, now: Date = Date(), limit: Int = 6) -> RulePreview {
+        let settings = s
+        var candidate = rule
+        candidate.enabled = true   // a switched-off rule can still be previewed
+        var order = settings.rules
+        if let i = order.firstIndex(where: { $0.id == rule.id }) { order[i] = candidate } else { order.append(candidate) }
+        var out = RulePreview()
+        let found = candidates(all: true, now: now).0
+            .sorted { $0.0.lastPathComponent.localizedStandardCompare($1.0.lastPathComponent) == .orderedAscending }
+        for (url, root, _, _) in found {
+            let item = Item.inspect(url, root: root)
+            out.scanned += 1
+            guard Engine.matches(candidate, item) else { continue }
+            var hit = RulePreview.Hit(path: url.path, name: item.name,
+                                      otherwise: item.screenshot ? Shelf.screenshots : settings.type(forExt: item.ext)?.name, shadowedBy: nil)
+            if let winner = order.first(where: { Engine.matches($0, item) }), winner.id != candidate.id {
+                hit.shadowedBy = Engine.describe(winner)
+                out.shadowedCount += 1
+                if out.shadowed.count < limit { out.shadowed.append(hit) }
+            } else {
+                out.count += 1
+                if out.hits.count < limit { out.hits.append(hit) }
+            }
+        }
+        return out
     }
 
     public static func parseSize(_ s: String) -> Int64? {
