@@ -128,6 +128,11 @@ public final class Store: @unchecked Sendable {
             try? data.write(to: dir.appendingPathComponent("settings.v\(Settings.storedVersion(data)).bak"), options: .atomic)
             migratedFile = true
         }
+        // A file from a NEWER build: this build drops keys it doesn't know when it saves, so keep the original once.
+        if let data = try? Data(contentsOf: settingsURL), Settings.storedVersion(data) > Settings.currentVersion {
+            let bak = dir.appendingPathComponent("settings.v\(Settings.storedVersion(data)).bak")
+            if !FileManager.default.fileExists(atPath: bak.path) { try? data.write(to: bak, options: .atomic) }
+        }
         pending = Store.readOrBackup(Pending.self, dir.appendingPathComponent("pending.json")) ?? Pending()
         let lines = (try? String(contentsOf: dir.appendingPathComponent("journal.jsonl"), encoding: .utf8)) ?? ""
         // A write-ahead entry and its completed rewrite share an id; the last line wins.

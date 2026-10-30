@@ -104,16 +104,21 @@ public enum RuleDrafting {
     }
 
     public static func validate(_ raw: RawRuleDraft, sentence: String, settings: Settings) -> Result<RuleDraft, RuleDraftError> {
-        let folded = Engine.fold(sentence)
-        let saidNoSpaces = folded.replacingOccurrences(of: " ", with: "")
+        let said = SentenceTokens(sentence)
         var conditions: [Condition] = []
         for rc in raw.conditions.prefix(maxConditions) {
             guard let field = Condition.Field(rawValue: rc.field.lowercased()) else { continue }
             let rawValue = clean(rc.value)
             guard !rawValue.isEmpty, rawValue.count <= 80 else { continue }
-            // Literal rule: the model may only use words the user wrote.
-            func occurs(_ v: String) -> Bool { Engine.fold(v).isEmpty ? false : (field == .size ? saidNoSpaces.contains(Engine.fold(v).replacingOccurrences(of: " ", with: "")) : Self.contains(sentence, v)) }
-            guard occurs(rawValue) || (field == .ext && rawValue.split(whereSeparator: { " ,.".contains($0) }).allSatisfy { occurs(String($0)) }) else { continue }
+            // Literal rule: the model may only use whole words the user wrote (not a letter, a dot or a digit inside another word).
+            switch field {
+            case .name: guard meaningful(rawValue), said.contains(rawValue, stem: true) else { continue }
+            case .from: guard meaningful(rawValue), said.contains(rawValue, stem: false) else { continue }
+            case .ext:
+                let parts = rawValue.split(whereSeparator: { " ,.".contains($0) }).map(String.init)
+                guard !parts.isEmpty, parts.allSatisfy({ meaningful($0) && said.contains($0, stem: false) }) else { continue }
+            case .size: guard said.sizes.contains(where: { sizePairs(rawValue) == [$0] }) else { continue }
+            }
             var c: Condition?
             switch field {
             case .name:
@@ -143,12 +148,14 @@ public enum RuleDrafting {
             guard allowedShelf(t.name) else { return .failure(.badDestination) }
             dest = t.name
         } else if choice.lowercased() == Brain.new {
-            let name = Brain.cleanName(raw.newName)
+            let name = Brain.cleanName(clean(raw.newName))
             guard !name.isEmpty, !Brain.isCatchAll(name), allowedShelf(name) else { return .failure(.badDestination) }
             if let existing = settings.types.first(where: { Engine.fold($0.name) == Engine.fold(name) }) {
                 guard allowedShelf(existing.name) else { return .failure(.badDestination) }
                 dest = existing.name
             } else {
+                // A shelf the model invents must be one the user named.
+                guard meaningful(name), said.contains(name, stem: true) else { return .failure(.badDestination) }
                 dest = name
                 newShelf = NewShelf(name: name, emoji: Brain.cleanEmoji(raw.newEmoji),
                                     description: String(clean(raw.newDescription).prefix(200)))
@@ -157,15 +164,51 @@ public enum RuleDrafting {
             return .failure(.badDestination)
         }
         var rule = Rule(conditions, dest: dest)
-        rule.matchAny = raw.matchAny && conditions.count > 1
+        rule.matchAny = raw.matchAny && conditions.count > 1 && said.split.contains("or")
         rule.automatic = true   // made by a model: its destination stays a shelf inside My Shelves
         return .success(RuleDraft(rule: rule, newShelf: newShelf))
     }
 
-    /// Does the sentence contain `value`, ignoring case, accents and width?
-    static func contains(_ sentence: String, _ value: String) -> Bool {
-        let v = Engine.fold(value)
-        return !v.isEmpty && Engine.fold(sentence).contains(v)
+    /// At least two characters, at least one a letter or digit.
+    static func meaningful(_ v: String) -> Bool {
+        v.count >= 2 && v.contains { $0.isLetter || $0.isNumber }
+    }
+
+    /// The size ("2 GB") as number and unit tokens, like ["2|gb"].
+    static func sizePairs(_ text: String) -> [String] {
+        let t = Engine.fold(text)
+        guard let re = try? NSRegularExpression(pattern: #"(?<![\p{L}\p{N}.])(\d+(?:\.\d+)?)\s*([a-z]+)(?![\p{L}\p{N}])"#) else { return [] }
+        let ns = t as NSString
+        return re.matches(in: t, range: NSRange(location: 0, length: ns.length)).map { ns.substring(with: $0.range(at: 1)) + "|" + ns.substring(with: $0.range(at: 2)) }
+    }
+
+    /// The sentence as whole words. `full` keeps dots inside a word ("stripe.com"); `split` breaks on everything that isn't a letter or digit.
+    struct SentenceTokens {
+        var full: [String], split: [String], sizes: [String]
+        init(_ text: String) {
+            let f = Engine.fold(text)
+            full = SentenceTokens.full(f); split = SentenceTokens.split(f)
+            sizes = RuleDrafting.sizePairs(text).filter { p in
+                let pair = p.split(separator: "|").map(String.init)
+                return Engine.parseSize(pair[0] + pair[1]) != nil
+            }
+        }
+        static func full(_ f: String) -> [String] {
+            f.split(whereSeparator: { !($0.isLetter || $0.isNumber || ".-_".contains($0)) })
+                .map { String($0).trimmingCharacters(in: CharacterSet(charactersIn: ".-_")) }.filter { !$0.isEmpty }
+        }
+        static func split(_ f: String) -> [String] { f.split(whereSeparator: { !($0.isLetter || $0.isNumber) }).map(String.init) }
+        /// `stem`: a plural matches its singular ("invoice" in "invoices").
+        func contains(_ value: String, stem: Bool) -> Bool {
+            let f = Engine.fold(value)
+            let m: (String) -> String = { stem && $0.count > 3 && $0.hasSuffix("s") ? String($0.dropLast()) : $0 }
+            func has(_ v: [String], _ s: [String]) -> Bool {
+                let v = v.map(m), s = s.map(m)
+                guard !v.isEmpty, v.count <= s.count else { return false }
+                return (0...(s.count - v.count)).contains { Array(s[$0..<($0 + v.count)]) == v }
+            }
+            return has(SentenceTokens.full(f), full) || has(SentenceTokens.split(f), split)
+        }
     }
 
     /// fnmatch metacharacters made literal.

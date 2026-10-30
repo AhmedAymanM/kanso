@@ -75,7 +75,7 @@ final class RuleDraftTests: XCTestCase {
     }
 
     func testANewShelfNameWithPathCharactersIsFlattened() async throws {
-        let d = try await draft(raw([("name", "invoice")], dest: "new", name: "Docs/../Invoices")).get()
+        let d = try await draft(raw([("name", "invoice")], dest: "new", name: "Docs/../Invoices"), "move invoices to Docs/../Invoices").get()
         XCTAssertFalse(d.rule.dest.contains("/"))
         XCTAssertFalse(d.rule.dest.contains(".."))
         XCTAssertTrue(Engine.automaticShelfAllowed(d.rule.dest))
