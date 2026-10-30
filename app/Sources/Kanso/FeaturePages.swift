@@ -335,7 +335,7 @@ struct RulesSection: View {
                 VStack(spacing: 8) {
                     ForEach(m.pending.suggestions) { s in
                         HStack(spacing: 12) {
-                            RulePreview(condition: s.condition, shelf: s.shelf, emoji: m.settings.emoji(for: s.shelf))
+                            RulePreviewRow(condition: s.condition, shelf: s.shelf, emoji: m.settings.emoji(for: s.shelf))
                             Button("Not now") { m.dismissSuggestion(s.id) }.buttonStyle(LinkStyle(color: K.text2))
                             Button("Create rule") { m.acceptSuggestion(s.id) }.buttonStyle(PrimaryStyle(tint: .rule, small: true))
                         }

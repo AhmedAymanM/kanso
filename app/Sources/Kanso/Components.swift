@@ -222,12 +222,17 @@ struct RuleRow: View {
             if showMatches, let p = matches {
                 VStack(alignment: .leading, spacing: 4) {
                     ForEach(p.hits) { h in
-                        Text("\(h.name)" + (h.otherwise.map { " · otherwise \(m.settings.emoji(for: $0)) \($0)" } ?? " · no type claims it"))
+                        let fallback: String = h.otherwise.map { name in
+                            let emoji: String = m.settings.emoji(for: name)
+                            return " · otherwise \(emoji) \(name)"
+                        } ?? " · no type claims it"
+                        Text(h.name + fallback)
                             .font(.system(size: TS.small)).foregroundStyle(K.text).lineLimit(1).truncationMode(.middle)
                     }
                     if p.count > p.hits.count { Text("and \(p.count - p.hits.count) more").font(.system(size: TS.small)).foregroundStyle(K.text2) }
                     ForEach(p.shadowed) { h in
-                        Text("\(h.name) · taken first by \(h.shadowedBy ?? "an earlier rule")")
+                        let by: String = h.shadowedBy ?? "an earlier rule"
+                        Text("\(h.name) · taken first by \(by)")
                             .font(.system(size: TS.small)).foregroundStyle(K.text2).lineLimit(1).truncationMode(.middle)
                     }
                     if p.shadowedCount > p.shadowed.count { Text("and \(p.shadowedCount - p.shadowed.count) more taken by earlier rules").font(.system(size: TS.small)).foregroundStyle(K.text2) }

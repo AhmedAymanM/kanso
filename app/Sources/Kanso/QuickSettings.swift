@@ -212,7 +212,7 @@ func summary(_ a: Action) -> String {
     }
 }
 
-struct RulePreview: View {
+struct RulePreviewRow: View {
     var condition: Condition
     var shelf: String
     var emoji: String
