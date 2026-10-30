@@ -101,6 +101,44 @@ extension EngineTests {
         XCTAssertEqual(Engine.keeperReason(kept: b, copy: a, root: root, setting: .bestNamed), "Its name is as clean as the other copy's")
     }
 
+    // MARK: Batch undo card
+
+    func action(_ kind: Action.Kind, run: String = "r1", src: String = "/d/a.pdf", dst: String = "/d/My Shelves/Documents/a.pdf") -> Action {
+        Action(run: run, kind: kind, src: src, dst: dst, root: "/d", shelf: "Documents", why: "extension", source: "metadata only")
+    }
+
+    func testBatchSummaryOnlyForUserStartedRunsOfSeveralFiles() {
+        let three = [action(.sorted), action(.sorted), action(.sorted)]
+        XCTAssertNil(Batch.summary(three, trigger: "auto"), "plain sorts stay silent")
+        XCTAssertNil(Batch.summary([action(.sorted)], trigger: "menu"), "one file needs no card")
+        let b = Batch.summary(three, trigger: "menu")
+        XCTAssertEqual(b?.text, "Sorted 3 files")
+        XCTAssertEqual(b?.run, "r1")
+        XCTAssertEqual(b?.count, 3)
+        XCTAssertNotNil(Batch.summary(three, trigger: "sort-everything"))
+    }
+
+    func testBatchSummaryWording() {
+        let mixed = [action(.sorted), action(.sorted), action(.renamed), action(.duplicate)]
+        XCTAssertEqual(Batch.summary(mixed, trigger: "menu")?.text, "Sorted 3 files, renamed 1, held 1 copy")
+        let inPlace = [action(.renamed, src: "/d/x/a.pdf", dst: "/d/x/b.pdf"), action(.renamed, src: "/d/x/c.pdf", dst: "/d/x/d.pdf")]
+        XCTAssertEqual(Batch.summary(inPlace, trigger: "review")?.text, "Renamed 2 files")
+        var undone = action(.sorted); undone.undone = true
+        XCTAssertNil(Batch.summary([undone, action(.sorted)], trigger: "menu"), "undone entries don't count")
+    }
+
+    func testOneUndoRevertsTheWholeUserStartedRun() async {
+        file("a.pdf"); file("b.png"); file("c.zip")
+        let done = await run(trigger: "menu")
+        let b = Batch.summary(done, trigger: "menu")
+        XCTAssertEqual(b?.count, 3)
+        XCTAssertEqual(Set(done.map(\.run)).count, 1, "one run, so one Undo")
+        let restored = engine.undoLast()
+        XCTAssertEqual(restored.count, 3)
+        XCTAssertTrue(exists(root.appendingPathComponent("a.pdf")))
+        XCTAssertTrue(exists(root.appendingPathComponent("b.png")))
+    }
+
     // MARK: Excludes
 
     func testGlobalExcludesKeepMatchingItemsInPlace() async {

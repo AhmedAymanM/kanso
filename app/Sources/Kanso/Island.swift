@@ -11,6 +11,7 @@ enum Notice: Identifiable, Equatable {
     case renameReview(Int)
     case sortingOff(Date)
     case reading(String)
+    case batch(run: String, text: String)   // after a run the user started: one line, one Undo for the whole run
     case info(icon: String, text: String, undo: UUID? = nil)
 
     var id: String {
@@ -19,6 +20,7 @@ enum Notice: Identifiable, Equatable {
         case .renameReview: return "review"
         case .sortingOff: return "sorting-off"
         case .reading: return "reading"
+        case .batch(let run, _): return "batch-" + run
         case .info(_, let t, _): return "info-" + t
         }
     }
@@ -26,7 +28,7 @@ enum Notice: Identifiable, Equatable {
         switch self {
         case .renamed, .renameReview: return .rename
         case .duplicate: return .duplicate
-        case .installer, .sortingOff: return .accent
+        case .installer, .sortingOff, .batch: return .accent
         case .reading: return .where
         case .info: return .neutral
         }
@@ -40,6 +42,7 @@ enum Notice: Identifiable, Equatable {
         case .renameReview: return "text.badge.checkmark"
         case .sortingOff: return "pause.circle"
         case .reading: return "doc.text.viewfinder"
+        case .batch: return "checkmark.circle"
         case .info(let i, _, _): return i
         }
     }
@@ -51,6 +54,7 @@ enum Notice: Identifiable, Equatable {
         case .reading(let n): return "Reading page 1 of \(n)…"
         case .renameReview(let n): return "\(n) files can be renamed"
         case .sortingOff: return "Sorting off since yesterday · Turn on"
+        case .batch(_, let text): return text
         case .info(_, let t, _): return t
         }
     }
@@ -475,7 +479,7 @@ final class Island: ObservableObject {
                     needs = [IslandAction(label: "Move copy to Trash", key: "⌘⌫", icon: "trash") { m.trash(a.id); self.confirm("Moved \(a.name) to Trash", undo: a.id) },
                              IslandAction(label: "Keep both", key: "", icon: "doc.on.doc") { m.keepBoth(a.id); self.confirm("Kept both copies of \(a.name)", undo: nil) }, later]
                 case .renames(let p, _): needs = [IslandAction(label: "Review names", key: "↩", icon: "checklist") { self.hide(); Windows.shared.showReview(tab: .renames) },
-                                                  IslandAction(label: "Rename all", key: "⌘↩", icon: "wand.and.sparkles") { m.applyRenames(p); self.confirm("Renamed \(p.count) files", undo: nil) }, later]
+                                                  IslandAction(label: "Rename all", key: "⌘↩", icon: "wand.and.sparkles") { m.applyRenames(p, announce: false); self.confirm("Renamed \(p.count) files", undo: nil) }, later]
                 case .rule(let r): needs = [IslandAction(label: "Create rule", key: "↩", icon: "wand.and.stars") { m.acceptSuggestion(r.id); self.confirm("Rule created for \(r.shelf)", undo: nil) }, later]
                 }
             }
@@ -500,6 +504,8 @@ final class Island: ObservableObject {
             return [IslandAction(label: "Review…", key: "↩", icon: "checklist") { self.hide(); Windows.shared.showReview(tab: .renames) },
                     IslandAction(label: "Not now", key: "esc", icon: "xmark") { done() }]
         case .reading: return []
+        case .batch(let run, _):
+            return [IslandAction(label: "Undo", key: "⌘Z") { m.undoRun(run); done() }]
         case .sortingOff:
             return [IslandAction(label: "Turn on Sorting", key: "↩", icon: "power") { m.setSorting(true); done() }]
         case .info(let icon, _, _) where icon == "arrow.down.circle" && UpdateChecker.shared.availableURL != nil:
