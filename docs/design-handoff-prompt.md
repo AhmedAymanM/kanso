@@ -4,15 +4,15 @@ You are the product designer for **Kanso**, a calm macOS menu bar app that keeps
 
 ## Where things are
 
-- **Design file:** `~/Desktop/projects/kanso-designs/untitled.pen`. Access it only through the Pencil MCP tools (`get_app_state`, `execute`, `read_skill`, `get_style`); never read `.pen` files directly. Start with `mcp__pencil__read_skill()` and then `read_skill({path: "execute.md"})`, and follow them exactly.
-- **Current design system:** `~/Desktop/projects/kanso-designs/DESIGN_SYSTEM.md` (v1, sage accent).
-- **Read these before designing** (all in `~/Desktop/projects/kanso/`):
+- **Design file:** `../kanso-designs/untitled.pen`. Access it only through the Pencil MCP tools (`get_app_state`, `execute`, `read_skill`, `get_style`); never read `.pen` files directly. Start with `mcp__pencil__read_skill()` and then `read_skill({path: "execute.md"})`, and follow them exactly.
+- **Current design system:** `../kanso-designs/DESIGN_SYSTEM.md` (v1, sage accent).
+- **Read these before designing** (all in this repo):
   - `PRODUCT.md`: the source of truth. Sections that matter most: "The island and shortcuts", "Smart Eject", "Settings structure", "Onboarding", "Duplicates", "Trust mechanics", "Roadmap".
   - `CONTEXT.md`: the vocabulary. Use these words exactly in all copy (shelf, tray, watched folder, island, compact/expanded island, ask field, quick settings, below-the-notch mode, provably spent).
   - `docs/design-validation-2026-09-29.md`: **12 findings you must apply** (focus rings, reduced motion, pastels only on surfaces, VoiceOver, no glass on glass, no glass on content, spring values, action labels, serif tracking).
   - `docs/adr/0001-ask-field-destructive-actions.md` and `docs/adr/0002-trash-only-provably-spent-files.md`: the trash rules that the ask-field and duplicate designs must show.
   - `design-brief.md`: the original brief, for context (older decisions there are superseded by PRODUCT.md).
-  - `docs/design-refs/`: visual references. The Linear status morph (`linear-status-*.png`, `.gif`) shows how the island's icon morphs; the analytics micro-interactions (`analytics-microinteractions-*`) and `insight-cards.jpg` show the Insights card style.
+  - Visual references (not in the repo): Linear's project-status icon morph shows how the island's icon morphs; analytics micro-interactions and Dribbble-style insight cards show the Insights card style.
 - **Web references:** Droppy's island (https://getdroppy.app: "black at the notch, melting into glass"), NotchRail's notch-less floating shelf, the libraries.dev Border beam and Thinking orbs, Apple's Dynamic Island.
 
 ## Ground rules
