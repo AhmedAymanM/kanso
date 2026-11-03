@@ -43,9 +43,9 @@ CLI: `run [--all] [--dry-run]`, `undo`, `install` / `uninstall` (launchd agent),
 Try the CLI on real folders without touching the user's config: point `HOME` at a temp dir and keep the model cache. (`bench.py` doesn't need this, because it uses the shipped default config directly.)
 
 ```bash
-S=$(mktemp -d); mkdir -p $S/.config/kanso
-sed 's#^roots = .*#roots = ["~/Desktop"]#' src/kanso/default_config.toml > $S/.config/kanso/config.toml
-HOME=$S HF_HOME=~/.cache/huggingface uv run kanso run --all --dry-run   # without HF_HOME von re-downloads 1.5 GB
+R=$HOME; S=$(mktemp -d); mkdir -p $S/.config/kanso
+sed "s#^roots = .*#roots = [\"$R/Desktop\"]#" src/kanso/default_config.toml > $S/.config/kanso/config.toml
+HOME=$S HF_HOME=$R/.cache/huggingface uv run kanso run --all --dry-run   # without HF_HOME von re-downloads 1.5 GB
 ```
 
 ## Swift app (`app/`, Kanso v1)

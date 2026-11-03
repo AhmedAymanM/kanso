@@ -145,3 +145,7 @@ Default rules send JSON exports of automation workflows to Automations when they
 uv run python -m unittest discover tests -v
 uv run python bench.py >> BENCHMARKS.md    # compare approaches on your real folders (dry run)
 ```
+
+## License
+
+MIT. See [LICENSE](LICENSE).

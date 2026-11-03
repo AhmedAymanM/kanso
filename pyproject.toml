@@ -6,6 +6,7 @@ readme = "README.md"
 authors = [
     { name = "Ahmed Ayman", email = "535126+AhmedAymanM@users.noreply.github.com" }
 ]
+license = "MIT"
 requires-python = ">=3.12"
 dependencies = [
     "von-sdk>=1.2.2",
