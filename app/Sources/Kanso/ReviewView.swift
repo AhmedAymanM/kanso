@@ -127,7 +127,7 @@ struct ReviewView: View {
             Label { Text(r.name).lineLimit(1).truncationMode(.middle) } icon: { Image(systemName: "doc.text") }
                 .font(.system(size: TS.body)).foregroundStyle(on ? K.text2 : K.text3).frame(maxWidth: .infinity, alignment: .leading)
             HStack(spacing: 8) {
-                Image(systemName: "arrow.right").font(.system(size: TS.micro)).foregroundStyle(on ? K.text2 : K.text3)
+                Image(systemName: "arrow.right").font(.system(size: TS.meta)).foregroundStyle(on ? K.text2 : K.text3)
                 if on {
                     TextField("", text: Binding(get: { renames.first { $0.id == r.id }?.newName ?? "" }, set: { v in if let i = renames.firstIndex(where: { $0.id == r.id }) { renames[i].newName = v } }))
                         .textFieldStyle(.plain).font(.system(size: TS.body, weight: .semibold)).foregroundStyle(K.text)
@@ -148,7 +148,7 @@ struct ReviewView: View {
             Label { Text(p.item.name).lineLimit(1).truncationMode(.middle) } icon: { Text(folderEmoji(p.item.root.path)).font(.system(size: TS.meta)) }
                 .font(.system(size: TS.body)).foregroundStyle(on ? K.text : K.text3).frame(maxWidth: .infinity, alignment: .leading).help("\(root)/\(p.item.name)")
             HStack(spacing: 8) {
-                Image(systemName: "arrow.right").font(.system(size: TS.micro)).foregroundStyle(K.text3)
+                Image(systemName: "arrow.right").font(.system(size: TS.meta)).foregroundStyle(K.text3)
                 Text(p.kind == .duplicate ? "Duplicate of \((p.details["kept"].map { ($0 as NSString).lastPathComponent }) ?? "")" : (p.proposedName.map { "Rename later: \($0)" } ?? "Same name"))
                     .font(.system(size: TS.small)).foregroundStyle(p.kind == .duplicate ? Tint.duplicate.fg : K.text3).lineLimit(1)
             }
