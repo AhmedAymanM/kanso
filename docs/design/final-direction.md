@@ -139,7 +139,7 @@ A place on the island to **collect things from across the Mac and then take them
 | File / folder | A **Quick Look thumbnail** (`QLThumbnailGenerator`), falling back to the file icon. A reference (bookmark data), never copied on drop. A file moved or deleted meanwhile shows a "Missing" tile. |
 | Link | A **link preview** card (`LPLinkView`: title, site icon, image) once the link passes the safety check below; until then, or if it fails, a plain card with the host and the URL. |
 | Snippet (text) | A text card with the first lines. |
-| File promise (browser image, Mail attachment) | Refused: "That item isn't a file on this Mac yet. Save it first." |
+| File promise (browser image, Mail attachment) | Saved into `~/Downloads` first (with `com.apple.quarantine`), then shown like any file. While it saves, the tile shows a progress ring; a failed save shows "Couldn't save that image" and adds nothing. Removing it from the Tray leaves the saved file in Downloads. |
 
 ### Layout
 - **A grid of preview tiles, not a list**: 88 × 88 pt tiles with a 10 pt corner radius, the name under each (two lines, middle-truncated), 4 per row in the 480 pt expanded island, scrolling after 3 rows. Newest first.
@@ -154,7 +154,7 @@ A place on the island to **collect things from across the Mac and then take them
 - **Dragging out follows Finder:** a move within the same disk, a copy across disks, ⌥ forces a copy. ⇧ while dragging keeps the item in the Tray.
 
 ### Adding
-- Drag onto the island: it grows after a **250 ms** dwell in a 160 × 44 pt zone where the capsule (or notch) sits, on the screen under the cursor, and shrinks after the pointer leaves a 220 pt radius. Only a drag holding a file URL, an http(s) URL or text qualifies. "Added 3 to the Tray" for 2 s; it never expands on its own.
+- Drag onto the island: it grows after a **250 ms** dwell in a 160 × 44 pt zone where the capsule (or notch) sits, on the screen under the cursor, and shrinks after the pointer leaves a 220 pt radius. Only a drag holding a file URL, a file promise, an http(s) URL or text qualifies. "Added 3 to the Tray" for 2 s; it never expands on its own.
 - **⌘V** into the open Tray, and the Finder Service **Add to Kanso Tray** (with Finder in front, ⌥⌘K then ⌘T opens the Tray).
 - Full-screen apps: no growing; ⌘V and the Service still work.
 
