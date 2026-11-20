@@ -26,7 +26,7 @@ extension Island {
     func askContext() -> [Action] {
         let m = AppModel.shared
         var out: [Action] = []
-        for n in notices { switch n { case .renamed(let a), .duplicate(let a), .installer(let a): out.append(a); default: break } }
+        for n in notices { switch n { case .renamed(let a), .duplicate(let a): out.append(a); default: break } }
         if out.isEmpty { out = Array(m.done.prefix(5)) }
         return out
     }

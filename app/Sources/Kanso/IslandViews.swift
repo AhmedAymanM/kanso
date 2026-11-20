@@ -547,14 +547,12 @@ struct SimpleBody: View {
         }
     }
     var title: String {
-        if case .installer(let a) = n { return "Installed \(a.details["installer"] ?? "the app")" }
         if case .offer(.install(let o)) = n, o.existing == .none { return o.signature == .unsigned ? "\(o.info.name) isn't signed" : "Install \(o.info.name)" }
         if case .duplicate(let a) = n { return a.shelf == "Trash" ? n.line : "Copy of \(((a.details["kept"] ?? a.name) as NSString).lastPathComponent) held" }
         return n.line
     }
     var sub: String? {
         switch n {
-        case .installer(let a): return "\(a.srcName) (\((Int64(a.details["size"] ?? "") ?? 0).bytes)) moved to Trash. Put Back any time."
         case .offer(.install(let o)):
             if o.signature == .unsigned, !o.isCurrent { return "Kanso can't check who made it. Install only if you trust where it came from; macOS may still refuse to open it. Compare the checksum with the one its developer publishes." }
             if o.existing == .none { return "Copies it to Applications, checks its signature, then opens it from there." }

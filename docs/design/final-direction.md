@@ -101,7 +101,6 @@ Notes: Activity headline becomes `title` (toolbar title 13 pt semibold, the macO
 | icon morph | 0.18 s delay then spring response 0.3 | existing `MorphIcon` |
 | Needs-you card hand-off to island | 0.22 s cross-fade (no glass morph) | |
 | Tray: drag dwell | 250 ms in a 160 × 44 pt zone; shrink after leaving 220 pt | `TrayDragMonitor` (new) |
-| Tray: confirmations | "Added N" 2 s; "Removed N · ⌘Z" 3 s | |
 | notice dismiss and illustration rest | unchanged (illustrations rest after 15 s) | |
 | Reduce Motion | 0.2 s cross-fade; no grow, stagger, beam, or parallax; progress shown as static text | `Motion.reduced` |
 | Reduce Transparency | solid `K.glass` | existing `Motion.solid` |
@@ -150,11 +149,11 @@ A place on the island to **collect things from across the Mac and then take them
 - **Click** selects one item; **⌘-click** adds or removes; **⇧-click** selects a range; **⌘A** selects all; **drag a rectangle** on empty space to select (marquee); arrow keys move the selection, ⇧-arrows extend it. Selected tiles get a 2 pt ring in the system accent.
 - **Space** opens Quick Look for the selection (`QLPreviewPanel`), with arrows to page through, as in Finder. Links open their preview there too.
 - Share, drag and remove act on the **selection** when there is one.
-- **Remove an item** three ways: the **×** that appears top right of a tile on hover; **⌫ / Delete** on the selection; or **dragging it out** to another folder or app (it leaves the Tray once the destination accepts it). Removing takes it off the Tray only; the file is never trashed. ⌘Z restores the last removal.
+- **Remove an item** three ways: the **×** that appears top right of a tile on hover; **⌫ / Delete** on the selection; or **dragging it out** to another folder or app (it leaves the Tray once the destination accepts it). Removing takes it off the Tray only; the file is never trashed. ⌘Z restores the last removal. No "Removed" notice: the tile leaving is the feedback.
 - **Dragging out follows Finder:** a move within the same disk, a copy across disks, ⌥ forces a copy. ⇧ while dragging keeps the item in the Tray.
 
 ### Adding
-- Drag onto the island: it grows after a **250 ms** dwell in a 160 × 44 pt zone where the capsule (or notch) sits, on the screen under the cursor, and shrinks after the pointer leaves a 220 pt radius. Only a drag holding a file URL, a file promise, an http(s) URL or text qualifies. "Added 3 to the Tray" for 2 s; it never expands on its own.
+- Drag onto the island: it grows after a **250 ms** dwell in a 160 × 44 pt zone where the capsule (or notch) sits, on the screen under the cursor, and shrinks after the pointer leaves a 220 pt radius. Only a drag holding a file URL, a file promise, an http(s) URL or text qualifies. No "Added" notice: the drop target shows what's coming in, and the tiles show what arrived; it never expands on its own.
 - **⌘V** into the open Tray, and the Finder Service **Add to Kanso Tray** (with Finder in front, ⌥⌘K then ⌘T opens the Tray).
 - Full-screen apps: no growing; ⌘V and the Service still work.
 
@@ -175,7 +174,7 @@ Upload actions (a share link) and the file actions of v1.2 (convert, compress, o
 ## Smart Installer (island)
 - **Offer** (compact island, app icon tile): "Install Figma → Applications" with a "Trash the download" checkbox, ticked. Return installs. After the first time both answers are remembered and the offer becomes the progress notice directly.
 - **Progress:** the work beam with "Copying Figma…", then "Checking…". With Reduce Motion, static text.
-- **Done:** "Installed Figma · download moved to Trash · ⌘Z" (the morph icon fills); the app opens from `/Applications`.
+- **Done:** no notice; the app opens from `/Applications`, which is the confirmation (owner, 2026-11-20). Put Back for the download is in Activity.
 - **Already installed:** "Figma 3.2 is installed · Replace with 3.4?" with Replace and Skip; Replace is disabled with "Quit Figma first" while it runs.
 - **Failure:** one line naming the failed step ("Installed, but the disk image couldn't be ejected. The download was kept.").
 - **Archives and torrents:** the same compact offer, "Trash the zip" / "Trash it", with Keep.

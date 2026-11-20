@@ -7,7 +7,6 @@ import SwiftUI
 enum Notice: Identifiable, Equatable {
     case renamed(Action)
     case duplicate(Action)
-    case installer(Action)
     case renameReview(Int)
     case sortingOff(Date)
     case reading(String)
@@ -17,7 +16,7 @@ enum Notice: Identifiable, Equatable {
 
     var id: String {
         switch self {
-        case .renamed(let a), .duplicate(let a), .installer(let a): return a.id.uuidString
+        case .renamed(let a), .duplicate(let a): return a.id.uuidString
         case .renameReview: return "review"
         case .sortingOff: return "sorting-off"
         case .reading: return "reading"
@@ -30,7 +29,7 @@ enum Notice: Identifiable, Equatable {
         switch self {
         case .renamed, .renameReview: return .rename
         case .duplicate: return .duplicate
-        case .installer, .sortingOff, .batch: return .accent
+        case .sortingOff, .batch: return .accent
         case .reading: return .where
         case .info: return .neutral
         case .offer(.install(let o)) where o.signature == .unsigned: return .duplicate
@@ -43,7 +42,6 @@ enum Notice: Identifiable, Equatable {
         switch self {
         case .renamed: return "pencil.line"
         case .duplicate: return "doc.on.doc"
-        case .installer: return "externaldrive.badge.checkmark"
         case .renameReview: return "text.badge.checkmark"
         case .sortingOff: return "pause.circle"
         case .reading: return "doc.text.viewfinder"
@@ -59,7 +57,6 @@ enum Notice: Identifiable, Equatable {
         switch self {
         case .renamed(let a): return a.name
         case .duplicate(let a): return a.shelf == "Trash" ? "Copy of \(kept(a)) moved to Trash" : "Copy of \(kept(a)) held on Duplicates"
-        case .installer(let a): return "Installed \(a.details["installer"] ?? "the app") · download moved to Trash"
         case .reading(let n): return "Reading page 1 of \(n)…"
         case .renameReview(let n): return "\(n) files can be renamed"
         case .sortingOff: return "Sorting off since yesterday · Turn on"
@@ -94,7 +91,6 @@ enum Notice: Identifiable, Equatable {
         switch self {
         case .renamed: return "renamed"
         case .duplicate: return "duplicate"
-        case .installer: return "installer"
         default: return id
         }
     }
@@ -528,7 +524,7 @@ final class Island: ObservableObject {
             return [IslandAction(label: "Undo", key: "⌘Z") { m.undo([a.id]); done() },
                     IslandAction(label: "Move copy to Trash", key: "⌘⌫", icon: "trash") { m.trash(a.id); done() },
                     IslandAction(label: "Keep both", key: "", icon: "doc.on.doc") { m.keepBoth(a.id); done() }]
-        case .duplicate(let a), .installer(let a):
+        case .duplicate(let a):
             return [IslandAction(label: "Put Back", key: "⌘Z") { m.undo([a.id]); done() }]
         case .renameReview:
             return [IslandAction(label: "Review…", key: "↩", icon: "checklist") { self.hide(); Windows.shared.showReview(tab: .renames) },

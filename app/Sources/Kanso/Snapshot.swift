@@ -101,9 +101,6 @@ enum Snapshot {
         if let r = renamed.last { out.append(("renamed", [r], false, false)); out.append(("renamed-expanded", [r], true, false)) }
         if renamed.count > 1 { out.append(("count-up", Array(renamed), false, false)) }
         if let d = m.actions.last(where: { $0.kind == .duplicate }) { out.append(("duplicate", [.duplicate(d)], false, false)); out.append(("duplicate-expanded", [.duplicate(d)], true, false)) }
-        var inst = Action(run: "x", kind: .trashed, src: "/Downloads/My Shelves/Apps/Figma.dmg", dst: "/.Trash/Figma.dmg", root: "/Downloads", shelf: "Trash", why: "installer", source: "Smart Installer")
-        inst.details = ["installer": "Figma", "size": "210000000"]
-        out.append(("installer", [.installer(inst)], false, false))
         for (name, existing) in [("offer", SmartInstaller.Existing.none), ("offer-replace", .older(installed: "3.2"))] {
             let o = Snapshot.demoOffer(existing)
             out.append((name, [.offer(.install(o))], false, false)); out.append((name + "-expanded", [.offer(.install(o))], true, false))

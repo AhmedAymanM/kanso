@@ -581,9 +581,9 @@ final class AppModel: ObservableObject {
             await MainActor.run {
                 self.refresh()
                 Island.shared.dismiss(id: "info-Installing \(name)…")
+                // Success says nothing: the app opening from Applications is the confirmation (Put Back for the download
+                // is in Activity). The island speaks only when a step failed.
                 if let f = r.failure { Island.shared.show(.info(icon: r.installed == nil ? "exclamationmark.triangle" : "checkmark.circle", text: f)) }
-                else if let t = r.trashed { Island.shared.show(.installer(t)) }
-                else { Island.shared.show(.info(icon: "checkmark.circle", text: "Installed \(name)" + (r.unsigned ? " (unsigned)" : ""))) }
                 if let app = r.installed, self.settings.openAfterInstall {
                     NSWorkspace.shared.openApplication(at: app, configuration: NSWorkspace.OpenConfiguration())   // from /Applications, never a translocated copy
                 }
@@ -670,10 +670,7 @@ final class AppModel: ObservableObject {
                     try? NSWorkspace.shared.unmountAndEjectDevice(at: volume)
                     guard self.settings.trashDownload else { continue }
                     // trashInstaller refuses Manual Shelves, Keep-tagged, Homebrew's cache and non-.dmg images.
-                    if let a = self.engine.trashInstaller(entry.image, app: entry.label) {
-                        self.refresh()
-                        Island.shared.show(.installer(a))
-                    }
+                    if self.engine.trashInstaller(entry.image, app: entry.label) != nil { self.refresh() }   // silent, like any install: it's in Activity
                 }
                 self.updateInstallTimer()
             }

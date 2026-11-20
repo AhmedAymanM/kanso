@@ -283,10 +283,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     switch n {
                     case "reading": Island.shared.show(.reading("Scan_0044.pdf"))
                     case "sortingoff": Island.shared.show(.sortingOff(Date().addingTimeInterval(-90000)))
-                    case "installer":
-                        var a = Action(run: "x", kind: .trashed, src: "/Downloads/My Shelves/Apps/Figma.dmg", dst: "/.Trash/Figma.dmg", root: "/Downloads", shelf: "Trash", why: "installer", source: "Smart Installer")
-                        a.details = ["installer": "Figma", "size": "210000000"]
-                        Island.shared.show(.installer(a))
                     case "offer": Island.shared.show(.offer(.install(Snapshot.demoOffer(.none))))
                     case "duplicate": if let a = m.actions.last(where: { $0.kind == .duplicate && $0.pending }) { Island.shared.show(.duplicate(a)) }
                     default: if let r = m.actions.last(where: { $0.kind == .renamed }) { Island.shared.show(.renamed(r)) }
