@@ -76,12 +76,12 @@ struct OverviewPage: View {
     /// Four tinted tiles, one per feature (owner, 2026-11-19); each opens its page.
     func counters(_ all: Stats) -> some View {
         let tagged = m.actions.filter { !$0.undone && !$0.tags.isEmpty }.count
-        let ejected = m.actions.filter { !$0.undone && $0.kind == .trashed && $0.details["installer"] != nil }.count
+        let installs = m.actions.filter { !$0.undone && $0.kind == .trashed && $0.details["installer"] != nil && $0.details["replaced"] == nil }.count
         return HStack(alignment: .top, spacing: 12) {
             CounterTile(icon: "pencil", tint: .rename, value: all.renamed.formatted(), label: "Renamed", sub: "from contents, page 1") { m.page = .renaming }
             CounterTile(icon: "tag", tint: .where, value: tagged.formatted(), label: "Tagged", sub: "Finder tags added") { m.page = .tagging }
             CounterTile(icon: "doc.on.doc", tint: .duplicate, value: all.duplicateBytes.bytes, label: "Copies held", sub: "waiting in Duplicates") { m.page = .duplicates }
-            CounterTile(icon: "shippingbox", tint: .accent, value: ejected.formatted(), label: "Installers ejected", sub: "provably spent") { m.page = .smartEject }
+            CounterTile(icon: "arrow.down.app", tint: .accent, value: installs.formatted(), label: "Installed", sub: "downloads cleared") { m.page = .smartInstaller }
         }
         .fixedSize(horizontal: false, vertical: true)   // one height for all four
     }

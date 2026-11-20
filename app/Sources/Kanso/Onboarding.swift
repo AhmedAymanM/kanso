@@ -261,38 +261,39 @@ struct DemoIsland: View {
     var body: some View {
         ZStack(alignment: .top) {
             RoundedRectangle(cornerRadius: 14).fill(LinearGradient(colors: [Color(nsColor: NSColor(hex: 0xA9C3D6)), Color(nsColor: NSColor(hex: 0xEAD9C6))], startPoint: .top, endPoint: .bottom))
+            Rectangle().fill(Color.white.opacity(0.45)).frame(height: 22).frame(maxHeight: .infinity, alignment: .top)   // the menu bar
             VStack(spacing: 0) {
                 VStack(alignment: .leading, spacing: 10) {
                     if expanded {
                         HStack(spacing: 8) {
                             Image(systemName: "checkmark").font(.system(size: TS.meta, weight: .bold)).foregroundStyle(Tint.rename.fg).frame(width: 20, height: 20).background(Circle().fill(Tint.rename.soft))
-                            Text("Renamed").font(.system(size: TS.body, weight: .semibold)).foregroundStyle(.white)
+                            Text("Renamed").font(.system(size: TS.body, weight: .semibold)).foregroundStyle(IslandInk.text)
                             Spacer()
-                            Text("demo").font(.system(size: TS.meta)).foregroundStyle(.white.opacity(0.7))
+                            Text("demo").font(.system(size: TS.meta)).foregroundStyle(IslandInk.ink(0.7))
                         }
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Scan_0012.pdf").font(.system(size: TS.meta, design: .monospaced)).strikethrough().foregroundStyle(.white.opacity(0.7))
-                            Text("Invoice-Vattenfall-2026-03.pdf").font(.system(size: TS.heading, weight: .bold)).foregroundStyle(.white)
+                            Text("Scan_0012.pdf").font(.system(size: TS.meta, design: .monospaced)).strikethrough().foregroundStyle(IslandInk.ink(0.7))
+                            Text("Invoice-Vattenfall-2026-03.pdf").font(.system(size: TS.heading, weight: .bold)).foregroundStyle(IslandInk.text)
                         }
-                        .padding(10).frame(maxWidth: .infinity, alignment: .leading).background(RoundedRectangle(cornerRadius: 12).fill(Color.white.opacity(0.08)))
+                        .padding(10).frame(maxWidth: .infinity, alignment: .leading).background(RoundedRectangle(cornerRadius: 12).fill(IslandInk.ink(0.08)))
                         HStack(spacing: 8) {
                             ForEach([("arrow.uturn.backward", "Undo  ⌘Z"), ("folder.badge.magnifyingglass", "Reveal in Finder  ⌘R")], id: \.1) { t in
-                                Label(t.1, systemImage: t.0).font(.system(size: TS.small, weight: .medium)).foregroundStyle(.white.opacity(0.85)).padding(.horizontal, 10).frame(height: 26).background(Capsule().fill(Color.white.opacity(0.1)))
+                                Label(t.1, systemImage: t.0).font(.system(size: TS.small, weight: .medium)).foregroundStyle(IslandInk.ink(0.85)).padding(.horizontal, 10).frame(height: 26).background(Capsule().fill(IslandInk.ink(0.1)))
                             }
                         }
                     } else {
                         HStack(spacing: 10) {
                             Image(systemName: "pencil").font(.system(size: TS.meta, weight: .semibold)).foregroundStyle(Tint.rename.fg).frame(width: 20, height: 20).background(RoundedRectangle(cornerRadius: 6).fill(Tint.rename.soft))
-                            SweepText(from: "Scan_0012.pdf", to: "Invoice-Vattenfall-2026-03.pdf", glyphColor: Color(nsColor: NSColor(hex: 0x8FC9A8))).font(.system(size: TS.small, weight: .medium)).foregroundStyle(.white).lineLimit(1)
+                            SweepText(from: "Scan_0012.pdf", to: "Invoice-Vattenfall-2026-03.pdf", glyphColor: Color(nsColor: NSColor(hex: 0x8FC9A8))).font(.system(size: TS.small, weight: .medium)).foregroundStyle(IslandInk.text).lineLimit(1)
                             Spacer(minLength: 0)
-                            Text(m.settings.islandShortcut.display).font(.system(size: TS.meta, weight: .medium)).foregroundStyle(.white.opacity(0.7)).padding(.horizontal, 6).frame(height: 18).background(RoundedRectangle(cornerRadius: 5).fill(Color.white.opacity(0.12)))
+                            Text(m.settings.islandShortcut.display).font(.system(size: TS.meta, weight: .medium)).foregroundStyle(IslandInk.ink(0.7)).padding(.horizontal, 6).frame(height: 18).background(RoundedRectangle(cornerRadius: 5).fill(IslandInk.ink(0.12)))
                         }
                     }
                 }
-                .padding(.horizontal, 16).padding(.vertical, 12).padding(.bottom, expanded ? 26 : 10)
+                .padding(.horizontal, expanded ? 16 : 12).padding(.vertical, expanded ? 14 : 9)
                 .frame(width: expanded ? 380 : 330, alignment: .leading)
-                .background(UnevenRoundedRectangle(bottomLeadingRadius: expanded ? 28 : 20, bottomTrailingRadius: expanded ? 28 : 20).fill(LinearGradient(stops: [.init(color: .black, location: 0), .init(color: .black, location: 0.72), .init(color: .black.opacity(0.4), location: 1)], startPoint: .top, endPoint: .bottom)))
-                .environment(\.colorScheme, .dark)
+                .background(CapsuleFill(shape: IslandShape(ears: false, radius: expanded ? 30 : 22)))   // the default capsule, like the real one
+                .padding(.top, 28)   // 6 pt under the menu bar
                 .animation(Motion.spring(0.3), value: expanded)
             }
         }

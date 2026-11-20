@@ -33,7 +33,7 @@ struct Tint: Equatable {
              islandFill: Color(nsColor: NSColor(hex: pastel)), islandGlyph: Color(nsColor: NSColor(hex: ink)))
     }
 
-    static let accent = pair(0xCFE8D8, 0x2E5A4B, 0x2D3A37)      // mint: Kanso, sorted, brand, Smart Eject
+    static let accent = pair(0xCFE8D8, 0x2E5A4B, 0x2D3A37)      // mint: Kanso, sorted, brand, Smart Installer
     static let rename = pair(0xD9E0FA, 0x3C509A, 0x31374E)      // periwinkle: rename, reads contents
     static let duplicate = pair(0xF7E4B5, 0x7E531B, 0x453828)   // butter: duplicate
     static let rule = pair(0xE5DCF7, 0x5A4687, 0x3A3449)        // lavender: rules
@@ -59,6 +59,7 @@ enum K {
     static let sidebarText2 = Color.dyn(0x5E5E63, 0xA1A1A6)   // secondary text on the sidebar material: 5.3:1 light, 5.9:1 dark
     static let rowSelected = Color.dyn(0x000000, 0xFFFFFF, 0.08, 0.10)   // selected sidebar row, hovered pop-up row
     static let glass = Color.dyn(0xFBFAF8, 0x2A2A2C, 0.92, 0.92)
+    static let glassSolid = Color.dyn(0xFBFAF8, 0x2A2A2C)   // Reduce Transparency
     static let card = Color.dyn(0xFFFFFF, 0x2C2C2E)
     static let cardSoft = Color.dyn(0xFFFFFF, 0x3A3A3C, 0.70, 0.55)
     static let text = Color.dyn(0x1D1D1F, 0xF5F5F7)

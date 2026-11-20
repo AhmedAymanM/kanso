@@ -72,6 +72,13 @@ enum Snapshot {
                 }
                 island.shortcuts = false; island.fanned = false; island.askState = .idle; island.askText = ""
             }
+            // Position: Bottom (capsule above the Dock), compact and expanded.
+            island.skin = .capsule; island.bottom = true
+            for (name, notices, expanded, overview) in islandSamples(m) where ["renamed", "duplicate", "duplicate-expanded"].contains(name) {
+                island.notices = notices; island.index = max(0, notices.count - 1); island.expanded = expanded; island.overview = overview; island.selection = 0
+                shot("island-bottom-\(name)", CGSize(width: Island.size.width, height: expanded ? Island.size.height : 160), IslandBackdrop(skin: .capsule))
+            }
+            island.bottom = false
             island.notices = []; island.expanded = false; island.overview = false
             shot("icon", CGSize(width: 256, height: 256), AppIcon().padding(20))
         }
@@ -83,15 +90,24 @@ enum Snapshot {
         render(AppIcon().padding(50), size: CGSize(width: 512, height: 512), appearance: NSAppearance(named: .aqua)!, to: path)  // 2x → 1024 px
     }
 
+    static func demoOffer(_ existing: SmartInstaller.Existing) -> InstallOffer {
+        let info = SmartInstaller.AppInfo(id: "com.figma.Desktop", name: "Figma", path: "/Volumes/Figma/Figma.app", v: .init(version: "3.4", build: "1"))
+        return InstallOffer(app: URL(fileURLWithPath: info.path), info: info, download: URL(fileURLWithPath: "/Downloads/Figma.dmg"), volume: URL(fileURLWithPath: "/Volumes/Figma"), existing: existing)
+    }
+
     static func islandSamples(_ m: AppModel) -> [(String, [Notice], Bool, Bool)] {
         var out: [(String, [Notice], Bool, Bool)] = []
         let renamed = m.actions.filter { $0.kind == .renamed }.suffix(3).map { Notice.renamed($0) }
         if let r = renamed.last { out.append(("renamed", [r], false, false)); out.append(("renamed-expanded", [r], true, false)) }
         if renamed.count > 1 { out.append(("count-up", Array(renamed), false, false)) }
         if let d = m.actions.last(where: { $0.kind == .duplicate }) { out.append(("duplicate", [.duplicate(d)], false, false)); out.append(("duplicate-expanded", [.duplicate(d)], true, false)) }
-        var inst = Action(run: "x", kind: .trashed, src: "/Downloads/My Shelves/Apps/Figma.dmg", dst: "/.Trash/Figma.dmg", root: "/Downloads", shelf: "Trash", why: "installer", source: "Smart Eject")
-        inst.details = ["installer": "Figma", "size": "210000000"]
-        out.append(("installer", [.installer(inst)], false, false))
+        for (name, existing) in [("offer", SmartInstaller.Existing.none), ("offer-replace", .older(installed: "3.2"))] {
+            let o = Snapshot.demoOffer(existing)
+            out.append((name, [.offer(.install(o))], false, false)); out.append((name + "-expanded", [.offer(.install(o))], true, false))
+        }
+        var unsigned = Snapshot.demoOffer(.none); unsigned.signature = .unsigned; unsigned.checksum = "6105d6cc76af400325e94d588ce511be5bfdbb73b437dc51eca43917d7a43e3d"
+        out.append(("offer-unsigned", [.offer(.install(unsigned))], false, false)); out.append(("offer-unsigned-expanded", [.offer(.install(unsigned))], true, false))
+        out.append(("offer-zip-expanded", [.offer(.trashZip(URL(fileURLWithPath: "/Downloads/My Shelves/Archives/holiday-photos.zip")))], true, false))
         out.append(("sorting-off", [.sortingOff(Date().addingTimeInterval(-90000))], false, false))
         out.append(("reading", [.reading("Scan_0044.pdf")], false, false))
         out.append(("overview", [], true, true))
@@ -127,9 +143,11 @@ struct IslandBackdrop: View {
             LinearGradient(colors: scheme == .dark ? [Color(nsColor: NSColor(hex: 0x2B3A36)), Color(nsColor: NSColor(hex: 0x1B2220))] : [Color(nsColor: NSColor(hex: 0xC9D8CF)), Color(nsColor: NSColor(hex: 0xE9E3D6))], startPoint: .top, endPoint: .bottom)
             Rectangle().fill(scheme == .dark ? Color.black.opacity(0.35) : Color.white.opacity(0.45)).frame(height: 32)
             VStack(spacing: 0) {
-                if skin == .capsule { Spacer().frame(height: 38) }
+                if Island.shared.bottom { Spacer(minLength: 0) } else if skin == .capsule { Spacer().frame(height: 38) }
                 IslandBody()
-                Spacer(minLength: 0)
+                if Island.shared.bottom {   // the Dock, 8 pt below
+                    RoundedRectangle(cornerRadius: 16).fill(scheme == .dark ? Color.white.opacity(0.12) : Color.white.opacity(0.5)).frame(width: 420, height: 52).padding(.top, 8).padding(.bottom, 4)
+                } else { Spacer(minLength: 0) }
             }
         }
     }

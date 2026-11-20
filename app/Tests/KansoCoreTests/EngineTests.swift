@@ -428,7 +428,7 @@ final class EngineTests: XCTestCase {
         XCTAssertEqual(store.settings.type(forExt: "pdf")?.name, "Documents", "built-in types never move")
     }
 
-    func testSmartEjectFindsInstalledAppsAndTrashesInstaller() throws {
+    func testFallbackFindsInstalledAppsAndTrashesInstaller() throws {
         func app(_ dir: URL, _ name: String, _ id: String) {
             let c = dir.appendingPathComponent("\(name).app/Contents")
             try! fm.createDirectory(at: c, withIntermediateDirectories: true)
@@ -437,12 +437,12 @@ final class EngineTests: XCTestCase {
         let vol = tmp.appendingPathComponent("Volumes/Figma"), apps = tmp.appendingPathComponent("Applications")
         app(vol, "Figma", "com.figma.Desktop")
         try fm.createDirectory(at: apps, withIntermediateDirectories: true)
-        let onVolume = SmartEject.apps(in: vol)
+        let onVolume = SmartInstaller.apps(in: vol)
         XCTAssertEqual(onVolume.map(\.id), ["com.figma.Desktop"])
         XCTAssertEqual(onVolume.map(\.name), ["Figma"])
-        XCTAssertFalse(SmartEject.appsSpent(volume: onVolume, installed: SmartEject.apps(in: apps), before: [:], mounted: 0, now: 1e12), "not installed yet: never trash")
+        XCTAssertFalse(SmartInstaller.appsSpent(volume: onVolume, installed: SmartInstaller.apps(in: apps), before: [:], mounted: 0, now: 1e12), "not installed yet: never trash")
         app(apps, "Figma", "com.figma.Desktop")
-        XCTAssertTrue(SmartEject.appsSpent(volume: onVolume, installed: SmartEject.apps(in: apps), before: [:], mounted: 0, now: 1e12))
+        XCTAssertTrue(SmartInstaller.appsSpent(volume: onVolume, installed: SmartInstaller.apps(in: apps), before: [:], mounted: 0, now: 1e12))
         let dmg = file("Figma.dmg", "image")
         let a = try XCTUnwrap(engine.trashInstaller(dmg, app: "Figma"))
         XCTAssertFalse(exists(dmg))
@@ -484,14 +484,18 @@ final class EngineTests: XCTestCase {
         XCTAssertNil(Engine.parseSize("big"))
     }
 
-    /// Settings written before the Smart Eject options existed still load, with the old behaviour.
-    func testOldSettingsGetSmartEjectDefaults() throws {
-        let old = try JSONDecoder().decode(Settings.self, from: Data(#"{"smartEject": true, "tagging": true}"#.utf8))
-        XCTAssertTrue(old.smartEjectNotice)
-        XCTAssertFalse(old.smartEjectOnlyEject)
+    /// Smart Eject's settings carry over to Smart Installer: the switch, and "only eject" as "don't trash the download".
+    func testSmartEjectSettingsBecomeSmartInstaller() throws {
+        let old = try JSONDecoder().decode(Settings.self, from: Data(#"{"version": 3, "smartEject": false, "smartEjectOnlyEject": true, "tagging": true}"#.utf8))
+        XCTAssertFalse(old.smartInstaller)
+        XCTAssertFalse(old.trashDownload)
+        XCTAssertTrue(old.openAfterInstall)
+        XCTAssertFalse(old.installWithoutAsking, "the first disk image still asks")
         XCTAssertTrue(old.tagging)
-        let round = try JSONDecoder().decode(Settings.self, from: JSONEncoder().encode(old))
-        XCTAssertEqual(round.smartEjectNotice, true)
+        XCTAssertEqual(old.version, 4)
+        let fresh = try JSONDecoder().decode(Settings.self, from: Data(#"{"version": 3}"#.utf8))
+        XCTAssertTrue(fresh.smartInstaller)
+        XCTAssertTrue(fresh.trashDownload)
     }
 
     // MARK: Audit fixes
