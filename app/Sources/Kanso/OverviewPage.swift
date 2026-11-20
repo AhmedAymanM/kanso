@@ -46,7 +46,7 @@ struct OverviewPage: View {
     func headline(_ needs: [Need]) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(m.sortingOn ? "Your Mac is in order." : "Sorting is \(m.sortingStatus.lowercased()).")
-                .font(.system(size: TS.display, weight: .regular, design: .serif)).tracking(-0.6).foregroundStyle(K.text)
+                .font(.system(size: TS.display, weight: .bold)).tracking(-0.4).foregroundStyle(K.text)
             Text("\(m.today.sorted) \(m.today.sorted == 1 ? "file" : "files") placed today. " + (needs.isEmpty ? "Nothing needs you." : needs.count == 1 ? "One thing could use a minute." : "\(needs.count == 2 ? "Two" : "\(needs.count)") things could use a minute."))
                 .font(.system(size: TS.emphasis)).foregroundStyle(K.text2)
         }
@@ -62,7 +62,7 @@ struct OverviewPage: View {
             Spacer(minLength: 6)
             HStack(alignment: .lastTextBaseline, spacing: 6) {
                 CountingText(value: appeared ? Double(all.sorted) : 0, format: { Int($0).formatted() })
-                    .font(.system(size: TS.numeral, weight: .regular, design: .serif)).tracking(-1.5).foregroundStyle(Heroes.ink).lineLimit(1).minimumScaleFactor(0.6)
+                    .font(.system(size: TS.numeral, weight: .bold, design: .rounded)).monospacedDigit().tracking(-0.5).foregroundStyle(Heroes.ink).lineLimit(1).minimumScaleFactor(0.6)
                 Text("files").font(.system(size: TS.body)).foregroundStyle(Heroes.ink.opacity(0.85))
             }
             Text("placed on the right shelf\(since). \(stayed)% stayed where Kanso put them.")
@@ -119,7 +119,7 @@ struct CounterTile: View {
                     Image(systemName: "chevron.right").font(.system(size: 9, weight: .semibold)).foregroundStyle(tint.fg.opacity(0.85))
                 }
                 .frame(height: 20)   // glyphs differ in height; keep the numbers on one line across tiles
-                Text(value).font(.system(size: TS.display, weight: .regular, design: .serif)).monospacedDigit().tracking(-0.5).foregroundStyle(tint.fg).lineLimit(1).minimumScaleFactor(0.7).frame(height: 44, alignment: .leading).padding(.top, 6)
+                Text(value).font(.system(size: TS.display, weight: .bold, design: .rounded)).monospacedDigit().tracking(-0.5).foregroundStyle(tint.fg).lineLimit(1).minimumScaleFactor(0.7).frame(height: 44, alignment: .leading).padding(.top, 6)
                 Text(label).font(.system(size: TS.body, weight: .semibold)).foregroundStyle(tint.fg).lineLimit(1).padding(.top, 8)
                 Text(sub).font(.system(size: TS.small)).foregroundStyle(tint.fg).lineLimit(1)
             }
@@ -317,7 +317,7 @@ struct MonthCard: View {
             }
             HStack(alignment: .lastTextBaseline) {
                 HStack(alignment: .lastTextBaseline, spacing: 5) {
-                    Text(total.formatted()).font(.system(size: TS.display, weight: .regular, design: .serif)).tracking(-1).foregroundStyle(K.text)
+                    Text(total.formatted()).font(.system(size: TS.display, weight: .bold, design: .rounded)).monospacedDigit().tracking(-0.4).foregroundStyle(K.text)
                     Text("files").font(.system(size: TS.body)).foregroundStyle(K.text2)
                 }
                 Spacer()
@@ -372,6 +372,13 @@ struct ShelvesCard: View {
                         Text("\(r.1)").font(.system(size: TS.small)).foregroundStyle(K.text2)
                     }
                     ProgressBar(value: Double(r.1) / Double(top), color: i == 0 ? Tint.accent.fg : K.text3)
+                }
+                .contentShape(Rectangle())
+                .contextMenu {
+                    if let a = m.actions.last(where: { $0.shelf == r.0 && $0.kind == .sorted && FileManager.default.fileExists(atPath: $0.dst) }) {
+                        Button("Show \(r.0) in Finder") { NSWorkspace.shared.open(URL(fileURLWithPath: a.dst).deletingLastPathComponent()) }
+                    }
+                    Button("Show in Activity") { m.page = .activity }
                 }
             }
             if rows.isEmpty { Text("Shelves appear with the first sorted file.").font(.system(size: TS.small)).foregroundStyle(K.text2) }

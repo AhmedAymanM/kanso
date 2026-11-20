@@ -74,7 +74,7 @@ struct OnboardingView: View {
 
     func title(_ t: String, _ s: String) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(t).font(.system(size: TS.display, weight: .regular, design: .serif)).tracking(-0.5).foregroundStyle(K.text).multilineTextAlignment(.leading)
+            Text(t).font(.system(size: TS.display, weight: .bold)).tracking(-0.4).foregroundStyle(K.text).multilineTextAlignment(.leading)
             if !s.isEmpty { Text(s).font(.system(size: TS.body)).foregroundStyle(K.text2).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true) }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -244,7 +244,7 @@ struct OnboardingView: View {
             }
             .padding(16).frame(maxWidth: .infinity, minHeight: 140, alignment: .topLeading)
             .background(RoundedRectangle(cornerRadius: 14).fill(sel ? K.card : K.fill))
-            .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(sel ? K.accent : K.controlStroke, lineWidth: sel ? 2 : 0.75))   // mint ink selects; system green is for switches only
+            .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(sel ? Color.accentColor : K.controlStroke, lineWidth: sel ? 2 : 0.75))   // selection follows the system accent
             .shadow(color: .black.opacity(sel ? 0.1 : 0), radius: 10, y: 6)
         }
         .buttonStyle(PlainRowStyle())

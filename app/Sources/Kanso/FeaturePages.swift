@@ -21,7 +21,7 @@ struct Showcase: View {
             if let art { Illustration(kind: art, tint: tint) }
             else { Image(systemName: icon).font(.system(size: TS.display, weight: .light)).foregroundStyle(tint.fg).frame(width: 64).symbolEffect(.bounce, value: playing) }
             VStack(alignment: .leading, spacing: 10) {
-                Text(headline).font(.system(size: TS.title, weight: .regular, design: .serif)).tracking(-0.4).foregroundStyle(tint.fg)
+                Text(headline).font(.system(size: TS.title, weight: .semibold)).foregroundStyle(tint.fg)
                 HStack(spacing: 6) {
                     ForEach(Array(steps.enumerated()), id: \.offset) { i, step in
                         if i <= shown {
@@ -46,7 +46,7 @@ struct Showcase: View {
                 Text("How it works").font(.system(size: TS.meta)).foregroundStyle(tint.fg)
             }
         }
-        .padding(.horizontal, 28).padding(.vertical, 24)
+        .padding(.horizontal, 24).padding(.vertical, 24)
         .frame(maxWidth: .infinity, maxHeight: 160, alignment: .leading)
         .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(tint.bg))
         .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(tint.stroke, lineWidth: 0.75))
@@ -149,7 +149,7 @@ struct ChoiceCard<Preview: View>: View {
             .padding(12)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)   // cards in a row share one height
             .background { if selected { RoundedRectangle(cornerRadius: 14).fill(K.card).liquid(RoundedRectangle(cornerRadius: 14), interactive: false) } else { RoundedRectangle(cornerRadius: 14).fill(K.fill) } }
-            .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(selected ? K.accent : K.controlStroke, lineWidth: selected ? 1.25 : 0.75))
+            .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(selected ? Color.accentColor : K.controlStroke, lineWidth: selected ? 1.25 : 0.75))
             .shadow(color: .black.opacity(selected ? 0.08 : 0), radius: 12, y: 6)
             .scaleEffect(selected || Motion.reduced ? 1 : 0.985)
             .animation(Motion.reduced ? .easeOut(duration: 0.2) : .spring(response: 0.35, dampingFraction: 0.75), value: selected)
