@@ -5,7 +5,7 @@ import SwiftUI
 /// effect under it are Liquid Glass on macOS 26. Content stays solid.
 struct AppWindow: View {
     @State private var columns = NavigationSplitViewVisibility.all   // always .all: there is no toggle
-    static let size = CGSize(width: 1170, height: 772)   // 30% wider than the first 900 × 660, 17% taller
+    static let size = CGSize(width: 1170, height: 772)   // the minimum; the window resizes from here (owner, 2026-11-20)
     @EnvironmentObject var m: AppModel
 
     var body: some View {
@@ -22,7 +22,7 @@ struct AppWindow: View {
                 .background(K.window)
         }
         .navigationSplitViewStyle(.balanced)
-        .frame(width: AppWindow.size.width, height: AppWindow.size.height)   // one small, fixed size (like System Settings)
+        .frame(minWidth: AppWindow.size.width, minHeight: AppWindow.size.height)
     }
 
     @ViewBuilder var detail: some View {
@@ -32,7 +32,7 @@ struct AppWindow: View {
             // The scroll view is the detail's root so the toolbar finds it and draws the Liquid Glass edge under the title.
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) { page }
-                    .padding(.horizontal, 28).padding(.top, 8).padding(.bottom, 28)
+                    .padding(.horizontal, 24).padding(.top, 8).padding(.bottom, 24)
                     .frame(maxWidth: 1100).frame(maxWidth: .infinity)
                     .id(m.page)
                     .transition(Motion.reduced ? .opacity : .opacity.combined(with: .offset(y: 8)))
@@ -59,7 +59,7 @@ struct AppWindow: View {
     }
 }
 
-/// The page title in the toolbar, 15/700, with no capsule.
+/// The page title in the toolbar: 13 pt semibold like a macOS window title, with no capsule.
 struct PageTitle: ToolbarContent {
     var title: String
     var body: some ToolbarContent {
@@ -70,7 +70,7 @@ struct PageTitle: ToolbarContent {
         }
     }
     var titleText: some View {
-        Text(title).font(.system(size: TS.emphasis, weight: .bold)).foregroundStyle(K.text)
+        Text(title).font(.system(size: TS.toolbar, weight: .semibold)).foregroundStyle(K.text)
             .contentTransition(.opacity).accessibilityAddTraits(.isHeader).padding(.leading, 6)
     }
 }
@@ -86,9 +86,8 @@ struct Sidebar: View {
                 Section {
                     ForEach(g) { p in
                         HStack(spacing: 0) {
-                            Label { Text(p.title).font(.system(size: TS.body)).foregroundStyle(K.text) } icon: { Image(systemName: p.icon).font(.system(size: TS.small)).foregroundStyle(m.page == p ? K.text : K.text2) }
+                            Label { Text(p.title).font(.system(size: 13)).foregroundStyle(Motion.snapshot ? K.text : .primary) } icon: { Image(systemName: p.icon).symbolRenderingMode(.hierarchical).font(.system(size: 16)) }   // system sidebar sizes; selection in the system accent
                             Spacer(minLength: 4)
-                            if m.page == p { Circle().fill(K.accent).frame(width: 6, height: 6).padding(.trailing, 2).accessibilityHidden(true) }   // one selection language: row pill + accent dot
                             if p == .activity && !m.needs.isEmpty {
                                 Text("\(m.needs.count)").font(.system(size: TS.meta, weight: .semibold)).monospacedDigit().foregroundStyle(.white)
                                     .padding(.horizontal, 6).frame(minWidth: 20, minHeight: 20).background(Capsule().fill(Color(red: 1, green: 0.23, blue: 0.19)))   // system red: a count that needs you
@@ -104,13 +103,12 @@ struct Sidebar: View {
                         .accessibilityElement(children: .combine)
                         .accessibilityLabel(p == .activity && !m.needs.isEmpty ? "Activity, \(m.needs.count) need you" : p == .sorting && !m.inaccessibleRoots.isEmpty ? "Sorting, a watched folder needs access" : p.title)
                         .tag(p)
-                        .listRowBackground(Motion.snapshot && m.page == p ? RoundedRectangle(cornerRadius: 8).fill(K.rowSelected).padding(.horizontal, 10) : nil)
+                        .listRowBackground(Motion.snapshot && m.page == p ? RoundedRectangle(cornerRadius: 8).fill(Color.accentColor.opacity(0.25)).padding(.horizontal, 10) : nil)
                     }
                 }
             }
         }
-        .listStyle(.sidebar)
-        .listItemTint(.monochrome)
+        .listStyle(.sidebar)   // plain system sidebar: its material and the system accent selection
         .safeAreaInset(edge: .bottom) {
             VStack(alignment: .leading, spacing: 8) {
                 CoffeeLink()

@@ -51,6 +51,8 @@ enum Snapshot {
             shot("quick-settings", CGSize(width: 340, height: 560), QuickSettings())
             shot("review-renames", CGSize(width: 1000, height: 720), ReviewView(tab: .renames))
             for (i, st) in [OnboardingView.Step.folders, .island, .ai, .files, .declined].enumerated() { shot("onboarding-\(i)", CGSize(width: 640, height: 560), OnboardingView(step: st)) }
+            shot("onboarding-trust", CGSize(width: 640, height: 560), OnboardingView(step: .trust, translocated: false))
+            shot("onboarding-trust-download", CGSize(width: 640, height: 560), OnboardingView(step: .trust, translocated: true))
             // Island states, both skins, on a menu bar backdrop.
             let island = Island.shared
             island.notch = CGSize(width: 190, height: 32)

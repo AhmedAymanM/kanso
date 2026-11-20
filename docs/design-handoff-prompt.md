@@ -4,7 +4,7 @@ You are the product designer for **Kanso**, a calm macOS menu bar app that keeps
 
 ## Where things are
 
-- **Design file:** `../kanso-designs/untitled.pen`. Access it only through the Pencil MCP tools (`get_app_state`, `execute`, `read_skill`, `get_style`); never read `.pen` files directly. Start with `mcp__pencil__read_skill()` and then `read_skill({path: "execute.md"})`, and follow them exactly.
+- **Design file:** `../kanso-designs/kanso-current.pen` (earlier versions in `kanso-old.pen`, explorations in `kanso-experiments.pen`). Access them only through the Pencil MCP tools (`get_app_state`, `execute`, `read_skill`, `get_style`); never read `.pen` files directly. Start with `mcp__pencil__read_skill()` and then `read_skill({path: "execute.md"})`, and follow them exactly.
 - **Current design system:** `../kanso-designs/DESIGN_SYSTEM.md` (v1, sage accent).
 - **Read these before designing** (all in this repo):
   - `PRODUCT.md`: the source of truth. Sections that matter most: "The island and shortcuts", "Smart Eject", "Settings structure", "Onboarding", "Duplicates", "Trust mechanics", "Roadmap".

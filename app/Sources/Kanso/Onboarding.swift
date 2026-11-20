@@ -1,4 +1,5 @@
 import KansoCore
+import Security
 import SwiftUI
 
 /// While the onboarding demo waits for ⌥⌘K, the global hot key goes to the demo instead of the real island.
@@ -9,26 +10,51 @@ final class OnboardingDemo: ObservableObject {
     @Published var pressed = false
 }
 
-/// First run, learning by doing (PRODUCT.md "Onboarding"): folders → the island → existing files,
-/// plus an Apple Intelligence step only when it's off or unavailable.
+/// First run, learning by doing (PRODUCT.md "Onboarding"): the Open Anyway guide (self-signed builds) → folders →
+/// the island → existing files, plus an Apple Intelligence step only when it's off or unavailable.
 struct OnboardingView: View {
-    enum Step { case folders, island, ai, files, declined }
+    enum Step { case trust, folders, island, ai, files, declined }
 
     @EnvironmentObject var m: AppModel
     @ObservedObject var demo = OnboardingDemo.shared
-    @State var step = Step.folders
+    @State var step: Step
+    var translocated = OnboardingView.runningFromDownload
     @State private var chosen: Set<String> = []
     @State private var asking = false
     @State private var cleanup = false
 
-    init(step: Step = .folders) { _step = State(initialValue: step) }
+    init(step: Step? = nil, translocated: Bool? = nil) {
+        _step = State(initialValue: step ?? (OnboardingView.selfSigned ? .trust : .folders))
+        if let translocated { self.translocated = translocated }
+    }
 
-    var steps: [Step] { m.ai.available ? [.folders, .island, .files] : [.folders, .island, .ai, .files] }
+    var steps: [Step] { (OnboardingView.selfSigned ? [.trust] : []) + (m.ai.available ? [.folders, .island, .files] : [.folders, .island, .ai, .files]) }
+
+    /// Not signed with a Developer ID (no team): the self-signed build, which Gatekeeper made the user open with
+    /// Open Anyway. A notarized build would skip the guide.
+    static let selfSigned: Bool = {
+        var code: SecCode?
+        guard SecCodeCopySelf([], &code) == errSecSuccess, let code else { return true }
+        var staticCode: SecStaticCode?
+        guard SecCodeCopyStaticCode(code, [], &staticCode) == errSecSuccess, let staticCode else { return true }
+        var info: CFDictionary?
+        guard SecCodeCopySigningInformation(staticCode, SecCSFlags(rawValue: kSecCSSigningInformation), &info) == errSecSuccess,
+              let d = info as? [String: Any] else { return true }
+        return d[kSecCodeInfoTeamIdentifier as String] == nil
+    }()
+
+    /// Running from the disk image or a translocated copy (opened where it was downloaded): macOS asks again next time,
+    /// and updates and login items can't work.
+    static var runningFromDownload: Bool {
+        let p = Bundle.main.bundlePath
+        return p.hasPrefix("/Volumes/") || p.contains("/AppTranslocation/")
+    }
 
     var body: some View {
         VStack(spacing: 0) {
             Group {
                 switch step {
+                case .trust: trust
                 case .folders: folders
                 case .island: island
                 case .ai: aiStep
@@ -48,10 +74,40 @@ struct OnboardingView: View {
 
     func title(_ t: String, _ s: String) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(t).font(.system(size: TS.display, weight: .regular, design: .serif)).tracking(-0.5).foregroundStyle(K.text).multilineTextAlignment(.leading)
+            Text(t).font(.system(size: TS.display, weight: .bold)).tracking(-0.4).foregroundStyle(K.text).multilineTextAlignment(.leading)
             if !s.isEmpty { Text(s).font(.system(size: TS.body)).foregroundStyle(K.text2).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true) }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    // 0. Why macOS asked (self-signed builds). The walkthrough itself is in the README and the disk image: Gatekeeper
+    // stops the app before any of this can show.
+    var trust: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            Image(systemName: translocated ? "externaldrive.badge.exclamationmark" : "checkmark.shield")
+                .font(.system(size: TS.heading)).foregroundStyle(translocated ? Tint.duplicate.fg : Tint.accent.fg)
+                .frame(width: 44, height: 44).background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(translocated ? Tint.duplicate.bg : Tint.accent.bg))
+                .accessibilityHidden(true)
+            if translocated {
+                title("Move Kanso to Applications first.", "It's running from the download, so macOS will ask again next time, and updates can't install. Drag Kanso into Applications, then open it from there.")
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(Array(["Quit Kanso (⌘Q).", "Drag Kanso from the disk image into Applications.", "Open it from Applications. macOS won't ask again."].enumerated()), id: \.offset) { i, t in
+                        HStack(spacing: 10) {
+                            Text("\(i + 1)").font(.system(size: TS.meta, weight: .bold)).foregroundStyle(Tint.duplicate.fg).frame(width: 20, height: 20).background(Circle().fill(Tint.duplicate.bg))
+                            Text(t).font(.system(size: TS.body)).foregroundStyle(K.text)
+                        }
+                    }
+                }
+                .padding(16).frame(maxWidth: .infinity, alignment: .leading).card(radius: 12)
+            } else {
+                title("You opened Kanso with Open Anyway.", "macOS asked because Kanso is signed by its maker rather than notarized by Apple, which keeps it free. You only do this once: every update carries the same signature.")
+                RowGroup {
+                    Row(icon: "key", title: "Same key, every update", desc: "Folder permissions and Open Anyway carry over.") { EmptyView() }
+                    Row(icon: "chevron.left.forwardslash.chevron.right", title: "Open source", desc: "Read every line, and check this download's checksum on GitHub Releases.") { EmptyView() }
+                    Row(icon: "laptopcomputer", title: "Your files never leave this Mac", desc: "Once a day Kanso checks GitHub for a new version; turn that off in Settings.", last: true) { EmptyView() }
+                }
+            }
+        }
     }
 
     // 1. Folders: explain first, then one Continue that triggers macOS's prompt per folder (HIG pre-alert rules).
@@ -188,7 +244,7 @@ struct OnboardingView: View {
             }
             .padding(16).frame(maxWidth: .infinity, minHeight: 140, alignment: .topLeading)
             .background(RoundedRectangle(cornerRadius: 14).fill(sel ? K.card : K.fill))
-            .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(sel ? K.accent : K.controlStroke, lineWidth: sel ? 2 : 0.75))   // mint ink selects; system green is for switches only
+            .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(sel ? Color.accentColor : K.controlStroke, lineWidth: sel ? 2 : 0.75))   // selection follows the system accent
             .shadow(color: .black.opacity(sel ? 0.1 : 0), radius: 10, y: 6)
         }
         .buttonStyle(PlainRowStyle())
@@ -207,7 +263,7 @@ struct OnboardingView: View {
     // One primary button per step; the folder step has no way around the system prompt (HIG).
     var footer: some View {
         HStack {
-            if step == .island || step == .ai || step == .files {
+            if step != .declined, (steps.firstIndex(of: step) ?? 0) > 0 {
                 Button("Back") { step = previous() }.buttonStyle(SecondaryStyle())
             } else if step == .declined {
                 Button("Back") { step = .folders }.buttonStyle(SecondaryStyle())
@@ -224,6 +280,12 @@ struct OnboardingView: View {
                 Button("Skip") { withAnimation { demo.pressed = true } }.buttonStyle(LinkStyle(color: K.text2)).padding(.trailing, 8)
             }
             switch step {
+            case .trust where translocated:
+                Button("Continue anyway") { step = next() }.buttonStyle(SecondaryStyle())
+                Button { OnboardingView.revealDownload() } label: { Text("Show Kanso in Finder") }.buttonStyle(PrimaryStyle()).keyboardShortcut(.defaultAction)
+            case .trust:
+                Button { NSWorkspace.shared.open(Links.repo.appendingPathComponent("releases")) } label: { HStack(spacing: 6) { Text("Verify on GitHub"); Image(systemName: "arrow.up.right").font(.system(size: TS.meta)) } }.buttonStyle(SecondaryStyle())
+                Button { step = next() } label: { HStack(spacing: 6) { Text("Continue"); Hint(text: "↩") } }.buttonStyle(PrimaryStyle()).keyboardShortcut(.defaultAction)
             case .folders:
                 Button { requestAccess() } label: { HStack(spacing: 6) { Text(asking ? "Waiting for macOS…" : "Continue"); Hint(text: "↩") } }
                     .buttonStyle(PrimaryStyle()).keyboardShortcut(.defaultAction).disabled(chosen.isEmpty || asking)
@@ -237,6 +299,13 @@ struct OnboardingView: View {
             }
         }
         .padding(.horizontal, 32).padding(.vertical, 20)
+    }
+
+    /// The disk image in Finder (from /Volumes); a translocated copy's original is in Downloads.
+    static func revealDownload() {
+        let p = Bundle.main.bundleURL
+        if p.path.hasPrefix("/Volumes/") { NSWorkspace.shared.activateFileViewerSelecting([p]) }
+        else { NSWorkspace.shared.open(FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask)[0]) }
     }
 
     func next() -> Step { steps.firstIndex(of: step).map { steps[min($0 + 1, steps.count - 1)] } ?? .files }
