@@ -20,6 +20,7 @@ User decisions:
 ## Product decisions
 
 **Read `PRODUCT.md` before changing behavior**, `CONTEXT.md` for the product's vocabulary (shelf, tray, island, watched folder…), and `docs/adr/` for decisions that must not be quietly reversed (0001: ask-field trash safety; 0002: Kanso trashes on its own only provably spent files). The UI/UX grilling on 2026-09-29 replaced toasts with the island and restructured settings; the Swift app in `app/` predates it. It holds every product decision from 2026-09-25: the name Kanso, the folders, By kind and By purpose, earned trust, content-reading limits, renaming, tags, duplicates, toasts, licensing, the roadmap and the success criteria. The essentials for code work:
+- **Research stays out of this public repo.** Competitor research and the expert panel reviews (security, accessibility, design, engineering, strategy) live in the owner's Obsidian vault at `~/Documents/Obsidian/Kanso/Research/`. Read them there when needed. Put new research there, and never name competitors in the repo.
 - **Kanso v1 is a Swift rewrite.** This Python code is the reference implementation and the benchmark lab.
 - **Folders:** `My Shelves` ✨ (sorted), `Manual Shelves` 🏠 (never modified), `Recents` 🆕 (symlinks).
 - **Principles:** adopt the user's structure, learn from their habits, be seamless. Everything can be undone, and Kanso never deletes by default.
