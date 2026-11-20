@@ -287,15 +287,14 @@ extension Engine {
         return r
     }
 
-    /// Trash with a journal line (Put Back restores it). Nil when the Trash refused.
+    /// Trash with a journal line written first (Put Back restores it). Nil when the Trash refused.
     func trashJournaled(_ url: URL, why: String, details: [String: String]) -> Action? {
-        let size = Stat.size(url)
-        var result: NSURL?
-        guard (try? FileManager.default.trashItem(at: url, resultingItemURL: &result)) != nil, let t = result as URL? else { return nil }
-        var a = Action(run: String(UUID().uuidString.prefix(8)).lowercased(), kind: .trashed, src: url.path, dst: t.path,
+        var a = Action(run: String(UUID().uuidString.prefix(8)).lowercased(), kind: .trashed, src: url.path, dst: "",
                        root: rootFor(url)?.path ?? "", shelf: "Trash", why: why, source: "Smart Installer")
-        a.details = details.merging(["size": String(size)]) { a, _ in a }
-        store.append(a)
+        a.details = details.merging(["size": String(Stat.size(url))]) { a, _ in a }
+        guard let t = trashJournaled(url, &a) else { return nil }
+        a.dst = t.path
+        store.append(a)   // same id: replaces the write-ahead line's entry with the Trash path
         return a
     }
 
@@ -304,14 +303,7 @@ extension Engine {
     public func trashInstaller(_ image: URL, app: String, allowZip: Bool = false) -> Action? {
         let roots = s.roots.map { URL(fileURLWithPath: ($0 as NSString).expandingTildeInPath) }
         guard !SmartInstaller.refuses(image, roots: roots, keepTagged: Tags.read(image).contains(s.keepTag), allowZip: allowZip) else { return nil }
-        let size = Stat.size(image)
-        var result: NSURL?
-        guard FileManager.default.fileExists(atPath: image.path),
-              (try? FileManager.default.trashItem(at: image, resultingItemURL: &result)) != nil, let t = result as URL? else { return nil }
-        var a = Action(run: String(UUID().uuidString.prefix(8)).lowercased(), kind: .trashed, src: image.path, dst: t.path,
-                       root: rootFor(image)?.path ?? "", shelf: "Trash", why: "installer · \(app) is installed", source: "Smart Installer")
-        a.details = ["installer": app, "size": String(size)]
-        store.append(a)
-        return a
+        guard FileManager.default.fileExists(atPath: image.path) else { return nil }
+        return trashJournaled(image, why: "installer · \(app) is installed", details: ["installer": app])
     }
 }
