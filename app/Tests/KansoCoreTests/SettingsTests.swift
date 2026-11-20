@@ -66,8 +66,8 @@ final class SettingsTests: XCTestCase {
     func testEveryFieldSurvivesARoundTrip() throws {
         var dict = try XCTUnwrap(JSONSerialization.jsonObject(with: Store.encoder.encode(Settings())) as? [String: Any])
         let enums: [String: String] = ["approach": "purpose", "recents": "hold", "keeper": "onShelf", "unknownFiles": "unsorted", "islandStyle": "notch", "islandPosition": "bottom", "modelChoice": "rulesOnly"]
-        let dates: Set<String> = ["since", "sortingOffUntil", "sortingOffSince", "shortcutHintUntil"]
-        for k in ["sortingOffUntil", "sortingOffSince"] { dict[k] = "2020-01-01T00:00:00Z" }
+        let dates: Set<String> = ["since", "sortingOffUntil", "sortingOffSince", "shortcutHintUntil", "cleanupNoticeShown", "cleanupLastRun"]
+        for k in ["sortingOffUntil", "sortingOffSince", "cleanupNoticeShown", "cleanupLastRun"] { dict[k] = "2020-01-01T00:00:00Z" }
         // Lists of objects that must keep valid elements (an invalid one is skipped on load), so they get a real sample.
         let samples: [String: Any] = ["savedViews": [["id": "4B5C2B9A-0F7E-4D3B-9A51-0C8E2D1F6A77", "name": "Receipts", "filter": "Renamed", "query": "q", "shelf": "Documents", "days": 7] as [String: Any]]]
         for (k, v) in dict {

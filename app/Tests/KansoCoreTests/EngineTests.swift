@@ -42,6 +42,12 @@ final class EngineTests: XCTestCase {
         return u
     }
 
+    /// Writes the `com.apple.lastuseddate#PS` timespec Launch Services sets on open.
+    func setLastUsed(_ url: URL, _ date: Date) {
+        var spec: (Int64, Int64) = (Int64(date.timeIntervalSince1970), 0)
+        _ = withUnsafeBytes(of: &spec) { setxattr(url.path, "com.apple.lastuseddate#PS", $0.baseAddress, 16, 0, 0) }
+    }
+
     func shelf(_ s: String) -> URL { root.appendingPathComponent(Library.mine).appendingPathComponent(s) }
     func exists(_ u: URL) -> Bool { fm.fileExists(atPath: u.path) }
 
@@ -408,12 +414,22 @@ final class EngineTests: XCTestCase {
         let later = Date().addingTimeInterval(40 * 86400)
         XCTAssertTrue(engine.expireDuplicates(now: later).isEmpty, "off by default")
         store.update { $0.autoTrashDuplicates = true }
-        var v = URLResourceValues(); v.contentAccessDate = Date().addingTimeInterval(35 * 86400)
-        var h = held; try? h.setResourceValues(v)
-        XCTAssertTrue(engine.expireDuplicates(now: later).isEmpty, "opened 5 days ago: timer reset")
+        setLastUsed(held, Date().addingTimeInterval(35 * 86400))
+        XCTAssertTrue(engine.expireDuplicates(now: later).isEmpty, "opened 5 days ago (last-used date): timer reset")
         let expired = engine.expireDuplicates(now: later.addingTimeInterval(30 * 86400))
         XCTAssertEqual(expired.count, 1)
         XCTAssertFalse(exists(held))
+    }
+
+    /// Access time never counts as use: Kanso's own reads move it (ADR 0002 amendment).
+    func testAccessTimeNeverResetsTheDuplicateTimer() async {
+        make(pick: nil) { $0.duplicates = true; $0.autoTrashDuplicates = true }
+        file("x.pdf", "same", in: shelf("Documents"))
+        file("x (1).pdf", "same")
+        let dup = await run().first { $0.kind == .duplicate }!
+        var v = URLResourceValues(); v.contentAccessDate = Date().addingTimeInterval(35 * 86400)
+        var h = URL(fileURLWithPath: dup.dst); try? h.setResourceValues(v)
+        XCTAssertEqual(engine.expireDuplicates(now: Date().addingTimeInterval(31 * 86400)).count, 1)
     }
 
     func testCorrectionsTeachLearnedTypesButNotBuiltIns() async {

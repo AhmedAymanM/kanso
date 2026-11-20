@@ -507,6 +507,7 @@ final class Island: ObservableObject {
                 case .rule(let r): needs = [IslandAction(label: "Create rule", key: "↩", icon: "wand.and.stars") { m.acceptSuggestion(r.id); self.confirm("Rule created for \(r.shelf)", undo: nil) }, later]
                 case .shelf(let s): needs = [IslandAction(label: "Create \(s.name)", key: "↩", icon: "square.stack.3d.up") { let done = m.acceptShelf(s.id); self.confirm(done.isEmpty ? "Couldn't move files to \(s.name)" : "Moved \(done.count) \(done.count == 1 ? "file" : "files") to \(s.name)", undo: nil) },
                                              IslandAction(label: "Dismiss", key: "", icon: "xmark") { m.dismissShelf(s.id); self.confirm("Won't suggest \(s.name) again", undo: nil) }, later]
+                case .cleanup(let c): needs = c.buttons.map { b in IslandAction(label: b.label, key: b.key, icon: b.icon) { b.run(); self.confirm(b.label == "Keep all" ? "Tagged them Keep" : b.label == "Not now" ? "Okay, not now" : "Done", undo: nil) } } + [later]
                 }
             }
             let recent = m.done.prefix(3).map { a in IslandAction(label: "Show \(a.name)", key: "↩") { m.reveal(a.dst) } }

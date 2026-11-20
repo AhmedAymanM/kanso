@@ -218,7 +218,7 @@ struct NeedBody: View {
         switch need {
         case .duplicate(let a): Thumb(path: a.dst)
         case .renames(let p, _): Thumb(path: p.first?.path ?? "")
-        case .rule, .shelf: Image(systemName: need.icon).font(.system(size: TS.title)).foregroundStyle(need.tint.fg).frame(width: 56, height: 56).background(Circle().fill(need.tint.bg))
+        case .rule, .shelf, .cleanup: Image(systemName: need.icon).font(.system(size: TS.title)).foregroundStyle(need.tint.fg).frame(width: 56, height: 56).background(Circle().fill(need.tint.bg))
         }
     }
     var kind: String {
@@ -227,6 +227,7 @@ struct NeedBody: View {
         case .renames: return "Rename suggestions"
         case .rule: return "Rule suggestion"
         case .shelf: return "Shelf suggestion"
+        case .cleanup(let c): return c.label
         }
     }
     var title: String {
@@ -235,6 +236,7 @@ struct NeedBody: View {
         case .renames(let p, _): return "\(p.count) files can be renamed"
         case .rule(let r): return "You moved \(r.files.count) files to \(r.shelf)"
         case .shelf(let s): return "\(s.files.count) files could have their own shelf"
+        case .cleanup(let c): return c.title
         }
     }
     var why: String {
@@ -243,6 +245,7 @@ struct NeedBody: View {
         case .renames: return "Names from contents, page 1. You review every name first."
         case .rule: return "Make it a rule for next time?"
         case .shelf(let s): return "\(s.emoji) \(s.name): \(s.description). Nothing moves until you accept."
+        case .cleanup(let c): return c.why
         }
     }
 
@@ -259,6 +262,11 @@ struct NeedBody: View {
         case .shelf(let s):
             Button("Create \(s.name)") { m.acceptShelf(s.id) }.buttonStyle(PrimaryStyle(tint: .rule, small: true)).fixedSize()
             Button("Dismiss") { m.dismissShelf(s.id) }.buttonStyle(SecondaryStyle(small: true)).fixedSize()
+        case .cleanup(let c):
+            ForEach(Array(c.buttons.enumerated()), id: \.offset) { i, b in
+                if i == 0 { Button { b.run() } label: { Label(b.label, systemImage: b.icon) }.buttonStyle(PrimaryStyle(tint: c.tint, small: true)).fixedSize() }
+                else { Button { b.run() } label: { Label(b.label, systemImage: b.icon) }.buttonStyle(SecondaryStyle(small: true)).fixedSize() }
+            }
         }
         if m.needs.count > 1 { Button { next() } label: { HStack(spacing: 4) { Text("Later"); Image(systemName: "arrow.right").font(.system(size: TS.meta)) } }.buttonStyle(SecondaryStyle(small: true)).fixedSize() }
     }

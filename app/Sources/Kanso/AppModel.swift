@@ -10,9 +10,11 @@ enum Need: Identifiable, Equatable {
     case renames([RenameProposal], Date)
     case rule(RuleSuggestion)
     case shelf(ShelfSuggestion)
+    case cleanup(CleanupNeed)
 
     var id: String {
         switch self {
+        case .cleanup(let c): return c.id
         case .duplicate(let a): return a.id.uuidString
         case .renames: return "renames"
         case .rule(let r): return r.id.uuidString
@@ -25,6 +27,7 @@ enum Need: Identifiable, Equatable {
         case .renames(_, let d): return d
         case .rule(let r): return r.ts
         case .shelf(let s): return s.ts
+        case .cleanup(let c): return c.ts
         }
     }
     var tint: Tint {
@@ -32,6 +35,7 @@ enum Need: Identifiable, Equatable {
         case .duplicate: return .duplicate
         case .renames: return .rename
         case .rule, .shelf: return .rule
+        case .cleanup(let c): return c.tint
         }
     }
     var label: String {
@@ -40,6 +44,7 @@ enum Need: Identifiable, Equatable {
         case .renames: return "Rename review"
         case .rule: return "Rule suggestion"
         case .shelf: return "Shelf suggestion"
+        case .cleanup(let c): return c.label
         }
     }
     var icon: String {
@@ -48,14 +53,98 @@ enum Need: Identifiable, Equatable {
         case .renames: return "pencil.line"
         case .rule: return "wand.and.stars"
         case .shelf: return "square.stack.3d.up"
+        case .cleanup(let c): return c.icon
         }
     }
+}
+
+/// Cleanup's Needs-you cards: the weekly list of carriers leaving, a kept file to file in Documents, the one-time offer.
+/// Each card says what it is and what its buttons do, so every surface (Overview, the island, Activity) renders it alike.
+struct CleanupNeed: Equatable {
+    enum Kind: Equatable {
+        case week([CleanupItem], Date)     // leaving at the next weekly cleanup
+        case documents(Action)             // kept content in Downloads
+        case offer([CleanupItem])          // after a week of sorting, while Cleanup is off
+    }
+    var kind: Kind
+
+    var id: String {
+        switch kind {
+        case .week: return "cleanup-week"
+        case .documents(let a): return "documents-" + a.id.uuidString
+        case .offer: return "cleanup-offer"
+        }
+    }
+    var ts: Date {
+        switch kind {
+        case .week(_, let d): return d
+        case .documents(let a): return a.ts
+        case .offer: return Date()
+        }
+    }
+    var tint: Tint { if case .documents = kind { return .accent }; return .duplicate }
+    var icon: String {
+        switch kind {
+        case .week: return "calendar.badge.clock"
+        case .documents: return "folder.badge.plus"
+        case .offer: return "leaf"
+        }
+    }
+    var label: String {
+        switch kind {
+        case .week: return "Cleanup"
+        case .documents: return "Move to Documents"
+        case .offer: return "Cleanup"
+        }
+    }
+    var title: String {
+        switch kind {
+        case .week(let items, let d): return "\(d.formatted(.dateTime.weekday(.wide))): \(CleanupNeed.summary(items)) leave"
+        case .documents(let a): return "Keep \(a.name) in Documents?"
+        case .offer(let items): return "\(CleanupNeed.summary(items)) you've finished with"
+        }
+    }
+    var why: String {
+        switch kind {
+        case .week(let items, _): return "\(items.reduce(0) { $0 + $1.size }.bytes) · to the Trash, one ⌘Z away. Tag anything you want to keep."
+        case .documents: return "You've kept it, so it can live with your documents. ⌘Z moves it back."
+        case .offer(let items): return "\(items.reduce(0) { $0 + $1.size }.bytes) · only installers, archives, screenshots and torrents, never your documents."
+        }
+    }
+
+    /// "4 installers and 6 archives"
+    static func summary(_ items: [CleanupItem]) -> String {
+        let parts = Carrier.allCases.compactMap { c -> String? in
+            let n = items.filter { $0.carrier == c }.count
+            return n == 0 ? nil : "\(n) \(n == 1 ? String(c.plural.dropLast()) : c.plural)"
+        }
+        return parts.count < 2 ? (parts.first ?? "Nothing") : parts.dropLast().joined(separator: ", ") + " and " + parts.last!
+    }
+
+    /// Buttons, primary first. Keep and Not now never trash anything.
+    struct Button { var label: String, icon: String, key: String, run: () -> Void }
+    @MainActor var buttons: [Button] {
+        let m = AppModel.shared
+        switch kind {
+        case .week(let items, _):
+            return [Button(label: "Review", icon: "list.bullet", key: "↩") { m.page = .cleanup; Windows.shared.showMain(.cleanup) },
+                    Button(label: "Keep all", icon: "tag", key: "") { m.engine.keepAll(items); m.refreshCleanup() }]
+        case .documents(let a):
+            return [Button(label: "Move", icon: "folder", key: "↩") { m.moveToDocuments(a) },
+                    Button(label: "Not now", icon: "xmark", key: "") { m.dismissDocuments(a) }]
+        case .offer:
+            return [Button(label: "Turn on Cleanup", icon: "leaf", key: "↩") { m.update { $0.cleanup = true; $0.cleanupOffered = true }; m.refreshCleanup() },
+                    Button(label: "Not now", icon: "xmark", key: "") { m.update { $0.cleanupOffered = true }; m.refreshCleanup() }]
+        }
+    }
+
+    static func == (a: CleanupNeed, b: CleanupNeed) -> Bool { a.kind == b.kind }
 }
 
 /// The pages of the one App window (design handoff 2026-09-30): history, the five features, then app settings.
 enum Page: String, CaseIterable, Identifiable {
     case overview = "Overview", activity = "Activity"
-    case sorting = "Sorting", renaming = "Renaming", duplicates = "Duplicates", tagging = "Tagging", smartInstaller = "Smart Installer"
+    case sorting = "Sorting", renaming = "Renaming", duplicates = "Duplicates", tagging = "Tagging", smartInstaller = "Smart Installer", cleanup = "Cleanup"
     case general = "General", privacy = "Privacy & AI"
     var id: String { rawValue }
     var title: String { rawValue }
@@ -68,12 +157,13 @@ enum Page: String, CaseIterable, Identifiable {
         case .duplicates: return "doc.on.doc"
         case .tagging: return "tag"
         case .smartInstaller: return "arrow.down.app"
+        case .cleanup: return "leaf"
         case .general: return "gearshape"
         case .privacy: return "hand.raised"
         }
     }
     /// Sidebar groups, separated by space.
-    static let groups: [[Page]] = [[.overview, .activity], [.sorting, .renaming, .duplicates, .tagging, .smartInstaller], [.general, .privacy]]
+    static let groups: [[Page]] = [[.overview, .activity], [.sorting, .renaming, .duplicates, .tagging, .smartInstaller, .cleanup], [.general, .privacy]]
 }
 
 /// How long Sorting stays off (PRODUCT.md: turning Sorting off asks for how long).
@@ -130,6 +220,7 @@ final class AppModel: ObservableObject {
     private var timer: Timer?
     private var minuteTimer: Timer?
     private var mounted: [URL: SmartInstaller.Watch] = [:]   // Smart Installer fallback: volumes we watch for a manual install
+    @Published var cleanupNeeds: [CleanupNeed] = []         // Cleanup's Needs-you cards (refreshCleanup)
     private var offered = Set<String>()                    // carrier offers shown this session (dismissed ones persist in pending)
     private var installTimer: Timer?                      // runs only while something is mounted
     private var checkingInstalls = false
@@ -176,6 +267,7 @@ final class AppModel: ObservableObject {
         settings = store.settings
         if kp == \Settings.openAtLogin { applyLoginItem() }
         if kp == \Settings.appearance { applyAppearance() }
+        if kp == \Settings.cleanup || kp == \Settings.suggestDocuments { refreshCleanup() }
         if kp == \Settings.roots || kp == \Settings.pausedRoots { startWatching() }
         HotKeys.shared.register(settings)
         StatusItem.shared.update()
@@ -214,6 +306,7 @@ final class AppModel: ObservableObject {
         if !pending.renames.isEmpty { out.append(.renames(pending.renames, pending.renamesFound ?? Date())) }
         out += pending.suggestions.map { .rule($0) }
         out += shelfSuggestions.map { .shelf($0) }
+        out += cleanupNeeds.map { .cleanup($0) }
         return out.sorted { $0.ts > $1.ts }
     }
 
@@ -468,6 +561,65 @@ final class AppModel: ObservableObject {
         UpdateChecker.shared.checkAutomatically(enabled: settings.updateChecks)
         if !engine.expireDuplicates().isEmpty { refresh() }
         if settings.autoSort && settings.onboarded { sortNow(trigger: "auto") }
+        weeklyCleanup()
+    }
+
+    // MARK: Cleanup
+
+    /// The weekly cleanup runs on Sunday at 10:00 (the first hourly tick after it); the card names what leaves then.
+    nonisolated static func cleanupRun(after d: Date) -> Date {
+        Calendar.current.nextDate(after: d, matching: DateComponents(hour: 10, minute: 0, weekday: 1), matchingPolicy: .nextTime) ?? d.addingTimeInterval(7 * 86400)
+    }
+
+    /// Recomputes Cleanup's cards off the main thread (it reads xattrs and lists archives).
+    func refreshCleanup() {
+        let engine = engine, s = settings, dismissed = Set(pending.dismissed), firstSort = actions.first { $0.kind == .sorted }?.ts
+        Task.detached(priority: .utility) {
+            let now = Date(), next = AppModel.cleanupRun(after: now)
+            var out: [CleanupNeed] = []
+            let items = engine.cleanupItems()
+            if s.cleanup {
+                let leaving = items.filter { $0.due <= next }
+                if !leaving.isEmpty { out.append(CleanupNeed(kind: .week(leaving, next))) }
+                out += engine.documentsSuggestions(dismissed: dismissed).prefix(3).map { CleanupNeed(kind: .documents($0)) }
+            } else if !s.cleanupOffered, let first = firstSort, now.timeIntervalSince(first) >= 7 * 86400 {
+                let done = items.filter { $0.due <= now }
+                if !done.isEmpty { out.append(CleanupNeed(kind: .offer(done))) }
+            }
+            await MainActor.run { self.cleanupNeeds = out }
+        }
+    }
+
+    /// Hourly: once the Sunday run time has passed, move what's due to the Trash as one run ("Moved 9 to Trash · ⌘Z"),
+    /// and show the week's card on the island once.
+    func weeklyCleanup() {
+        guard settings.cleanup else { refreshCleanup(); return }
+        let now = Date()
+        let lastRun = settings.cleanupLastRun ?? settings.since
+        if AppModel.cleanupRun(after: lastRun) <= now {
+            let done = engine.runCleanup(engine.cleanupDue(now: now), now: now)
+            update { $0.cleanupLastRun = now }
+            if let run = done.first?.run {
+                refresh()
+                Island.shared.show(.batch(run: run, text: "Moved \(done.count) to Trash"))
+            }
+        }
+        refreshCleanup()
+        let weekStart = AppModel.cleanupRun(after: now).addingTimeInterval(-7 * 86400)
+        if (settings.cleanupNoticeShown ?? .distantPast) < weekStart, let week = cleanupNeeds.first(where: { if case .week = $0.kind { return true }; return false }) {
+            update { $0.cleanupNoticeShown = now }
+            Island.shared.show(.info(icon: "calendar.badge.clock", text: week.title))
+        }
+    }
+
+    func moveToDocuments(_ a: Action) {
+        if let m = engine.moveToDocuments(a.id) { Island.shared.show(.info(icon: "folder", text: "Moved \(m.name) to Documents", undo: m.id)) }
+        refresh(); refreshCleanup()
+    }
+
+    func dismissDocuments(_ a: Action) {
+        store.updatePending { $0.dismissed.append("documents:" + a.dst) }
+        refresh(); refreshCleanup()
     }
 
     /// Every minute: timed Sorting-off ends by itself; after 24 h off, the island says so once.

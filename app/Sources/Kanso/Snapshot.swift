@@ -38,6 +38,7 @@ enum Snapshot {
             }
             for p in Page.allCases {
                 m.page = p
+                m.cleanupNeeds = p == .cleanup ? demoCleanup() : []
                 shot("app-\(p.rawValue.lowercased().replacingOccurrences(of: " & ", with: "-").replacingOccurrences(of: " ", with: "-"))", CGSize(width: 1180, height: 860), AppWindow())
             }
             shot("rule-editor", CGSize(width: 860, height: 420), RowGroup {
@@ -88,6 +89,14 @@ enum Snapshot {
     static func icon(to path: String) {
         _ = NSApplication.shared
         render(AppIcon().padding(50), size: CGSize(width: 512, height: 512), appearance: NSAppearance(named: .aqua)!, to: path)  // 2x → 1024 px
+    }
+
+    /// The Cleanup page's "Leaving on Sunday" list, for the snapshot (the real one is computed off the main thread).
+    static func demoCleanup() -> [CleanupNeed] {
+        let items = [("Figma.dmg", Carrier.installer, 210_000_000, "14 days unused"), ("holiday-photos.zip", .archive, 840_000_000, "extracted 3 days ago"),
+                     ("Screenshot 2026-11-02 at 10.14.png", .screenshot, 2_400_000, "7 days unused"), ("ubuntu-26.04.torrent", .torrent, 80_000, "7 days unused")]
+            .map { CleanupItem(id: UUID(), url: URL(fileURLWithPath: "/Downloads/My Shelves/x/" + $0.0), carrier: $0.1, size: Int64($0.2), due: Date(), why: $0.3) }
+        return [CleanupNeed(kind: .week(items, AppModel.cleanupRun(after: Date())))]
     }
 
     static func demoOffer(_ existing: SmartInstaller.Existing) -> InstallOffer {

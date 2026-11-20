@@ -322,6 +322,7 @@ func title(_ e: Entry) -> String {
     case .need(.renames(let p, _)): return "\(p.count) files can be renamed"
     case .need(.rule(let r)): return r.files.first ?? "Rule suggestion"
     case .need(.shelf(let s)): return "\(s.files.count) files could have their own shelf"
+    case .need(.cleanup(let c)): return c.title
     case .action(let a): return a.kind == .trashed ? a.srcName : a.name
     case .batch(_, let a): return "\(a.count) files"
     case .waiting(let w): return w.partial ? w.url.deletingPathExtension().lastPathComponent : w.url.lastPathComponent
@@ -335,12 +336,13 @@ func title(_ e: Entry) -> String {
     case .need(.renames): return "Review before renaming"
     case .need(.rule(let r)): return "Rule suggested · \(r.shelf) shelf"
     case .need(.shelf(let s)): return "Shelf suggested · \(s.name)"
+    case .need(.cleanup(let c)): return c.label
     case .action(let a):
         if a.undone { return "Undone · " + summary(a).lowercased() }
         switch a.kind {
         case .renamed: return "Renamed from \(a.oldName ?? "")"
         case .duplicate: return "Copy kept in Duplicates"
-        case .trashed: return a.details["installer"] != nil ? "Smart Installer · download moved to Trash" : a.details["carrier"] != nil ? "Done with · moved to Trash" : "Moved to Trash · \((Int64(a.details["size"] ?? "") ?? 0).bytes)"
+        case .trashed: return a.details["installer"] != nil ? "Smart Installer · download moved to Trash" : a.details["cleanup"] != nil ? "Cleanup · moved to Trash" : a.details["carrier"] != nil ? "Done with · moved to Trash" : "Moved to Trash · \((Int64(a.details["size"] ?? "") ?? 0).bytes)"
         case .sorted: return "Sorted → \(st.emoji(for: a.shelf)) \(a.shelf)"
         }
     case .batch(_, let a): return "Sorted into \(Set(a.map(\.shelf)).count) shelves"
@@ -367,6 +369,7 @@ struct ListRow: View {
         case .need(.renames): return "✏️"
         case .need(.rule(let r)): return m.settings.emoji(for: r.shelf)
         case .need(.shelf(let s)): return s.emoji
+        case .need(.cleanup(let c)): return c.icon == "folder.badge.plus" ? "📄" : "🍃"
         case .action(let a): return a.kind == .trashed ? "🗑️" : a.kind == .duplicate ? "🪞" : m.settings.emoji(for: a.shelf)
         case .batch: return "📦"
         case .waiting: return "⏳"
