@@ -73,17 +73,17 @@ struct OverviewPage: View {
         .accessibilityElement(children: .combine)
     }
 
-    /// One quiet line instead of four tinted tiles: pastels mean an action kind and are never counters.
+    /// Four tinted tiles, one per feature (owner, 2026-11-19); each opens its page.
     func counters(_ all: Stats) -> some View {
         let tagged = m.actions.filter { !$0.undone && !$0.tags.isEmpty }.count
         let ejected = m.actions.filter { !$0.undone && $0.kind == .trashed && $0.details["installer"] != nil }.count
         return HStack(alignment: .top, spacing: 12) {
-            CountCell(value: all.renamed.formatted(), label: "Renamed") { m.page = .renaming }
-            CountCell(value: tagged.formatted(), label: "Tagged") { m.page = .tagging }
-            CountCell(value: all.duplicateBytes.bytes, label: "Copies held") { m.page = .duplicates }
-            CountCell(value: ejected.formatted(), label: "Installers ejected") { m.page = .smartEject }
+            CounterTile(icon: "pencil", tint: .rename, value: all.renamed.formatted(), label: "Renamed", sub: "from contents, page 1") { m.page = .renaming }
+            CounterTile(icon: "tag", tint: .where, value: tagged.formatted(), label: "Tagged", sub: "Finder tags added") { m.page = .tagging }
+            CounterTile(icon: "doc.on.doc", tint: .duplicate, value: all.duplicateBytes.bytes, label: "Copies held", sub: "waiting in Duplicates") { m.page = .duplicates }
+            CounterTile(icon: "shippingbox", tint: .accent, value: ejected.formatted(), label: "Installers ejected", sub: "provably spent") { m.page = .smartEject }
         }
-        .padding(16).card()
+        .fixedSize(horizontal: false, vertical: true)   // one height for all four
     }
 }
 
@@ -106,21 +106,32 @@ struct Stripes: Shape {
     }
 }
 
-struct CountCell: View {
-    var value: String, label: String
+struct CounterTile: View {
+    var icon: String, tint: Tint
+    var value: String, label: String, sub: String
     var open: () -> Void
     var body: some View {
         Button(action: open) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(value).font(.system(size: TS.title, weight: .regular, design: .serif)).foregroundStyle(K.text).lineLimit(1).minimumScaleFactor(0.7)
-                Text(label).font(.system(size: TS.small)).foregroundStyle(K.text2).lineLimit(1)
+            VStack(alignment: .leading, spacing: 0) {
+                HStack {
+                    Image(systemName: icon).font(.system(size: TS.emphasis)).foregroundStyle(tint.fg)
+                    Spacer()
+                    Image(systemName: "chevron.right").font(.system(size: 9, weight: .semibold)).foregroundStyle(tint.fg.opacity(0.85))
+                }
+                .frame(height: 20)   // glyphs differ in height; keep the numbers on one line across tiles
+                Text(value).font(.system(size: TS.display, weight: .regular, design: .serif)).monospacedDigit().tracking(-0.5).foregroundStyle(tint.fg).lineLimit(1).minimumScaleFactor(0.7).frame(height: 44, alignment: .leading).padding(.top, 6)
+                Text(label).font(.system(size: TS.body, weight: .semibold)).foregroundStyle(tint.fg).lineLimit(1).padding(.top, 8)
+                Text(sub).font(.system(size: TS.small)).foregroundStyle(tint.fg).lineLimit(1)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(16).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(tint.bg))
+            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(tint.stroke, lineWidth: 0.75))
             .contentShape(Rectangle())
         }
-        .buttonStyle(PlainRowStyle()).focusRing(8)
+        .buttonStyle(PlainRowStyle()).focusRing(14)
+        .help("Open \(label)")
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(label): \(value)")
+        .accessibilityLabel("\(label): \(value), \(sub)")
     }
 }
 

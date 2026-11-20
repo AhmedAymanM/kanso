@@ -149,7 +149,7 @@ struct ChoiceCard<Preview: View>: View {
             .padding(12)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)   // cards in a row share one height
             .background { if selected { RoundedRectangle(cornerRadius: 14).fill(K.card).liquid(RoundedRectangle(cornerRadius: 14), interactive: false) } else { RoundedRectangle(cornerRadius: 14).fill(K.fill) } }
-            .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(selected ? K.switchOn.opacity(0.55) : K.separator, lineWidth: selected ? 1.25 : 0.75))
+            .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(selected ? K.accent : K.controlStroke, lineWidth: selected ? 1.25 : 0.75))
             .shadow(color: .black.opacity(selected ? 0.08 : 0), radius: 12, y: 6)
             .scaleEffect(selected || Motion.reduced ? 1 : 0.985)
             .animation(Motion.reduced ? .easeOut(duration: 0.2) : .spring(response: 0.35, dampingFraction: 0.75), value: selected)
@@ -217,7 +217,7 @@ struct SortingPage: View {
                             .overlay(alignment: .bottomTrailing) { if !allowed { Image(systemName: "exclamationmark.triangle.fill").font(.system(size: TS.meta)).foregroundStyle(.yellow).offset(x: 6, y: 4) } }
                         VStack(alignment: .leading, spacing: 1) {
                             Text((r as NSString).lastPathComponent).font(.system(size: TS.body, weight: .medium)).foregroundStyle(K.text)
-                            Text(allowed ? "\((r as NSString).abbreviatingWithTildeInPath) · \(placed) placed today" : "Permission not allowed").lineLimit(1).truncationMode(.middle).help(allowed ? (r as NSString).expandingTildeInPath : "Kanso can't read this folder. Allow it in Privacy & Security.").font(.system(size: TS.small)).foregroundStyle(allowed ? K.text2 : Tint.duplicate.fg)
+                            Text(allowed ? "\((r as NSString).abbreviatingWithTildeInPath) · \(placed) placed today" : "Off · Allow in Privacy & Security").lineLimit(1).truncationMode(.middle).help(allowed ? (r as NSString).expandingTildeInPath : "Kanso can't read this folder. Allow it in Privacy & Security.").font(.system(size: TS.small)).foregroundStyle(allowed ? K.text2 : Tint.duplicate.fg)
                         }
                         Spacer()
                         if allowed {

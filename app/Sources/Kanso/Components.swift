@@ -80,7 +80,7 @@ struct ApproachCard: View {
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .topLeading)
         .background(RoundedRectangle(cornerRadius: 14).fill(K.card))
-        .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(selected ? K.accent : K.separator, lineWidth: selected ? 1.5 : 0.75))
+        .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(selected ? K.accent : K.controlStroke, lineWidth: selected ? 1.5 : 0.75))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(title), \(selected ? "selected" : badge)")
     }

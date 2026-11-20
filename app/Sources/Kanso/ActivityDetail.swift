@@ -712,7 +712,7 @@ struct EntryDetail: View {
             VStack(alignment: .leading, spacing: 8) {
                 DecidedTitle(text: "How Kanso knew")
                 RowStack(fill: K.card) {
-                    DecisionRow(icon: "ruler", label: "Same size", source: "metadata only") { Text("\(size.formatted()) bytes") }
+                    DecisionRow(icon: "ruler", label: "Same size", source: "metadata only") { Text("\(size.formatted()) bytes").font(.system(.footnote, design: .monospaced)) }
                     Hairline()
                     DecisionRow(icon: "touchid", label: "Same hash", source: "metadata only") { Text("Identical, byte for byte") }
                     Hairline()
@@ -784,7 +784,7 @@ struct EntryDetail: View {
             VStack(alignment: .leading, spacing: 8) {
                 DecidedTitle()
                 RowStack(fill: K.card) {
-                    DecisionRow(icon: "hourglass", label: "Status", source: "live") { Text(w.size.bytes + " so far") }
+                    DecisionRow(icon: "hourglass", label: "Status", source: "live") { Text(w.size.bytes + " so far").font(.system(.footnote, design: .monospaced)) }
                     Hairline()
                     DecisionRow(icon: "folder", label: "Will go to", source: "By kind") { Text(w.shelf.map { "\(m.settings.emoji(for: $0)) \($0)" } ?? "Decided when it's done") }
                     Hairline()

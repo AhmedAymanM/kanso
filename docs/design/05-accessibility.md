@@ -1,70 +1,46 @@
 # Accessibility
 
-Target: usable fully by keyboard, VoiceOver, with Increase Contrast, Reduce Motion, Reduce Transparency, and Larger Text. Using standard controls gets ~80% of this free; the list below is what we must add or not break.
+Target: every surface works fully by keyboard, with VoiceOver, Increase Contrast, Reduce Motion and Reduce Transparency. macOS has no Dynamic Type, so layouts are tested at the App window's fixed size and at the 600 pt onboarding minimum instead. Contrast floors are in `final-direction.md` (token table); this file says how each surface behaves.
 
-## Keyboard map
-| Context | Key | Action |
-|---|---|---|
-| Global | ⌘O | Choose folder |
-| | ⌘⏎ | Apply (works from any focus) |
-| | ⏎ | Apply, only when focus is not in a text field/table editing |
-| | ⌘Z / ⇧⌘Z | Undo / Redo Sort (and Undo Delete Rule when the rule list is focused) |
-| | ⌘, | Settings (if present) |
-| | F6 / ⇧F6 | cycle regions: toolbar → rules → preview → action bar (standard pane cycling; tab order below) |
-| Tab order | | toolbar folder menu → Undo → Apply → rule list → (rule filter chip) → preview table → action bar |
-| Rule list | ↑ ↓ | select rule; selecting filters preview (VoiceOver announces count) |
-| | ⏎ / ⌘E | open editor popover; focus lands on first field |
-| | ⌥⌘↑ / ⌥⌘↓ | move rule up/down (drag has an equal keyboard path) |
-| | ⌘N, ⌘D, ⌫, ⌘⇧E | new, duplicate, delete, enable/disable |
-| Editor popover | Tab / ⇧Tab | through fields, in reading order; Esc or ⏎ on Done closes; focus returns to the rule row |
-| Preview table | ↑ ↓ ← → | rows; ← / → collapse/expand groups |
-| | Space | toggle include for selected rows |
-| | ⌘A | select all rows; ⌘⇧A none |
-| | ⌘R / ⌘Y | reveal in Finder / Quick Look |
-| | Esc | clear rule filter; while applying = Stop |
-| | ⌘⇧H | show/hide “Stays” group |
-No custom shortcut conflicts with system ones; every pointer-only action (drag reorder, hover tooltip) has a keyboard/menu equivalent.
+## Surfaces and keys
+
+| Surface | Keys |
+|---|---|
+| Anywhere | ⌥⌘K opens the island (changeable in General). While a notice shows, it opens that notice with its primary action selected. |
+| Expanded island | Return runs the selected action · Esc collapses, then hides · ← → page notices · ↑ ↓ move the selection · Space Quick Look · ⌘Z undo · ⌘⌫ Move to Trash (duplicates only) · ⌘R reveal · ⌘O open · ⌘/ shortcuts · ⌘, Settings. No action is a bare letter, and plain ⌫ never trashes. Return never runs a ⌘⌫ action. |
+| Ask field (macOS 26) | Return sends · ↑ recalls · Esc leaves the field without clearing it · ⌘⌫ deletes the line, never a file. Return stays inert for 1 s after the field is emptied. |
+| App window | ⌘, opens General. Sidebar: ↑ ↓ (native list). Activity: ↑ ↓ entries, ← → files in a review or batch, Esc back, ⌘Z undo, ⌘⌫ Move to Trash on a duplicate, ⌘/ shortcuts. |
+| Onboarding | Return is the one primary button on every step; Tab reaches each folder row and choice card (each draws the ink focus ring). The island demo opens with ⌥⌘K, a click, or Skip. |
+| Review windows | Real windows: plain ⌘Z and ⌘⌫ work. |
+
+Every pointer-only action (drag into the Tray, hover help) has a keyboard path: the "Add to Kanso Tray" Finder Service, ⌘V, and the shortcuts sheet (⌘/).
 
 ## VoiceOver
-Rules are *labels from data*, not decorations.
-| Element | accessibilityLabel | value / hint |
-|---|---|---|
-| Rule row | `Rule 1. PDFs, move to Documents/PDFs.` | value `41 files`; hint `Press Return to edit.` Shadowed: value `Covered by rule 1, no files`. Disabled: `Rule 3, off.` |
-| Preview group header | `Documents/PDFs, 41 files` | value `expanded`/`collapsed` (disclosure trait) |
-| Preview row (will move) | `Invoice-03.pdf, will move to Documents/PDFs by rule 1.` | value `included` / `skipped`; trait toggle (checkbox) |
-| Row, renamed | `report.pdf, will move to Documents/PDFs as report 2.pdf because that name is taken, rule 1.` | |
-| Row, stays | `notes.txt, stays in Downloads. No rule matched.` | |
-| Row, blocked | `Contract.pdf cannot be moved. It is locked.` | |
-| Summary bar | merged into one element, label = its two lines | `accessibilityAddTraits(.isHeader)`; **posts an announcement** when it changes after a rule edit: `Now moving 127 of 214 files.` (throttled to ≥ 1 s, polite) |
-| Apply progress | `Moving 41 of 128` value updates every 10% only (avoid chatter) | |
-| Apply done | announcement `Moved 128 files. Undo is available.` | |
-| Undo button | `Undo sort. Puts 128 files back.` | |
-| Number badge | hidden (`accessibilityHidden`) — folded into the row label | |
-| Icons | file-type icons hidden; status icons carry labels via the row | |
-| Banners | `accessibilityAddTraits(.isStaticText)` and posted as announcement on appearance | |
-Never convey meaning by color alone: renamed = badge text “Renamed”, blocked = “Can’t move”, shadowed = text “Covered by rule N”, skipped = text “Skipped by you” — color only reinforces.
 
-## Contrast (measured, WCAG 2.x)
-| Pair | Ratio | Verdict |
-|---|---|---|
-| text / window (L) | 15.1 | AA/AAA |
-| text2 / window (L), text2 / card (L), text2 / card (D) | 4.5, 5.1, 5.4 | AA — **text2 on window in Light is exactly at the floor; do not make it lighter or smaller than `callout`** |
-| text3 / window (L) | 3.1 | **fails AA text.** Decoration/disabled only |
-| move ink on pastel (L) | 6.0 | AA |
-| rule ink on pastel / attention ink on pastel / stay ink | 6.0 / 5.3 / ≥7 | AA |
-| blocked ink on window (L) | 6.7 | AA |
-| dark: pastel-on-darkSurface (move/attention) | 9.1 / 9.0 | AAA |
-Increase Contrast (`accessibilityDisplayShouldIncreaseContrast`): separators → 0.30 alpha; badge gets a 1pt ink-colored border; `text2` → `text`. Focus rings are the system ring (3pt) wherever the control is standard; custom focus (rule rows) uses `KT.Color.focus` 2pt outline, 3:1+ against both surfaces.
+- **Island notices** post an announcement: `.medium` priority for confirmations ("Renamed Scan_0012.pdf to Invoice-Vattenfall-2026-03.pdf"), `.high` only for failures.
+- **Nothing expands or collapses on its own** under VoiceOver: the onboarding demo skips its 10 s auto-open, and the Tray never auto-expands.
+- **Sidebar rows** read their badge: "Activity, 2 need you", "Sorting, a watched folder needs access".
+- **Overview tiles** read as one element: "Renamed: 12, from contents, page 1", with the button trait (each opens its page).
+- **Activity rows** combine title, time and subtitle; the selected row has `.isSelected`. Thumbnails and shelf badges are hidden from VoiceOver because the subtitle names the shelf.
+- **Folder rows** without access read "Off · Allow in Privacy & Security".
 
-## Dynamic / Larger Text
-macOS has no full Dynamic Type; we honor: **system text styles only** (never fixed point sizes), and test at the largest "Text Size" in Settings ▸ Accessibility ▸ Display. Rules: row height `32pt` is a *minimum* (`.frame(minHeight:)`), group headers min 28pt; rule rows grow to a 3-line sentence rather than truncating beyond 3 lines; toolbar items collapse to the overflow menu rather than clip; minimum window width 800pt ensures the Moves-to column keeps ≥ 180pt at largest text.
+## Display options
 
-## Motion / transparency
-Reduce Motion: `KT.Motion.animation` returns nil → every transition is instant; progress bar still determinate. No parallax, no auto-playing anything. Reduce Transparency: no materials are used in this loop (all surfaces are opaque tokens), so nothing to do — keep it that way.
+| Option | What changes |
+|---|---|
+| Reduce Motion | 0.2 s cross-fades replace grow, stagger, beam and parallax; progress shows as static text; illustrations draw one settled frame. |
+| Reduce Transparency | Glass becomes solid `K.glass`; the island's capsule uses the solid fill. |
+| Increase Contrast | A 1 pt `controlStroke` edge on every glass surface and control. |
 
-## Test checklist (for review of the built screen)
-1. Complete the whole loop with keyboard only, mouse unplugged.
-2. VoiceOver: read the summary, walk 3 rule rows and 3 preview rows, open the editor, change a value, hear the new summary.
-3. Increase Contrast + Dark: badges legible, no text on tinted fill below 4.5.
-4. Largest text: no clipped Apply button, no overlapped rule sentence.
-5. Reduce Motion: no animation anywhere.
+## Colour
+
+- Text meets 4.5:1 and control edges and focus rings 3:1 (`final-direction.md` has every ratio).
+- Never put `text2` or `text3` on a tint; use the tint's ink.
+- Colour is never the only signal: each island state has its own icon shape, tags carry words, and the Quick settings off tiles change weight and glyph as well as colour.
+- Mint ink (`K.accent`) is the one selection and focus colour; system green appears only in native switches.
+
+## Check by hand before sign-off
+
+- VoiceOver through onboarding, an island notice (⌥⌘K, Return), and Activity.
+- Full Keyboard Access: every control in the App window is reachable.
+- Each display option above on the island, on three wallpapers.

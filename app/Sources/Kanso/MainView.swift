@@ -79,12 +79,13 @@ struct Sidebar: View {
     @EnvironmentObject var m: AppModel
 
     var body: some View {
-        List(selection: Binding(get: { m.page }, set: { if let p = $0 { m.page = p } })) {
+        // ImageRenderer draws the native selection as a black bar with no label, so snapshots draw the pill themselves.
+        List(selection: Binding(get: { Motion.snapshot ? nil : m.page }, set: { if let p = $0 { m.page = p } })) {
             ForEach(Array(Page.groups.enumerated()), id: \.offset) { _, g in
                 Section {
                     ForEach(g) { p in
                         HStack(spacing: 0) {
-                            Label { Text(p.title).font(.system(size: TS.body)) } icon: { Image(systemName: p.icon).font(.system(size: TS.small)).foregroundStyle(m.page == p ? K.text : K.text2) }
+                            Label { Text(p.title).font(.system(size: TS.body)).foregroundStyle(K.text) } icon: { Image(systemName: p.icon).font(.system(size: TS.small)).foregroundStyle(m.page == p ? K.text : K.text2) }
                             Spacer(minLength: 4)
                             if m.page == p { Circle().fill(K.accent).frame(width: 6, height: 6).padding(.trailing, 2).accessibilityHidden(true) }   // one selection language: row pill + accent dot
                             if p == .activity && !m.needs.isEmpty {
@@ -102,6 +103,7 @@ struct Sidebar: View {
                         .accessibilityElement(children: .combine)
                         .accessibilityLabel(p == .activity && !m.needs.isEmpty ? "Activity, \(m.needs.count) need you" : p == .sorting && !m.inaccessibleRoots.isEmpty ? "Sorting, a watched folder needs access" : p.title)
                         .tag(p)
+                        .listRowBackground(Motion.snapshot && m.page == p ? RoundedRectangle(cornerRadius: 8).fill(K.rowSelected).padding(.horizontal, 10) : nil)
                     }
                 }
             }

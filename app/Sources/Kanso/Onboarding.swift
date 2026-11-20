@@ -188,7 +188,7 @@ struct OnboardingView: View {
             }
             .padding(16).frame(maxWidth: .infinity, minHeight: 140, alignment: .topLeading)
             .background(RoundedRectangle(cornerRadius: 14).fill(sel ? K.card : K.fill))
-            .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(sel ? K.switchOn : K.separator, lineWidth: sel ? 2 : 0.75))
+            .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(sel ? K.accent : K.controlStroke, lineWidth: sel ? 2 : 0.75))   // mint ink selects; system green is for switches only
             .shadow(color: .black.opacity(sel ? 0.1 : 0), radius: 10, y: 6)
         }
         .buttonStyle(PlainRowStyle())

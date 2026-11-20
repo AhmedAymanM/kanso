@@ -154,7 +154,7 @@ struct PrivacyPage: View {
             HStack(spacing: 10) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Kanso \(Bundle.main.version)").font(.system(size: TS.heading, weight: .regular, design: .serif)).foregroundStyle(K.text)
-                    Text("Open source · GPL-3.0").font(.system(size: TS.small)).foregroundStyle(K.text2)
+                    Text("Open source · MIT").font(.system(size: TS.small)).foregroundStyle(K.text2)
                 }
                 Spacer()
                 Button { NSWorkspace.shared.open(Links.repo) } label: { Label("GitHub", systemImage: "arrow.up.right").labelStyle(TrailingIcon()) }.buttonStyle(CapsuleStyle())
