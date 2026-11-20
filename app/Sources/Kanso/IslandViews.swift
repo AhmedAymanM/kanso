@@ -298,7 +298,7 @@ struct IslandExpanded: View {
                 else if island.overview { OverviewBody() }
                 else if let n = island.current { notice(n).id(n.id) }
             }
-            .padding(.horizontal, 20).padding(.top, 2)   // the black island starts right under the notch: no extra space
+            .padding(.horizontal, 20).padding(.top, island.skin == .notch ? 2 : 16)   // under the notch: no extra space; the capsule needs air at its top edge
             .transition(.opacity)
             if island.askAvailable && !island.shortcuts && !island.overview {
                 AskField().padding(.horizontal, 20).padding(.top, 10).stagger(4)
@@ -742,7 +742,7 @@ struct OverviewBody: View {
                 NeedCard(need: m.needs[i], actions: Array(island.actions().prefix(cardActs)))
                     .id(m.needs[i].id).transition(Motion.reduced ? .opacity : .opacity.combined(with: .offset(x: 24)))
                     .background(alignment: .bottom) {   // the next card peeks out underneath
-                        if m.needs.count > 1 { RoundedRectangle(cornerRadius: 20, style: .continuous).fill(Color(nsColor: NSColor(hex: 0x161618))).padding(.horizontal, 14).offset(y: 6) }
+                        if m.needs.count > 1 { RoundedRectangle(cornerRadius: 20, style: .continuous).fill(Color.dyn(0xE8E6E1, 0x161618)).padding(.horizontal, 14).offset(y: 6) }
                     }
                     .padding(.bottom, m.needs.count > 1 ? 6 : 0)
                     .stagger(1)
@@ -809,7 +809,7 @@ struct NeedCard: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(Color(nsColor: NSColor(hex: 0x1C1C1E))))
+        .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(Color.dyn(0xFFFFFF, 0x1C1C1E)))
         .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(IslandInk.ink(0.12), lineWidth: 1))
         .accessibilityElement(children: .contain)
         .accessibilityLabel("\(kind): \(title)")
