@@ -23,18 +23,26 @@ A temporary holding place for things the user is carrying (files, links, snippet
 _Avoid_: Shelf, basket, stash, drop zone
 
 **Provably spent**:
-A file whose purpose has verifiably been fulfilled (an installer whose app is installed); the only kind of file Kanso moves to the Trash on its own.
+A file whose purpose has verifiably been fulfilled (an installer whose app is installed); with carriers under a timer the user turned on, the only files Kanso moves to the Trash on its own.
 _Avoid_: Junk, unneeded, redundant
+
+**Carrier**:
+A file whose job ends once used: an installer, archive, screenshot, torrent or duplicate. Only carriers can be put on a Cleanup timer; everything else is content.
+_Avoid_: Junk, temporary file
+
+**Smart Installer**:
+Installs the single app in an opened disk image (or zip) into Applications and trashes the download.
+_Avoid_: Smart Eject, Smart Install, disk image installer
 
 ### Telling the user
 
 **Island**:
-Kanso's one surface for things that happen while you're elsewhere. On a notch screen it's black and grows out of the notch; on a screen without one it's a Liquid Glass capsule just below the menu bar, present only while there's something to show. It always appears on the screen you're working on.
+Kanso's one surface for things that happen while you're elsewhere. By default it's a Liquid Glass capsule at the top or bottom of the screen, present only while there's something to show; in the notch style it's black and grows out of the notch. It always appears on the screen you're working on.
 _Avoid_: Toast, notification, banner, HUD
 
-**Below-the-notch mode**:
-The island drawn as a floating Liquid Glass capsule under the menu bar on every screen, used when the user prefers it or another app occupies the notch.
-_Avoid_: Independent mode, notch-free version, floating mode
+**Capsule**:
+The island's default style: a floating Liquid Glass capsule, at the top (under the menu bar) or the bottom (above the Dock). The notch style falls back to it on screens without a notch or while another app occupies the notch.
+_Avoid_: Below-the-notch mode, independent mode, notch-free version, floating mode
 
 **Compact island**:
 The island's resting notice: one morphing icon and one line of text, never taking focus.

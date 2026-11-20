@@ -6,7 +6,7 @@ import FoundationModels
 // Plain-English rules. A model turns one sentence into a typed draft; plain code then validates it against the sentence and the
 // closed lists before the user sees it. The draft is never saved by itself: the user previews it ("What would match") and presses Save.
 //
-// Invariants (docs/research/panel/security.md):
+// Security invariants:
 // - the model's output is a choice from closed sets or typed strings, never a path, glob, command or URL;
 // - every condition value must literally occur in the user's sentence, and glob characters in it are escaped;
 // - the destination is an existing shelf from the closed list, or a new shelf name that passes `Engine.automaticShelfAllowed`
