@@ -193,7 +193,7 @@ extension EngineTests {
         XCTAssertTrue(ActivityFilter.tagged.includes(renamed))
         XCTAssertFalse(ActivityFilter.renamed.includes(undone))
         XCTAssertTrue(ActivityFilter.undone.includes(undone))
-        XCTAssertTrue(ActivityFilter.ejected.includes(installer))
+        XCTAssertTrue(ActivityFilter.installed.includes(installer))
         XCTAssertFalse(ActivityFilter.duplicates.includes(installer))
         XCTAssertTrue(ActivityFilter.duplicates.includes(trashedCopy))
         XCTAssertFalse(ActivityFilter.needs.includes(renamed))

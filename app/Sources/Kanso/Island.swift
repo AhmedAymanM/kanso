@@ -7,30 +7,34 @@ import SwiftUI
 enum Notice: Identifiable, Equatable {
     case renamed(Action)
     case duplicate(Action)
-    case installer(Action)
     case renameReview(Int)
     case sortingOff(Date)
     case reading(String)
     case batch(run: String, text: String)   // after a run the user started: one line, one Undo for the whole run
     case info(icon: String, text: String, undo: UUID? = nil)
+    case offer(CarrierOffer)                // Smart Installer: install one app, or trash a carrier the user is done with
 
     var id: String {
         switch self {
-        case .renamed(let a), .duplicate(let a), .installer(let a): return a.id.uuidString
+        case .renamed(let a), .duplicate(let a): return a.id.uuidString
         case .renameReview: return "review"
         case .sortingOff: return "sorting-off"
         case .reading: return "reading"
         case .batch(let run, _): return "batch-" + run
         case .info(_, let t, _): return "info-" + t
+        case .offer(let o): return "offer-" + o.key
         }
     }
     var tint: Tint {
         switch self {
         case .renamed, .renameReview: return .rename
         case .duplicate: return .duplicate
-        case .installer, .sortingOff, .batch: return .accent
+        case .sortingOff, .batch: return .accent
         case .reading: return .where
         case .info: return .neutral
+        case .offer(.install(let o)) where o.signature == .unsigned: return .duplicate
+        case .offer(.install): return .accent
+        case .offer: return .duplicate
         }
     }
     /// The icon's final shape; it morphs from a plain document into this (Linear's status control).
@@ -38,24 +42,35 @@ enum Notice: Identifiable, Equatable {
         switch self {
         case .renamed: return "pencil.line"
         case .duplicate: return "doc.on.doc"
-        case .installer: return "externaldrive.badge.checkmark"
         case .renameReview: return "text.badge.checkmark"
         case .sortingOff: return "pause.circle"
         case .reading: return "doc.text.viewfinder"
         case .batch: return "checkmark.circle"
         case .info(let i, _, _): return i
+        case .offer(.install(let o)) where o.signature == .unsigned: return "exclamationmark.shield"
+        case .offer(.install): return "arrow.down.app"
+        case .offer(.trashZip): return "doc.zipper"
+        case .offer(.trashTorrent): return "arrow.down.circle"
         }
     }
     var line: String {
         switch self {
         case .renamed(let a): return a.name
         case .duplicate(let a): return a.shelf == "Trash" ? "Copy of \(kept(a)) moved to Trash" : "Copy of \(kept(a)) held on Duplicates"
-        case .installer(let a): return "\(a.details["installer"] ?? "The app") installer moved to Trash"
         case .reading(let n): return "Reading page 1 of \(n)…"
         case .renameReview(let n): return "\(n) files can be renamed"
         case .sortingOff: return "Sorting off since yesterday · Turn on"
         case .batch(_, let text): return text
         case .info(_, let t, _): return t
+        case .offer(.install(let o)):
+            switch o.existing {
+            case .none where o.signature == .unsigned: return "\(o.info.name) isn't signed"
+            case .none: return "Install \(o.info.name) → Applications"
+            case .older(let v): return "\(o.info.name) \(v) is installed · Replace with \(o.info.v.version)?"
+            case .current(let v): return "\(o.info.name) \(v) is already installed"
+            }
+        case .offer(.trashZip(let u)): return "\(u.lastPathComponent) is extracted · Trash the zip?"
+        case .offer(.trashTorrent(let u)): return "\(u.lastPathComponent) was opened · Trash it?"
         }
     }
     /// What VoiceOver says.
@@ -65,12 +80,17 @@ enum Notice: Identifiable, Equatable {
         default: return line + "."
         }
     }
-    var needsYou: Bool { if case .duplicate(let a) = self { return a.pending }; if case .renameReview = self { return true }; return false }
+    var needsYou: Bool {
+        switch self {
+        case .duplicate(let a): return a.pending
+        case .renameReview, .offer: return true
+        default: return false
+        }
+    }
     var kindKey: String {
         switch self {
         case .renamed: return "renamed"
         case .duplicate: return "duplicate"
-        case .installer: return "installer"
         default: return id
         }
     }
@@ -143,6 +163,7 @@ final class Island: ObservableObject {
     @Published var shortcuts = false   // the keyboard shortcuts list replaces the body
     @Published var fanned = false      // several renamed files: stack (false) or fanned out (true)
     @Published var skin = Skin.capsule
+    @Published var bottom = false      // capsule above the Dock (Position: Bottom)
     @Published var notch = CGSize(width: 180, height: 32)
     @Published var hovering = false
     @Published var dismissAt = Date.distantFuture
@@ -317,21 +338,24 @@ final class Island: ObservableObject {
 
     func relayout() {
         guard let s = Island.activeScreen else { return }   // no displays attached (lid closed, headless)
-        let mode = AppModel.shared.settings.islandMode
+        let st = AppModel.shared.settings
         let n = Island.notchSize(s)
-        let wantsNotch = mode == .notch || (mode == .automatic && NotchApps.running().isEmpty)
-        let newSkin: Skin = (n != nil && wantsNotch) ? .notch : .capsule
+        // The notch style needs a notch and yields to other notch apps; everything else is the capsule.
+        let newSkin: Skin = (st.islandStyle == .notch && n != nil && NotchApps.running().isEmpty) ? .notch : .capsule
         if !visible || skin == newSkin { skin = newSkin }   // switch only between notices
+        if !visible { bottom = skin == .capsule && st.islandPosition == .bottom }
         if let n { notch = n }
         if panel == nil { makePanel() }
         let size = Island.size
-        let top = skin == .notch ? s.frame.maxY : s.visibleFrame.maxY - 6
-        panel?.setFrame(NSRect(x: s.frame.midX - size.width / 2, y: top - size.height, width: size.width, height: size.height), display: true)
+        // visibleFrame leaves out the menu bar and a showing Dock; with the Dock auto-hidden its bottom is the screen edge,
+        // so a bottom capsule follows the Dock down.
+        let y = skin == .notch ? s.frame.maxY - size.height : bottom ? s.visibleFrame.minY + 8 : s.visibleFrame.maxY - 6 - size.height
+        panel?.setFrame(NSRect(x: s.frame.midX - size.width / 2, y: y, width: size.width, height: size.height), display: true)
     }
 
     /// Where the island will be, for the yield check.
     private func targetRect() -> NSRect? {
-        guard let f = panel?.frame else { return nil }
+        guard !bottom, let f = panel?.frame else { return nil }   // notch apps live at the top
         return NSRect(x: f.midX - 190, y: f.maxY - 60, width: 380, height: 60)
     }
 
@@ -500,7 +524,7 @@ final class Island: ObservableObject {
             return [IslandAction(label: "Undo", key: "⌘Z") { m.undo([a.id]); done() },
                     IslandAction(label: "Move copy to Trash", key: "⌘⌫", icon: "trash") { m.trash(a.id); done() },
                     IslandAction(label: "Keep both", key: "", icon: "doc.on.doc") { m.keepBoth(a.id); done() }]
-        case .duplicate(let a), .installer(let a):
+        case .duplicate(let a):
             return [IslandAction(label: "Put Back", key: "⌘Z") { m.undo([a.id]); done() }]
         case .renameReview:
             return [IslandAction(label: "Review…", key: "↩", icon: "checklist") { self.hide(); Windows.shared.showReview(tab: .renames) },
@@ -514,6 +538,37 @@ final class Island: ObservableObject {
             return [IslandAction(label: "Download", key: "↩", icon: "arrow.down.circle") { if let u = UpdateChecker.shared.availableURL { NSWorkspace.shared.open(u) }; done() }]
         case .info(_, _, let undo):
             return undo.map { id in [IslandAction(label: "Undo", key: "⌘Z") { m.undo([id]); done() }] } ?? []
+        case .offer(let o):
+            return offerActions(o, done: done)
+        }
+    }
+
+    /// Return installs (the user saw "Trash the download" before it ran, ADR 0002); trashing a carrier is only ⌘⌫.
+    private func offerActions(_ o: CarrierOffer, done: @escaping () -> Void) -> [IslandAction] {
+        let m = AppModel.shared
+        switch o {
+        case .install(let i):
+            let skip = IslandAction(label: i.existing == .none ? "Not now" : "Skip", key: "esc", icon: "xmark") { if i.volume == nil { m.dismissCarrier(o) }; done() }
+            if i.signature == .unsigned, !i.isCurrent {
+                // No signature: Return only ever says Not now; installing takes ⌘↩ after reading the warning.
+                let notNow = IslandAction(label: "Not now", key: "↩", icon: "xmark") { if i.volume == nil { m.dismissCarrier(o) }; done() }
+                if case .older = i.existing, m.isRunning(i.info.id) { return [notNow, IslandAction(label: "Quit \(i.info.name) first", key: "", icon: "xmark.octagon") {}] }
+                let replace = { if case .older = i.existing { return true }; return false }()
+                return [notNow, IslandAction(label: replace ? "Replace anyway" : "Install anyway", key: "⌘↩", icon: "exclamationmark.shield") { done(); m.install(i, replace: replace) }]
+            }
+            switch i.existing {
+            case .none: return [IslandAction(label: "Install", key: "↩", icon: "arrow.down.app") { done(); m.install(i) }, skip]
+            case .older:
+                if m.isRunning(i.info.id) { return [IslandAction(label: "Quit \(i.info.name) first", key: "", icon: "xmark.octagon") {}, skip] }
+                return [IslandAction(label: "Replace", key: "↩", icon: "arrow.triangle.2.circlepath") { done(); m.install(i, replace: true) }, skip]
+            case .current: return [skip]
+            }
+        case .trashZip, .trashTorrent:
+            return [IslandAction(label: "Keep", key: "↩", icon: "checkmark") { m.dismissCarrier(o); done() },
+                    IslandAction(label: o.kind == "torrent" ? "Trash it" : "Trash the zip", key: "⌘⌫", icon: "trash") {
+                        done()
+                        if let a = m.trashCarrier(o) { self.show(.info(icon: "trash", text: "Moved \((a.src as NSString).lastPathComponent) to Trash", undo: a.id)) }
+                    }]
         }
     }
 
@@ -543,7 +598,7 @@ final class Island: ObservableObject {
 
     private func announce(_ text: String) {
         NSAccessibility.post(element: NSApp as Any, notification: .announcementRequested,
-                             userInfo: [.announcement: text, .priority: NSAccessibilityPriorityLevel.high.rawValue])
+                             userInfo: [.announcement: text, .priority: NSAccessibilityPriorityLevel.medium.rawValue])
     }
 
     /// Full-screen apps and Focus-like moments: notices collect quietly with the menu bar dot.

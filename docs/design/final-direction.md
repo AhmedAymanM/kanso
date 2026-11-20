@@ -3,7 +3,15 @@
 The design to implement, from the 2026-10-30 design work and its accessibility, security and design reviews, updated with the owner's decisions in the goals grilling of 2026-11-19/20. `PRODUCT.md` says *what* each feature does; this file says how it looks and moves. Nothing here is applied to code yet unless noted.
 
 ## Decision
-- **Paper & Ink.** Solid warm surfaces in the window, one mint ink, a serif (New York) for statements, SF for controls.
+- **Paper & Ink.** Solid warm surfaces in the content area, one mint ink for brand surfaces, **SF everywhere** (no serif; owner, 2026-11-20).
+- **Mac conventions** (owner, 2026-11-20, from the `macos-app-design` skill):
+  - **The window is resizable**, with a 1170 × 772 minimum. It does not remember the last page.
+  - **Native controls follow the system accent** (switches, focus rings, sidebar selection); mint stays on brand surfaces (hero, tinted cards, primary buttons).
+  - **The sidebar uses plain `.listStyle(.sidebar)`** selection and the system sidebar material; paper stays in the content area.
+  - **Larger Text:** text styles scale with the macOS Larger Text setting.
+  - **Menus:** App, File, Edit, View (pages on ⌘1–⌘8), Window, Help (opens GitHub); "Check for Updates…" in the App menu.
+  - **Everywhere:** right-click menus on Activity rows and shelves, ⌘F focuses the Activity search, type-to-select in lists, a hover state on every button.
+  - **Kept our way:** settings stay pages of the one App window; the island replaces system notifications; `SoftTopEdge` stays (retest on macOS 27); plain-English rules keep their Save; no notarization. A ⌘K palette is v1.1.
 - **The material rule:** glass only for things that float (the island, the popover, the Tray). No glass on content cards, no floating glass panes, no `.hiddenTitleBar`, no glass morph between windows (impossible across `NSWindow` and `NSPanel`). The sidebar and toolbar keep the automatic macOS 26 glass; buttons keep `liquid(_:)`.
 - **Monospace** only for paths and counts in the Activity detail, and the time column in the island's "Recently" rows.
 - **The capsule is the default island** (owner, 2026-11-19), with **Position: Top / Bottom**. The notch skin is an option; its bottom edge melts into glass over the **last 12 pt only**, with the esc row on solid black.
@@ -59,13 +67,13 @@ Eight steps. **Migrate every call site in one PR using the compiler; do not leav
 |---|---|---|---|
 | `TS.meta` | 11 / 14 | 600, caps, +0.5 kerning, SF | `micro` (10), `meta` |
 | `TS.small` | 12 / 16 | 400, SF | `small` |
-| `TS.body` | 13 / 18 | 400, SF | `body` |
+| `TS.body` | 14 / 19 | 400, SF | `body` |
 | `TS.emphasis` | 15 / 20 | 600, SF | `emphasis` |
 | `TS.heading` | 17 / 22 | 600, SF | `heading` |
-| `TS.title` | 22 / 28 | 400, New York (`design: .serif`) | `title` (20), `title2`, `headline` (26) |
-| `TS.display` | 40 / 44, tracking -0.4 | 400, New York | `display` (30), `statement` (34), `hero` (40) |
-| `TS.numeral` | 64 / 64 | 400, New York, `.monospacedDigit()` | `numeral` (52) |
-Notes: Activity headline becomes `title` serif (toolbar title stays 15 pt SF `emphasis`). Folder emoji (old `headline` 26) uses an explicit icon size, not a text token. No font under 11 pt; chart labels and badges are `meta`. The "Dynamic Type" rule is dropped (macOS has none); test layouts at the 600 pt minimum width instead.
+| `TS.title` | 22 / 28 | 600, SF | `title` (20), `title2`, `headline` (26) |
+| `TS.display` | 34 / 40, tracking -0.4 | 700, SF | `display` (30), `statement` (34), `hero` (40) |
+| `TS.numeral` | 44 / 48 | 700, SF Rounded (`design: .rounded`), `.monospacedDigit()` | `numeral` (52) |
+Notes: Activity headline becomes `title` (toolbar title 13 pt semibold, the macOS window-title size). Folder emoji (old `headline` 26) uses an explicit icon size, not a text token. No font under 11 pt; chart labels and badges are `meta`. Map each step onto a semantic text style so the Larger Text setting scales it; test layouts at the minimum window size and with Larger Text on.
 
 ### Radii, spacing, targets
 | Token | Value | `Theme.swift` |
@@ -79,7 +87,7 @@ Notes: Activity headline becomes `title` serif (toolbar title stays 15 pt SF `em
 | notch compact / expanded bottom radius | 20 / 30 (as `IslandBody.radius`) | unchanged |
 | capsule compact / expanded | 22 / 30 | `IslandBody.radius` |
 | tile | 12 | |
-| spacing | 4 / 8 / 12 / 16 / 24 / 36 (page padding 36) | |
+| spacing | 4 / 8 / 12 / 16 / 24 / 32 (page padding 24) | |
 | min target | 28 pt; Tray ✕ and other small glyph buttons 44 × 44 via `contentShape` | |
 `GlassSurface` takes its radius from the caller so inner radii stay concentric.
 
@@ -93,7 +101,6 @@ Notes: Activity headline becomes `title` serif (toolbar title stays 15 pt SF `em
 | icon morph | 0.18 s delay then spring response 0.3 | existing `MorphIcon` |
 | Needs-you card hand-off to island | 0.22 s cross-fade (no glass morph) | |
 | Tray: drag dwell | 250 ms in a 160 × 44 pt zone; shrink after leaving 220 pt | `TrayDragMonitor` (new) |
-| Tray: confirmations | "Added N" 2 s; "Moved N" 6 s | |
 | notice dismiss and illustration rest | unchanged (illustrations rest after 15 s) | |
 | Reduce Motion | 0.2 s cross-fade; no grow, stagger, beam, or parallax; progress shown as static text | `Motion.reduced` |
 | Reduce Transparency | solid `K.glass` | existing `Motion.solid` |
@@ -105,10 +112,10 @@ Only these things animate: island grow and shrink, Needs-you swap and collapse, 
 2. **First-run window (Onboarding).** Replace "Nothing leaves this Mac." (`:63`, `:154`) with: "Your files never leave this Mac. Once a day Kanso checks GitHub for a new version; turn that off in Settings." Delete `.focusEffectDisabled()` (`:46`) and give each folder row a focus ring (`controlStroke` edge on choice cards, ink ring on focus). Fix or cut "or click the island" (`:133`) (add a tap gesture with button semantics, preferred). Skip the 10 s auto-expand under VoiceOver (`:141`). Name each paused folder with "Off · Allow in Privacy & Security" and add Back to the declined screen (`:188`).
 3. **Overview.** Needs-you card collapses to a 56 pt line when empty (spring on `frame(height:)`), month chart rises into the space and draws elapsed days only (ink past, accent today); hero loses the hatch and its secondary text goes to 85%; the four tinted counter `Tile`s stay (owner, 2026-11-19); "Where files went" uses a single icon style; card radius 14, padding 16.
 4. **Island.** Notch skin: Compact width `max(290, notch.width + 140)`; row 1 notch height with the 24 pt tile, cutout, chip; row 2 centred line; the chip shows only until the first dwell, then becomes a 28 pt icon-only key (stops the `⌥…` truncation); expanded "Extra copy · 120 MB · id…" gets a wider text column, no truncation of the size; bottom melt confined to the last 12 pt with the esc row above it on solid black; two lip glass buttons are 28 pt with labels. Capsule: 320 × 38, glass at 92%, secondary text `K.glassText2`. The capsule is the default skin: at Top it drops 6 pt below the menu bar; at Bottom it sits 8 pt above the Dock and follows the Dock when it auto-hides. The onboarding demo shows the capsule.
-5. **Activity.** Groups newest first; one date format; Quick Look thumbnails plus destination shelf emoji on rows; remove the orphan "Don't rename files like this" heading unless it has its control; paths and counts in the Activity detail in `.system(.footnote, design: .monospaced)` with an `accessibilityLabel` that reads "moved to Documents"; title in `TS.title` serif.
+5. **Activity.** Groups newest first; one date format; Quick Look thumbnails plus destination shelf emoji on rows; remove the orphan "Don't rename files like this" heading unless it has its control; paths and counts in the Activity detail in `.system(.footnote, design: .monospaced)` with an `accessibilityLabel` that reads "moved to Documents"; title in `TS.title`.
 6. **Sorting.** Banner capped at 160 pt so Approach cards are visible; one greens rule (mint ink for banner and hero, system green only for native switches); one icon style in watched folders; the "Downloads → My Shelves → Documents" chip becomes plain SF text.
 7. **Quick settings.** Off tiles get a weight and glyph change (not only the dot), text at `text2` 4.5:1 or better; 12 pt grid with equal gutters; the Sorting row becomes the same shape as tiles.
-8. **Sidebar.** One selection language: `K.rowSelected` plus an accent dot; the Activity filter pill and Overview mint stop competing.
+8. **Sidebar.** Plain `.listStyle(.sidebar)` selection in the system accent, system sidebar material, 16 pt hierarchical SF Symbols; no custom `K.rowSelected` or accent dot. The Activity filter pill and Overview mint stop competing.
 9. **Tray (v1).** Per "The Tray" below, after its UX redesign in Pencil (the Tray comes back by reverting #20).
 10. **Smart Installer.** Per its section below; the sidebar page "Smart Eject" becomes "Smart Installer".
 11. **Cleanup.** Per its section below; a new sidebar page after Smart Installer.
@@ -123,29 +130,51 @@ Only these things animate: island grow and shrink, Needs-you swap and collapse, 
 - Derived dark `fg` values for `Tint.rule`, `Tint.where`, `Tint.neutral`.
 
 ## The Tray (v1)
-A temporary holding place on the island for things the user is carrying; **Organize** files them onto shelves. Copy never calls it a drop zone, basket, stash or shelf.
+A place on the island to **collect things from across the Mac and then take them somewhere**: drag them into another folder or app, share them, or upload them. It never sorts or moves anything on its own: **no Organize** (owner, 2026-11-20). Copy never calls it a drop zone, basket, stash or shelf (a shelf is a sorted folder).
 
-| Kind | Behavior |
+### What it holds
+| Kind | Shown as |
 |---|---|
-| File / folder | A reference (bookmark data plus metadata), never moved or copied on drop. Organize moves it like any sort. A file moved meanwhile becomes a "Missing" row. |
-| Link | Organize writes a `.webloc` (http/https only) on a new 🔗 Links shelf. Title fetch off by default. |
-| Snippet | Organize writes a `.txt`/`.md` on a new 📝 Notes shelf. 500 KB per snippet, 100 items. |
-| File promise (browser image, Mail attachment) | Refused: "That item isn't a file on this Mac yet. Save it first." |
+| File / folder | A **Quick Look thumbnail** (`QLThumbnailGenerator`), falling back to the file icon. A reference (bookmark data), never copied on drop. A file moved or deleted meanwhile shows a "Missing" tile. |
+| Link | A **link preview** card (`LPLinkView`: title, site icon, image) once the link passes the safety check below; until then, or if it fails, a plain card with the host and the URL. |
+| Snippet (text) | A text card with the first lines. |
+| File promise (browser image, Mail attachment) | Saved as a **temporary copy** in `~/Library/Application Support/Kanso/Tray/` (mode 0700, excluded from backup and Spotlight, `com.apple.quarantine` set), then shown like any file. While it saves, the tile shows a progress ring; a failed save shows "Couldn't save that image" and adds nothing. Dragging it out moves the copy to the destination (a copy across disks). When it leaves the Tray by any route, Kanso deletes its temporary copy once ⌘Z can no longer restore it (the next removal, closing the island, or quitting). "Forget everything" and launch clean up any leftovers. |
 
-- **Where:** a page of the expanded island. The lip gains a tray button with a count badge. `⌘T` in the open island switches to it; no new global hot key.
-- **Drag detection:** the island ignores the mouse except during a compatible drag (the drag pasteboard changed since mouse-down and holds a file URL, an http(s) URL or text). It grows after the pointer dwells **250 ms** in a 160 × 44 pt zone where the capsule (or notch) sits, on the screen under the cursor, and shrinks after it leaves a 220 pt radius. Full-screen apps: no growing; `⌘V` and the Finder Service still work.
-- **Flows:** Carry (drop → rows with icon, name, source, ✕; "Added 3 to the Tray" for 2 s; never expands on its own). Organize (↩ builds a plan with the normal `decide`; rows show the basis on a second line and the destination unwrapped; a `new shelf` chip; the plan shows the first 5 times, then only with a new shelf or over 10 items; `Move N` is one journaled run; "Moved 4 to 3 shelves · Undo ⌘Z" for 6 s). Forget (✕ removes the row, not the file; ⌘Z restores). Ask (ADR 0001 rules, no trash tool).
-- **States:** Empty ("Drop files here", "or paste with ⌘V") · Drag over (whole-island dashed outline, "Nothing moves until you Organize") · Carrying · Planning (static "Planning 3 of 4", plus the beam with motion on) · Plan review (Return = Move N, never a trash action) · Partial result (failed items stay with a reason and Retry).
-- **Keyboard path (WCAG 2.5.7):** Finder Service "Add to Kanso Tray" or `⌘V`; `⌥⌘K`, `⌘T`, `↑ ↓` rows, `⌥↑ ⌥↓` reorder, `⌫` forget, `↩` Organize then Move, `Space` Quick Look, `Tab` ask field, `esc` back.
-- **Accessibility:** list label "Tray, 4 items"; rows "Lease-2026.pdf, file from Downloads" with Forget and Change a shelf as actions; confirmations at `.medium` priority, failures `.high`; no auto-expand or auto-collapse under VoiceOver; ✕ has a 44 × 44 pt hit area.
-- **Security invariants:** model output is a choice from a closed set (shelf names, item numbers), never a path; destinations standardized, symlink-resolved and kept inside `<root>/My Shelves`, Manual Shelves refused; names stripped of control characters and capped at 120; new-shelf names that equal a reserved name (NFKC, case-folded) rejected; `.webloc` only for http(s), never executable types, `com.apple.quarantine` set on created files; `tray.json` mode 0600, excluded from backup and Spotlight, wiped by "Forget everything", never in a prompt without a user action; the only network call is the opt-in title fetch, under SSRF rules (https only; refuse loopback, link-local, RFC1918 and `.local`, re-checked on each of at most 3 redirects; 1 MB and 5 s caps; no cookies, no Referer).
-- **A pending Tray never counts toward Needs you.** "Still carrying 4 things" shows once after 7 days.
-- **Open:** references versus copies for files (recommended: references).
+### Layout
+- **A grid of preview tiles, not a list**: 88 × 88 pt tiles with a 10 pt corner radius, the name under each (two lines, middle-truncated), 4 per row in the 480 pt expanded island, scrolling after 3 rows. Newest first.
+- **Header, top right: Share and Clear.** Share opens the system share sheet (`NSSharingServicePicker`) for the **selected items, or all of them when nothing is selected**; the button's label says which ("Share 3" / "Share all"). Clear empties the Tray (the files stay where they are), with ⌘Z to bring it back. The count sits top left.
+- Empty state: "Drop files, links or text here", "or paste with ⌘V".
+
+### Selecting and removing (like Finder)
+- **Click** selects one item; **⌘-click** adds or removes; **⇧-click** selects a range; **⌘A** selects all; **drag a rectangle** on empty space to select (marquee); arrow keys move the selection, ⇧-arrows extend it. Selected tiles get a 2 pt ring in the system accent.
+- **Space** opens Quick Look for the selection (`QLPreviewPanel`), with arrows to page through, as in Finder. Links open their preview there too.
+- Share, drag and remove act on the **selection** when there is one.
+- **Remove an item** three ways: the **×** that appears top right of a tile on hover; **⌫ / Delete** on the selection; or **dragging it out** to another folder or app (it leaves the Tray once the destination accepts it). Removing takes it off the Tray only; the file is never trashed. ⌘Z restores the last removal. No "Removed" notice: the tile leaving is the feedback.
+- **Dragging out follows Finder:** a move within the same disk, a copy across disks, ⌥ forces a copy. ⇧ while dragging keeps the item in the Tray.
+
+### Adding
+- Drag onto the island: it grows after a **250 ms** dwell in a 160 × 44 pt zone where the capsule (or notch) sits, on the screen under the cursor, and shrinks after the pointer leaves a 220 pt radius. Only a drag holding a file URL, a file promise, an http(s) URL or text qualifies. No "Added" notice: the drop target shows what's coming in, and the tiles show what arrived; it never expands on its own.
+- **⌘V** into the open Tray, and the Finder Service **Add to Kanso Tray** (with Finder in front, ⌥⌘K then ⌘T opens the Tray).
+- Full-screen apps: no growing; ⌘V and the Service still work.
+
+### Link safety check (before any preview is fetched)
+https only (http links stay plain cards); resolve the host and refuse loopback, link-local, private (RFC 1918) and `.local` addresses, re-checked on each of at most 3 redirects; 1 MB and 5 s caps; no cookies, no Referer. The fetch goes only to the link's own site, and only for links the user added. Privacy & AI lists it as a network call.
+
+### Keyboard
+`⌥⌘K` opens the island, `⌘T` switches to the Tray, `esc` goes back. Inside: arrows, ⇧-arrows, `⌘A`, `Space` (Quick Look), `⌫` (remove), `↩` (open the selection), `⌘C` (copy the selection), `⌘V` (add), `⌘Z` (undo the last removal or Clear), `⌘/` (shortcuts).
+
+### Accessibility and safety
+- VoiceOver: the grid is "Tray, 6 items"; a tile reads "Lease-2026.pdf, PDF, from Downloads" with Remove, Share and Quick Look as actions, so hover and drag are never the only way. Adding announces at `.medium` priority. No auto-expand or auto-collapse under VoiceOver. The × has a 28 × 28 pt hit area.
+- Names are untrusted: control characters stripped, capped at 120 characters. Kanso never writes executable types. `tray.json` (references, links, snippets) is mode 0600, excluded from backup and Spotlight, wiped by "Forget everything", and never sent to a model.
+- A pending Tray never counts toward Needs you.
+
+### Later
+Upload actions (a share link) and the file actions of v1.2 (convert, compress, optimize) attach to the selection.
 
 ## Smart Installer (island)
 - **Offer** (compact island, app icon tile): "Install Figma → Applications" with a "Trash the download" checkbox, ticked. Return installs. After the first time both answers are remembered and the offer becomes the progress notice directly.
 - **Progress:** the work beam with "Copying Figma…", then "Checking…". With Reduce Motion, static text.
-- **Done:** "Installed Figma · download moved to Trash · ⌘Z" (the morph icon fills); the app opens from `/Applications`.
+- **Done:** no notice; the app opens from `/Applications`, which is the confirmation (owner, 2026-11-20). Put Back for the download is in Activity.
 - **Already installed:** "Figma 3.2 is installed · Replace with 3.4?" with Replace and Skip; Replace is disabled with "Quit Figma first" while it runs.
 - **Failure:** one line naming the failed step ("Installed, but the disk image couldn't be ejected. The download was kept.").
 - **Archives and torrents:** the same compact offer, "Trash the zip" / "Trash it", with Keep.

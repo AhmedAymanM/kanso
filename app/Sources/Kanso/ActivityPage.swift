@@ -29,7 +29,7 @@ enum Entry: Identifiable {
 }
 
 enum Filter: String, CaseIterable {
-    case all = "All", needs = "Needs you", handled = "Handled", renamed = "Renamed", tagged = "Tagged", duplicates = "Duplicates", ejected = "Smart Eject", undone = "Undone"
+    case all = "All", needs = "Needs you", handled = "Handled", renamed = "Renamed", tagged = "Tagged", duplicates = "Duplicates", installed = "Smart Installer", undone = "Undone"
     var icon: String {
         switch self {
         case .all: return "tray.full"
@@ -38,7 +38,7 @@ enum Filter: String, CaseIterable {
         case .renamed: return "pencil"
         case .tagged: return "tag"
         case .duplicates: return "doc.on.doc"
-        case .ejected: return "eject"
+        case .installed: return "arrow.down.app"
         case .undone: return "arrow.uturn.backward"
         }
     }
@@ -50,7 +50,7 @@ enum Filter: String, CaseIterable {
         case .renamed: return "No renamed files yet. Kanso renames only meaningless names, like Scan_0012."
         case .tagged: return "No tagged files yet. Turn on Tagging to add Finder tags from a file's first page."
         case .duplicates: return "No duplicates. Extra copies wait on the Duplicates shelf when they show up."
-        case .ejected: return "No installers ejected yet. Smart Eject waits until the app is in Applications."
+        case .installed: return "Nothing installed yet. Open a disk image with one app in it and Kanso offers to install it."
         case .undone: return "Nothing undone. Every action can be undone from here."
         }
     }
@@ -83,7 +83,7 @@ struct ActivityPage: View {
             }
         }
         let waits = m.waiting.map { Entry.waiting($0) }
-        return filtered(m.needs.map { .need($0) }) + filtered(waits + done)
+        return filtered(m.needs.map { .need($0) }) + filtered((waits + done).sorted { $0.ts > $1.ts })   // newest first, so day groups never repeat
     }
 
     func filtered(_ e: [Entry]) -> [Entry] {
@@ -169,9 +169,9 @@ struct ActivityPage: View {
         let searching = !query.isEmpty
         let icon = searching ? "magnifyingglass" : filter.icon
         return VStack(spacing: 10) {
-            Image(systemName: icon).font(.system(size: TS.hero, weight: .light)).foregroundStyle(K.text3).frame(width: 84, height: 84)
+            Image(systemName: icon).font(.system(size: TS.display, weight: .light)).foregroundStyle(K.text3).frame(width: 84, height: 84)
                 .liquid(Circle(), tint: Tint.accent.bg.opacity(0.5), interactive: false)
-            Text(searching ? "No matches for “\(query)”" : filter == .all ? "Nothing yet" : "Nothing under \(filter.rawValue)").font(.system(size: TS.title2, design: .serif)).foregroundStyle(K.text)
+            Text(searching ? "No matches for “\(query)”" : filter == .all ? "Nothing yet" : "Nothing under \(filter.rawValue)").font(.system(size: TS.title, design: .serif)).foregroundStyle(K.text)
             Text(searching ? "Search looks at file names and shelves." : filter.emptyLine).font(.system(size: TS.body)).foregroundStyle(K.text2).multilineTextAlignment(.center).frame(maxWidth: 320)
             if searching || filter != .all || current.isNarrowed {
                 Button(searching ? "Clear search" : "Show all activity") { withAnimation(Motion.spring(0.3)) { if searching { query = "" } else { filter = .all; shelf = nil; days = nil } } }
@@ -251,7 +251,7 @@ struct ActivityPage: View {
         let fine = ![.all, .needs, .handled].contains(filter)
         return Menu {
             Picker("Filter", selection: $filter) {
-                ForEach([Filter.renamed, .tagged, .duplicates, .ejected, .undone], id: \.self) { f in
+                ForEach([Filter.renamed, .tagged, .duplicates, .installed, .undone], id: \.self) { f in
                     Label(f.rawValue, systemImage: f.icon).tag(f)
                 }
             }
@@ -340,7 +340,7 @@ func title(_ e: Entry) -> String {
         switch a.kind {
         case .renamed: return "Renamed from \(a.oldName ?? "")"
         case .duplicate: return "Copy kept in Duplicates"
-        case .trashed: return a.details["installer"] != nil ? "Smart Eject · installer moved to Trash" : "Moved to Trash · \((Int64(a.details["size"] ?? "") ?? 0).bytes)"
+        case .trashed: return a.details["installer"] != nil ? "Smart Installer · download moved to Trash" : a.details["carrier"] != nil ? "Done with · moved to Trash" : "Moved to Trash · \((Int64(a.details["size"] ?? "") ?? 0).bytes)"
         case .sorted: return "Sorted → \(st.emoji(for: a.shelf)) \(a.shelf)"
         }
     case .batch(_, let a): return "Sorted into \(Set(a.map(\.shelf)).count) shelves"
@@ -373,9 +373,27 @@ struct ListRow: View {
         }
     }
 
+    /// The file a row is about, when it's one file still on disk.
+    var file: String? {
+        let p: String
+        switch entry {
+        case .need(.duplicate(let a)): p = a.dst
+        case .action(let a) where a.kind != .trashed && !a.undone: p = a.dst
+        default: return nil
+        }
+        return FileManager.default.fileExists(atPath: p) ? p : nil
+    }
+
     var body: some View {
         HStack(alignment: .center, spacing: 10) {
-            EmojiTile(emoji: emoji, size: 40, fill: K.card)
+            if let file {   // one file: its Quick Look thumbnail, with the shelf it went to as a badge
+                Thumb(path: file).frame(width: 40, height: 40)
+                    .background(RoundedRectangle(cornerRadius: 10).fill(K.card))
+                    .overlay(alignment: .bottomTrailing) { Text(emoji).font(.system(size: TS.meta)).frame(width: 20, height: 20).background(Circle().fill(K.card)).overlay(Circle().strokeBorder(K.separator, lineWidth: 0.75)).offset(x: 4, y: 4) }
+                    .padding(.trailing, 2).accessibilityHidden(true)
+            } else {
+                EmojiTile(emoji: emoji, size: 40, fill: K.card)
+            }
             VStack(alignment: .leading, spacing: 2) {
                 HStack(alignment: .firstTextBaseline) {
                     Text(title(entry)).font(.system(size: TS.body, weight: .bold)).foregroundStyle(pending ? tint.fg : K.text).lineLimit(1).truncationMode(.middle)
@@ -395,21 +413,6 @@ struct ListRow: View {
 
 extension String { var capitalizedFirst: String { prefix(1).uppercased() + dropFirst() } }
 extension Date { var seconds: String { formatted(.dateTime.hour(.twoDigits(amPM: .omitted)).minute(.twoDigits).second(.twoDigits)) } }
-
-struct PathChips: View {
-    var parts: [String]
-    var body: some View {
-        HStack(spacing: 8) {
-            ForEach(Array(parts.enumerated()), id: \.offset) { i, p in
-                Text(p).font(.system(size: TS.small, weight: .medium)).foregroundStyle(K.text)
-                    .padding(.horizontal, 9).frame(height: 28)
-                    .background(RoundedRectangle(cornerRadius: 7).fill(K.card))
-                    .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(i == parts.count - 1 ? K.accent : K.separator, lineWidth: i == parts.count - 1 ? 1 : 0.75))
-                if i < parts.count - 1 { Image(systemName: "chevron.right").font(.system(size: 9)).foregroundStyle(K.text3) }
-            }
-        }
-    }
-}
 
 /// Quick Look thumbnail of a file (rendered by the system; Kanso keeps nothing).
 struct Thumb: View {
@@ -486,7 +489,7 @@ struct ActivityFilterBar: View {
         }
         .padding(2).frame(maxWidth: .infinity)
         .background(Capsule().fill(K.fill))
-        .overlay(Capsule().strokeBorder(K.separator, lineWidth: 0.75))
+        .overlay(Capsule().strokeBorder(K.controlStroke, lineWidth: 0.75))   // a control edge: 3:1
         .accessibilityElement(children: .contain).accessibilityLabel("Show")
     }
 }

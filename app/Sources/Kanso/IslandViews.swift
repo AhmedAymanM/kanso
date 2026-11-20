@@ -5,30 +5,39 @@ import SwiftUI
 // The island's views (design handoff 2026-09-30). The black island fades into a clear Liquid Glass lip at the bottom;
 // text stays on the black part, and only glass controls sit in the lip. Fixed palette, not themed.
 
+/// Ink on the island. The notch skin forces dark, so these resolve to white on black there; on the capsule they follow
+/// the system appearance, so light glass gets dark ink.
 enum IslandInk {
-    static let text = Color(nsColor: NSColor(hex: 0xF5F5F7))
-    static let text2 = Color.white.opacity(0.6)
-    static let text3 = Color.white.opacity(0.6)   // 6.2:1 on black; 40% failed 4.5:1 for 11 pt text
-    static let control = Color.white.opacity(0.12)
-    static let rim = Color.white.opacity(0.18)
+    static let text = Color.dyn(0x1D1D1F, 0xF5F5F7)
+    static let text2 = Color.dyn(0x636368, 0xFFFFFF, 1, 0.7)
+    static let text3 = Color.dyn(0x666669, 0xFFFFFF, 1, 0.62)   // floor: 7.8:1 on black, 5.1:1 on light glass
+    static let control = ink(0.14)
+    static let rim = ink(0.18)
+    /// White at `a` on dark; on light, text-strength values (0.3 and up) stay readable (at least 72% ink) and fills get lighter.
+    static func ink(_ a: Double) -> Color {
+        Color(nsColor: NSColor(name: nil) { ap in
+            ap.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? NSColor(white: 1, alpha: a) : NSColor(hex: 0x1D1D1F, alpha: a >= 0.3 ? max(a, 0.72) : a * 0.7)
+        })
+    }
 }
 
-/// The whole panel is transparent; only the island shape draws (and takes clicks), anchored at the top center.
+/// The whole panel is transparent; only the island shape draws (and takes clicks), anchored at the top center (bottom center above the Dock).
 struct IslandRoot: View {
     @EnvironmentObject var island: Island
     @ObservedObject private var a11y = AccessibilityOptions.shared   // re-render when Reduce Transparency etc. change
     var body: some View {
         VStack(spacing: 0) {
+            if island.bottom { Spacer(minLength: 0) }
             if island.visible {
                 // From the notch, the island grows out from under the hardware notch and shrinks back into it;
                 // the capsule fades and scales in place.
                 IslandBody().transition(island.skin == .notch && !Motion.reduced
                     ? .modifier(active: NotchReveal(progress: 0, notch: island.notch), identity: NotchReveal(progress: 1, notch: island.notch))
-                    : .opacity.combined(with: .scale(scale: 0.92, anchor: .top)))
+                    : .opacity.combined(with: .scale(scale: 0.92, anchor: island.bottom ? .bottom : .top)))
             }
-            Spacer(minLength: 0)
+            if !island.bottom { Spacer(minLength: 0) }
         }
-        .frame(width: Island.size.width, height: Island.size.height, alignment: .top)
+        .frame(width: Island.size.width, height: Island.size.height, alignment: island.bottom ? .bottom : .top)
     }
 }
 
@@ -60,13 +69,15 @@ struct IslandShape: Shape {
 struct IslandBody: View {
     @EnvironmentObject var island: Island
     @EnvironmentObject var m: AppModel
+    @Environment(\.colorScheme) private var colorScheme
     @ObservedObject private var a11y = AccessibilityOptions.shared
 
     var notchSkin: Bool { island.skin == .notch }
-    var width: CGFloat { island.expanded ? 480 : (notchSkin ? max(290, island.notch.width + 110) : 320) }
+    var width: CGFloat { island.expanded ? 480 : (notchSkin ? max(290, island.notch.width + 140) : 320) }
     var radius: CGFloat { island.expanded ? 30 : (notchSkin ? 20 : 22) }
-    /// Text never enters the clear lip: expanded 64 pt, compact 30 pt (capsule compact 14).
-    var lip: CGFloat { island.expanded ? 92 : (notchSkin ? 34 : 14) }
+    /// Text never enters the lip (expanded: the hints and glass buttons; notch compact: the melt). The compact capsule is
+    /// exactly its 38 pt line.
+    var lip: CGFloat { island.expanded ? 92 : (notchSkin ? 34 : 0) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -76,14 +87,17 @@ struct IslandBody: View {
         .overlay(alignment: .bottom) { if island.expanded { IslandLip().padding(.bottom, 16).stagger(5) } }
         .padding(.horizontal, notchSkin ? 10 : 0)   // room for the ears
         .frame(width: width)
-        .background { IslandFill(shape: IslandShape(ears: notchSkin, radius: radius), expanded: island.expanded) }
+        .background {
+            if notchSkin { IslandFill(shape: IslandShape(ears: true, radius: radius), expanded: island.expanded) }
+            else { CapsuleFill(shape: IslandShape(ears: false, radius: radius)) }
+        }
         .overlay { if case .reading? = island.current, !Motion.reduced, !Motion.snapshot, !island.expanded { IslandBeam(shape: IslandShape(ears: notchSkin, radius: radius), top: notchSkin ? island.notch.height : 0).allowsHitTesting(false) } }
         .clipShape(IslandShape(ears: notchSkin, radius: radius))
-        .environment(\.colorScheme, .dark)
+        .environment(\.colorScheme, notchSkin ? .dark : colorScheme)   // the notch is always black; the capsule is glass in the system's appearance
         .contentShape(IslandShape(ears: notchSkin, radius: radius))
         .onHover { island.hover($0) }
         .onTapGesture { if !island.expanded { island.expand() } }
-        .padding(.top, notchSkin ? 0 : 2)
+        .padding(island.bottom ? .bottom : .top, notchSkin ? 0 : 2)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Kanso")
     }
@@ -154,16 +168,41 @@ struct IslandFill: View {
             shape.fill(Color.black)
                 .overlay { if Motion.contrast { shape.stroke(K.text.opacity(0.6), lineWidth: 1) } }
         } else {
-            let stops: [Gradient.Stop] = expanded
-                ? [.init(color: .black, location: 0), .init(color: .black, location: 0.7), .init(color: .black.opacity(0.55), location: 0.84), .init(color: .clear, location: 1)]
-                : [.init(color: .black, location: 0), .init(color: .black, location: 0.58), .init(color: .black.opacity(0.65), location: 0.77), .init(color: .clear, location: 1)]
-            ZStack {
-                if #available(macOS 26, *) { Color.clear.glassEffect(.regular, in: shape) }   // the lip shows real frosted Liquid Glass
-                shape.fill(LinearGradient(stops: stops, startPoint: .top, endPoint: .bottom))
-                shape.stroke(LinearGradient(stops: [.init(color: .clear, location: 0), .init(color: .white.opacity(0.25), location: 0.85), .init(color: .white.opacity(0.85), location: 1)], startPoint: .top, endPoint: .bottom), lineWidth: 1.5)
-                shape.stroke(Color.white.opacity(0.18), lineWidth: 6).blur(radius: 7).mask(LinearGradient(colors: [.clear, .white], startPoint: .init(x: 0.5, y: 0.8), endPoint: .bottom))
+            // The melt into glass is confined to the last 12 pt; everything above, including the esc row, is solid black.
+            GeometryReader { g in
+                let h = max(g.size.height, 1), m0 = max(0, 1 - 12 / h)
+                let stops: [Gradient.Stop] = [.init(color: .black, location: 0), .init(color: .black, location: m0), .init(color: .black.opacity(0.55), location: m0 + (1 - m0) * 0.5), .init(color: .clear, location: 1)]
+                fill(stops)
             }
         }
+    }
+
+    @ViewBuilder private func fill(_ stops: [Gradient.Stop]) -> some View {
+        ZStack {
+            if #available(macOS 26, *) { Color.clear.glassEffect(.regular, in: shape) }   // the lip shows real frosted Liquid Glass
+            shape.fill(LinearGradient(stops: stops, startPoint: .top, endPoint: .bottom))
+            shape.stroke(LinearGradient(stops: [.init(color: .clear, location: 0), .init(color: .white.opacity(0.25), location: 0.85), .init(color: .white.opacity(0.85), location: 1)], startPoint: .top, endPoint: .bottom), lineWidth: 1.5)
+            shape.stroke(Color.white.opacity(0.18), lineWidth: 6).blur(radius: 7).mask(LinearGradient(colors: [.clear, .white], startPoint: .init(x: 0.5, y: 0.8), endPoint: .bottom))
+        }
+    }
+}
+
+/// Capsule skin: Liquid Glass at 92% (`K.glass`), material before macOS 26, solid with Reduce Transparency,
+/// and a 1 pt control edge with Increase Contrast.
+struct CapsuleFill: View {
+    var shape: IslandShape
+    @ObservedObject private var a11y = AccessibilityOptions.shared
+    var body: some View {
+        ZStack {
+            if Motion.solid {
+                shape.fill(K.glassSolid)
+            } else {
+                if #available(macOS 26, *), Glass26.on { Color.clear.glassEffect(.regular, in: shape) } else { shape.fill(.ultraThinMaterial) }
+                shape.fill(K.glass)
+            }
+            shape.stroke(Motion.contrast ? K.controlStroke : K.separator, lineWidth: Motion.contrast ? 1 : 0.75)
+        }
+        .shadow(color: .black.opacity(0.14), radius: 12, y: 6)
     }
 }
 
@@ -175,7 +214,7 @@ struct IslandLip: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            Text(hints).font(.system(size: TS.meta)).foregroundStyle(Color.white.opacity(0.5)).lineLimit(1)
+            Text(hints).font(.system(size: TS.meta)).foregroundStyle(IslandInk.text3).lineLimit(1)
             Spacer()
             LipButtons {
                 IslandGlassButton(symbol: "keyboard", label: "Keyboard shortcuts") { withAnimation(Motion.spring()) { island.shortcuts.toggle() } }.keyboardShortcut("/")
@@ -229,14 +268,14 @@ struct IslandGlassButton: View {
     @State private var hover = false
     var body: some View {
         Button(action: action) {
-            Image(systemName: symbol).font(.system(size: TS.emphasis)).foregroundStyle(Color.white.opacity(0.9)).frame(width: 32, height: 32)
+            Image(systemName: symbol).font(.system(size: TS.emphasis)).foregroundStyle(IslandInk.ink(0.9)).frame(width: 32, height: 32)
                 .background {
                     if inCapsule { Color.clear }   // the capsule behind both buttons is the glass
                     else if #available(macOS 26, *), !Motion.solid { Color.clear.glassEffect(.clear, in: Circle()) }
                     else { Circle().fill(IslandInk.control) }
                 }
                 .overlay { if !inCapsule { Circle().strokeBorder(LinearGradient(colors: [.white.opacity(0.4), .white.opacity(0.12)], startPoint: .top, endPoint: .bottom), lineWidth: 0.75) } }
-                .overlay(Circle().fill(Color.white.opacity(hover ? 0.1 : 0)))
+                .overlay(Circle().fill(IslandInk.ink(hover ? 0.1 : 0)))
         }
         .buttonStyle(PlainRowStyle()).onHover { hover = $0 }
         .focusRing(16).help(label).accessibilityLabel(label)
@@ -259,7 +298,7 @@ struct IslandExpanded: View {
                 else if island.overview { OverviewBody() }
                 else if let n = island.current { notice(n).id(n.id) }
             }
-            .padding(.horizontal, 20).padding(.top, 2)   // the black island starts right under the notch: no extra space
+            .padding(.horizontal, 20).padding(.top, island.skin == .notch ? 2 : 16)   // under the notch: no extra space; the capsule needs air at its top edge
             .transition(.opacity)
             if island.askAvailable && !island.shortcuts && !island.overview {
                 AskField().padding(.horizontal, 20).padding(.top, 10).stagger(4)
@@ -276,6 +315,7 @@ struct IslandExpanded: View {
             switch n {
             case .renamed(let a): RenameBody(a: a)
             case .duplicate(let a) where a.pending: DuplicateBody(a: a)
+            case .offer(.install(let o)) where !o.isCurrent: SimpleBody(n: n, trashToggle: true)
             default: SimpleBody(n: n)
             }
         }
@@ -307,7 +347,7 @@ struct TagDots: View {
                         Circle().fill(Self.color(t)).frame(width: 9, height: 9).overlay(Circle().strokeBorder(Color.black, lineWidth: 1.5).padding(-1.5))
                     }
                 }
-                Text(tags.joined(separator: ", ")).font(.system(size: TS.meta)).foregroundStyle(Color.white.opacity(0.55)).lineLimit(1)
+                Text(tags.joined(separator: ", ")).font(.system(size: TS.meta)).foregroundStyle(IslandInk.ink(0.55)).lineLimit(1)
             }
             .accessibilityLabel("Tags: " + tags.joined(separator: ", "))
         }
@@ -320,7 +360,7 @@ struct NoticeHead: View {
     var tags: [String] = []
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: icon).font(.system(size: TS.micro, weight: .bold)).foregroundStyle(tint.islandGlyph).frame(width: 20, height: 20).background(Circle().fill(tint.islandFill))
+            Image(systemName: icon).font(.system(size: TS.meta, weight: .bold)).foregroundStyle(tint.islandGlyph).frame(width: 20, height: 20).background(Circle().fill(tint.islandFill))
             Text(title + " ·").font(.system(size: TS.body, weight: .semibold)).foregroundStyle(IslandInk.text).lineLimit(1)
             Text(time).font(.system(size: TS.meta)).foregroundStyle(IslandInk.text3)
             Spacer(minLength: 8)
@@ -341,7 +381,7 @@ struct PreviewTile: View {
             .overlay(alignment: .topTrailing) {
                 if eye && hover {
                     Button { island.quickLook() } label: {
-                        Image(systemName: "eye").font(.system(size: TS.micro)).foregroundStyle(.white).frame(width: 20, height: 20).background(Circle().fill(Color.black.opacity(0.6)))
+                        Image(systemName: "eye").font(.system(size: TS.meta)).foregroundStyle(.white).frame(width: 20, height: 20).background(Circle().fill(Color.black.opacity(0.6)))
                     }
                     .buttonStyle(.plain).padding(4).help("Quick Look").accessibilityLabel("Quick Look").transition(.opacity)
                 }
@@ -359,13 +399,13 @@ struct NameUnit: View {
     @State private var hover = false
     var body: some View {
         VStack(spacing: 2) {
-            if let old { Text(old).font(.system(size: TS.meta, design: .monospaced)).foregroundStyle(Color.white.opacity(0.6)).strikethrough().lineLimit(1).truncationMode(.middle) }
+            if let old { Text(old).font(.system(size: TS.meta, design: .monospaced)).foregroundStyle(IslandInk.ink(0.6)).strikethrough().lineLimit(1).truncationMode(.middle) }
             HStack(spacing: 6) {
                 Button { NSWorkspace.shared.open(URL(fileURLWithPath: path)) } label: {
                     Text(name).font(.system(size: size, weight: .bold)).foregroundStyle(IslandInk.text).lineLimit(2).truncationMode(.middle).multilineTextAlignment(.center).help(name)
                 }
                 .buttonStyle(.plain).help("Open")
-                Button { AppModel.shared.reveal(path) } label: { Image(systemName: "arrow.up.right").font(.system(size: TS.body)).foregroundStyle(Color.white.opacity(0.45)) }
+                Button { AppModel.shared.reveal(path) } label: { Image(systemName: "arrow.up.right").font(.system(size: TS.body)).foregroundStyle(IslandInk.ink(0.45)) }
                     .buttonStyle(.plain).opacity(hover ? 1 : 0).help("Show in Finder (⌘R)").accessibilityLabel("Show in Finder")
             }
         }
@@ -382,10 +422,10 @@ struct Breadcrumb: View {
     var body: some View {
         HStack(spacing: 4) {
             ForEach(Array(ancestors.enumerated()), id: \.offset) { _, a in
-                Text(a).font(.system(size: TS.meta)).foregroundStyle(Color.white.opacity(0.6)).lineLimit(1).truncationMode(.tail)
-                Image(systemName: "chevron.right").font(.system(size: 8, weight: .semibold)).foregroundStyle(Color.white.opacity(0.3))
+                Text(a).font(.system(size: TS.meta)).foregroundStyle(IslandInk.ink(0.6)).lineLimit(1).truncationMode(.tail)
+                Image(systemName: "chevron.right").font(.system(size: 8, weight: .semibold)).foregroundStyle(IslandInk.ink(0.3))
             }
-            Text("\(emoji) \(current)").font(.system(size: TS.meta)).foregroundStyle(Color.white.opacity(0.85)).lineLimit(1).fixedSize()
+            Text("\(emoji) \(current)").font(.system(size: TS.meta)).foregroundStyle(IslandInk.ink(0.85)).lineLimit(1).fixedSize()
         }
         .frame(maxWidth: .infinity, alignment: leading ? .leading : .center)
     }
@@ -399,12 +439,12 @@ struct SubtleAction: View {
     var body: some View {
         Button(action: action.run) {
             HStack(spacing: 6) {
-                Image(systemName: action.icon).font(.system(size: TS.small)).foregroundStyle(Color.white.opacity(0.7))
-                Text(label ?? action.label).font(.system(size: TS.small, weight: .medium)).foregroundStyle(Color.white.opacity(0.85))
-                if !action.key.isEmpty { Text(action.key).font(.system(size: TS.meta, weight: .medium)).foregroundStyle(Color.white.opacity(0.6)) }
+                Image(systemName: action.icon).font(.system(size: TS.small)).foregroundStyle(IslandInk.ink(0.7))
+                Text(label ?? action.label).font(.system(size: TS.small, weight: .medium)).foregroundStyle(IslandInk.ink(0.85))
+                if !action.key.isEmpty { Text(action.key).font(.system(size: TS.meta, weight: .medium)).foregroundStyle(IslandInk.ink(0.6)) }
             }
             .padding(.horizontal, 12).frame(height: 26)
-            .background(Capsule().fill(Color.white.opacity(selected ? 0.15 : 0.08)))
+            .background(Capsule().fill(IslandInk.ink(selected ? 0.15 : 0.08)))
         }
         .buttonStyle(PressStyle())
         .accessibilityLabel(action.label)
@@ -474,9 +514,9 @@ struct DuplicateBody: View {
                 Text(label).font(.system(size: TS.meta)).foregroundStyle(IslandInk.text3).lineLimit(1)
                 HStack(spacing: 4) {
                     Text(name).font(.system(size: TS.emphasis, weight: .semibold)).foregroundStyle(IslandInk.text).lineLimit(1).truncationMode(.middle).help(name)
-                    Button { m.reveal(path) } label: { Image(systemName: "arrow.up.right").font(.system(size: TS.meta)).foregroundStyle(Color.white.opacity(0.45)) }.buttonStyle(.plain).accessibilityLabel("Show in Finder")
+                    Button { m.reveal(path) } label: { Image(systemName: "arrow.up.right").font(.system(size: TS.meta)).foregroundStyle(IslandInk.ink(0.45)) }.buttonStyle(.plain).accessibilityLabel("Show in Finder")
                 }
-                Text("\(m.settings.emoji(for: folder)) \(folder)").font(.system(size: TS.meta)).foregroundStyle(Color.white.opacity(0.7)).lineLimit(1)
+                Text("\(m.settings.emoji(for: folder)) \(folder)").font(.system(size: TS.meta)).foregroundStyle(IslandInk.ink(0.7)).lineLimit(1)
             }
             Spacer(minLength: 0)
         }
@@ -487,6 +527,7 @@ struct DuplicateBody: View {
 struct SimpleBody: View {
     @EnvironmentObject var m: AppModel
     var n: Notice
+    var trashToggle = false   // the install offer: "Trash the download", ticked, remembered
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 10) {
@@ -497,23 +538,52 @@ struct SimpleBody: View {
                 }
                 Spacer(minLength: 0)
             }
+            if case .offer(.install(let o)) = n, let sum = o.checksum { ChecksumRow(sum: sum) }
+            if trashToggle {
+                Toggle("Trash the download", isOn: m.binding(\.trashDownload)).toggleStyle(.checkbox)
+                    .font(.system(size: TS.small)).foregroundStyle(IslandInk.text)
+            }
             ActionRow()
         }
     }
     var title: String {
-        if case .installer(let a) = n { return "Installed \(a.details["installer"] ?? "the app")" }
+        if case .offer(.install(let o)) = n, o.existing == .none { return o.signature == .unsigned ? "\(o.info.name) isn't signed" : "Install \(o.info.name)" }
         if case .duplicate(let a) = n { return a.shelf == "Trash" ? n.line : "Copy of \(((a.details["kept"] ?? a.name) as NSString).lastPathComponent) held" }
         return n.line
     }
     var sub: String? {
         switch n {
-        case .installer(let a): return "\(a.srcName) (\((Int64(a.details["size"] ?? "") ?? 0).bytes)) moved to Trash. Put Back any time."
+        case .offer(.install(let o)):
+            if o.signature == .unsigned, !o.isCurrent { return "Kanso can't check who made it. Install only if you trust where it came from; macOS may still refuse to open it. Compare the checksum with the one its developer publishes." }
+            if o.existing == .none { return "Copies it to Applications, checks its signature, then opens it from there." }
+            if case .older = o.existing { return "The old copy goes to the Trash, so you can put it back." }
+            return "Nothing to do. Kanso leaves the download where it is."
+        case .offer(.trashZip): return "Its contents are next to it. The zip goes to the Trash; ⌘Z puts it back."
+        case .offer(.trashTorrent): return "A torrent app opened it. It goes to the Trash; ⌘Z puts it back."
         case .duplicate: return "Identical by size + hash."
         case .renameReview: return "Nothing changes until you review."
         case .sortingOff: return "Turn it on, or leave it off."
         case .batch: return "Undo puts every file from this run back."
         default: return nil
         }
+    }
+}
+
+/// An unsigned download's SHA-256, to compare with the developer's published checksum.
+struct ChecksumRow: View {
+    var sum: String
+    @State private var copied = false
+    var body: some View {
+        HStack(spacing: 8) {
+            Text("SHA-256").font(.system(size: TS.meta, weight: .semibold)).foregroundStyle(IslandInk.text3)
+            Text(sum).font(.system(size: TS.meta, design: .monospaced)).foregroundStyle(IslandInk.text2).lineLimit(1).truncationMode(.middle).textSelection(.enabled)
+            Button { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(sum, forType: .string); copied = true } label: {
+                Image(systemName: copied ? "checkmark" : "doc.on.doc").font(.system(size: TS.meta)).foregroundStyle(IslandInk.text2).frame(width: 28, height: 28).contentShape(Rectangle())
+            }
+            .buttonStyle(.plain).help("Copy the checksum").accessibilityLabel(copied ? "Checksum copied" : "Copy the checksum")
+        }
+        .padding(.horizontal, 10).frame(height: 30).background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(IslandInk.ink(0.06)))
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -538,11 +608,11 @@ struct CountedList: View {
                         Text(title(n)).font(.system(size: TS.body, weight: .semibold)).foregroundStyle(IslandInk.text).lineLimit(1).truncationMode(.middle).help(title(n))
                     }
                     Spacer(minLength: 8)
-                    if case .renamed(let a) = n { Text("\(m.settings.emoji(for: a.shelf)) \(a.shelf)").font(.system(size: TS.meta)).foregroundStyle(Color.white.opacity(0.7)) }
+                    if case .renamed(let a) = n { Text("\(m.settings.emoji(for: a.shelf)) \(a.shelf)").font(.system(size: TS.meta)).foregroundStyle(IslandInk.ink(0.7)) }
                     if sel { Text("⌘Z").font(.system(size: TS.meta)).foregroundStyle(IslandInk.text3) }
                 }
                 .padding(.horizontal, 10).padding(.vertical, 6)
-                .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.white.opacity(sel ? 0.10 : 0)))
+                .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(IslandInk.ink(sel ? 0.10 : 0)))
                 .contentShape(Rectangle()).onTapGesture { island.index = i; island.selection = i }
                 // VoiceOver: one button per row (the keyboard uses ↑ ↓ and ⌘Z through the island's key handler).
                 .accessibilityElement(children: .combine).accessibilityAddTraits(.isButton)
@@ -634,7 +704,7 @@ struct ShortcutsList: View {
     }
     func group(_ title: String, _ rows: [(String, String)]) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(title.uppercased()).font(.system(size: TS.micro, weight: .semibold)).kerning(0.5).foregroundStyle(IslandInk.text3)
+            Text(title.uppercased()).font(.system(size: TS.meta, weight: .semibold)).kerning(0.5).foregroundStyle(IslandInk.text3)
             ForEach(rows, id: \.0) { r in
                 HStack(spacing: 6) {
                     Text(r.0).font(.system(size: TS.small)).foregroundStyle(IslandInk.text).fixedSize(horizontal: false, vertical: true)
@@ -644,7 +714,7 @@ struct ShortcutsList: View {
             }
         }
         .padding(10).frame(maxWidth: .infinity, alignment: .topLeading)
-        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.white.opacity(0.06)))
+        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(IslandInk.ink(0.06)))
     }
 }
 
@@ -693,7 +763,7 @@ struct OverviewBody: View {
                     if m.needs.count > 1 {
                         HStack(spacing: 4) {
                             ForEach(0..<min(m.needs.count, 6), id: \.self) { d in
-                                Capsule().fill(Color.white.opacity(d == i ? 0.9 : 0.3)).frame(width: d == i ? 18 : 6, height: 6)
+                                Capsule().fill(IslandInk.ink(d == i ? 0.9 : 0.3)).frame(width: d == i ? 18 : 6, height: 6)
                             }
                         }
                         .accessibilityHidden(true)
@@ -703,7 +773,7 @@ struct OverviewBody: View {
                 NeedCard(need: m.needs[i], actions: Array(island.actions().prefix(cardActs)))
                     .id(m.needs[i].id).transition(Motion.reduced ? .opacity : .opacity.combined(with: .offset(x: 24)))
                     .background(alignment: .bottom) {   // the next card peeks out underneath
-                        if m.needs.count > 1 { RoundedRectangle(cornerRadius: 20, style: .continuous).fill(Color(nsColor: NSColor(hex: 0x161618))).padding(.horizontal, 14).offset(y: 6) }
+                        if m.needs.count > 1 { RoundedRectangle(cornerRadius: 20, style: .continuous).fill(Color.dyn(0xE8E6E1, 0x161618)).padding(.horizontal, 14).offset(y: 6) }
                     }
                     .padding(.bottom, m.needs.count > 1 ? 6 : 0)
                     .stagger(1)
@@ -733,8 +803,8 @@ struct OverviewBody: View {
             Text(sel ? "⌘Z" : a.ts.shortAgo).font(.system(size: TS.meta)).foregroundStyle(IslandInk.text3)
         }
         .padding(.horizontal, 12).frame(height: 34)
-        .background(RoundedRectangle(cornerRadius: 15, style: .continuous).fill(Color.white.opacity(sel ? 0.14 : 0.06)))
-        .overlay(RoundedRectangle(cornerRadius: 15, style: .continuous).strokeBorder(Color.white.opacity(0.10), lineWidth: 0.75))
+        .background(RoundedRectangle(cornerRadius: 15, style: .continuous).fill(IslandInk.ink(sel ? 0.14 : 0.06)))
+        .overlay(RoundedRectangle(cornerRadius: 15, style: .continuous).strokeBorder(IslandInk.ink(0.10), lineWidth: 0.75))
         .contentShape(Rectangle()).onTapGesture { island.selection = row }
         .accessibilityElement(children: .combine).accessibilityAddTraits(.isButton)
         .accessibilityAction { island.selection = row }
@@ -770,8 +840,8 @@ struct NeedCard: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(Color(nsColor: NSColor(hex: 0x1C1C1E))))
-        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(Color.white.opacity(0.12), lineWidth: 1))
+        .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(Color.dyn(0xFFFFFF, 0x1C1C1E)))
+        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(IslandInk.ink(0.12), lineWidth: 1))
         .accessibilityElement(children: .contain)
         .accessibilityLabel("\(kind): \(title)")
     }
@@ -813,7 +883,7 @@ struct NeedCard: View {
         switch need {
         case .duplicate(let a): PreviewTile(path: a.dst, size: CGSize(width: 86, height: 112))
         case .renames(let p, _): PreviewTile(path: p.first?.path ?? "", size: CGSize(width: 86, height: 112), eye: false)
-        case .rule, .shelf: Image(systemName: need.icon).font(.system(size: TS.display)).foregroundStyle(need.tint.islandGlyph).frame(width: 86, height: 86).background(Circle().fill(need.tint.islandFill))
+        case .rule, .shelf: Image(systemName: need.icon).font(.system(size: TS.title)).foregroundStyle(need.tint.islandGlyph).frame(width: 86, height: 86).background(Circle().fill(need.tint.islandFill))
         }
     }
 }
@@ -825,7 +895,7 @@ struct NameUnitLeading: View {
     var body: some View {
         HStack(spacing: 6) {
             Text(name).font(.system(size: TS.heading, weight: .bold)).foregroundStyle(IslandInk.text).lineLimit(1).truncationMode(.middle).help(name)
-            Button { AppModel.shared.reveal(path) } label: { Image(systemName: "arrow.up.right").font(.system(size: TS.small)).foregroundStyle(Color.white.opacity(0.45)) }
+            Button { AppModel.shared.reveal(path) } label: { Image(systemName: "arrow.up.right").font(.system(size: TS.small)).foregroundStyle(IslandInk.ink(0.45)) }
                 .buttonStyle(.plain).opacity(hover ? 1 : 0).help("Show in Finder (⌘R)").accessibilityLabel("Show in Finder")
         }
         .onHover { hover = $0 }
@@ -845,9 +915,9 @@ struct IslandKey: View {
     var text: String
     var dark: Bool
     var body: some View {
-        Text(text).font(.system(size: TS.meta, weight: .medium)).foregroundStyle(dark ? .white.opacity(0.7) : K.text2)
+        Text(text).font(.system(size: TS.meta, weight: .medium)).fixedSize().foregroundStyle(dark ? IslandInk.ink(0.7) : K.text2)
             .padding(.horizontal, 6).frame(height: 18)
-            .background(RoundedRectangle(cornerRadius: 5).fill(dark ? .white.opacity(0.12) : K.fill))
+            .background(RoundedRectangle(cornerRadius: 5).fill(dark ? IslandInk.ink(0.14) : K.fill))
     }
 }
 

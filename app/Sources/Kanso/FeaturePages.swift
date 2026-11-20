@@ -19,19 +19,19 @@ struct Showcase: View {
     var body: some View {
         HStack(spacing: 28) {
             if let art { Illustration(kind: art, tint: tint) }
-            else { Image(systemName: icon).font(.system(size: TS.hero, weight: .light)).foregroundStyle(tint.fg).frame(width: 64).symbolEffect(.bounce, value: playing) }
+            else { Image(systemName: icon).font(.system(size: TS.display, weight: .light)).foregroundStyle(tint.fg).frame(width: 64).symbolEffect(.bounce, value: playing) }
             VStack(alignment: .leading, spacing: 10) {
-                Text(headline).font(.system(size: TS.headline, weight: .regular, design: .serif)).tracking(-0.4).foregroundStyle(tint.fg)
+                Text(headline).font(.system(size: TS.title, weight: .regular, design: .serif)).tracking(-0.4).foregroundStyle(tint.fg)
                 HStack(spacing: 6) {
                     ForEach(Array(steps.enumerated()), id: \.offset) { i, step in
                         if i <= shown {
-                            if i > 0 { Image(systemName: "arrow.right").font(.system(size: TS.micro, weight: .semibold)).transition(.opacity) }
+                            if i > 0 { Image(systemName: "arrow.right").font(.system(size: TS.meta, weight: .semibold)).transition(.opacity) }
                             Text(step).transition(.asymmetric(insertion: .offset(x: -8).combined(with: .opacity), removal: .opacity))
                         }
                     }
                 }
-                .font(.system(size: TS.small, design: .monospaced)).foregroundStyle(tint.fg)
-                .padding(.horizontal, 12).frame(height: 28).background(Capsule().fill(K.card.opacity(0.6)))
+                .font(.system(size: TS.small)).foregroundStyle(tint.fg)
+                .padding(.vertical, 4)
             }
             Spacer(minLength: 0)
             VStack(spacing: 8) {
@@ -46,10 +46,10 @@ struct Showcase: View {
                 Text("How it works").font(.system(size: TS.meta)).foregroundStyle(tint.fg)
             }
         }
-        .padding(.horizontal, 28).padding(.vertical, 32)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(tint.bg))
-        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(tint.stroke, lineWidth: 0.75))
+        .padding(.horizontal, 28).padding(.vertical, 24)
+        .frame(maxWidth: .infinity, maxHeight: 160, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(tint.bg))
+        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(tint.stroke, lineWidth: 0.75))
     }
 
     func play() {
@@ -142,14 +142,14 @@ struct ChoiceCard<Preview: View>: View {
                 preview.frame(maxWidth: .infinity, minHeight: 86).background(RoundedRectangle(cornerRadius: 2).fill(K.window))   // 14 card − 12 padding
                 HStack(spacing: 6) {
                     Text(title).font(.system(size: TS.body, weight: .semibold)).foregroundStyle(K.text)
-                    if soon { Text("Soon").font(.system(size: TS.micro, weight: .medium)).foregroundStyle(K.text3).padding(.horizontal, 6).frame(height: 16).background(Capsule().fill(K.fill)) }
+                    if soon { Text("Soon").font(.system(size: TS.meta, weight: .medium)).foregroundStyle(K.text3).padding(.horizontal, 6).frame(height: 16).background(Capsule().fill(K.fill)) }
                 }
                 Text(caption).font(.system(size: TS.small)).foregroundStyle(K.text2).fixedSize(horizontal: false, vertical: true)
             }
             .padding(12)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)   // cards in a row share one height
             .background { if selected { RoundedRectangle(cornerRadius: 14).fill(K.card).liquid(RoundedRectangle(cornerRadius: 14), interactive: false) } else { RoundedRectangle(cornerRadius: 14).fill(K.fill) } }
-            .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(selected ? K.switchOn.opacity(0.55) : K.separator, lineWidth: selected ? 1.25 : 0.75))
+            .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(selected ? K.accent : K.controlStroke, lineWidth: selected ? 1.25 : 0.75))
             .shadow(color: .black.opacity(selected ? 0.08 : 0), radius: 12, y: 6)
             .scaleEffect(selected || Motion.reduced ? 1 : 0.985)
             .animation(Motion.reduced ? .easeOut(duration: 0.2) : .spring(response: 0.35, dampingFraction: 0.75), value: selected)
@@ -213,11 +213,11 @@ struct SortingPage: View {
                 let placed = m.actions.filter { $0.root == r || $0.root == (r as NSString).expandingTildeInPath }.filter { Calendar.current.isDateInToday($0.ts) && $0.kind == .sorted }.count
                 VStack(spacing: 0) {
                     HStack(spacing: 12) {
-                        Text(folderEmoji(r)).font(.system(size: TS.headline)).frame(width: 30)
+                        Text(folderEmoji(r)).font(.system(size: TS.emoji)).frame(width: 30)
                             .overlay(alignment: .bottomTrailing) { if !allowed { Image(systemName: "exclamationmark.triangle.fill").font(.system(size: TS.meta)).foregroundStyle(.yellow).offset(x: 6, y: 4) } }
                         VStack(alignment: .leading, spacing: 1) {
                             Text((r as NSString).lastPathComponent).font(.system(size: TS.body, weight: .medium)).foregroundStyle(K.text)
-                            Text(allowed ? "\((r as NSString).abbreviatingWithTildeInPath) · \(placed) placed today" : "Permission not allowed").lineLimit(1).truncationMode(.middle).help(allowed ? (r as NSString).expandingTildeInPath : "Kanso can't read this folder. Allow it in Privacy & Security.").font(.system(size: TS.small)).foregroundStyle(allowed ? K.text2 : Tint.duplicate.fg)
+                            Text(allowed ? "\((r as NSString).abbreviatingWithTildeInPath) · \(placed) placed today" : "Off · Allow in Privacy & Security").lineLimit(1).truncationMode(.middle).help(allowed ? (r as NSString).expandingTildeInPath : "Kanso can't read this folder. Allow it in Privacy & Security.").font(.system(size: TS.small)).foregroundStyle(allowed ? K.text2 : Tint.duplicate.fg)
                         }
                         Spacer()
                         if allowed {
@@ -449,7 +449,7 @@ struct RenamingPage: View {
             HStack(spacing: 12) {
                 Image(systemName: "eye").font(.system(size: TS.body)).foregroundStyle(Tint.rename.fg)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("PREVIEW").font(.system(size: TS.micro, weight: .semibold)).kerning(0.6).foregroundStyle(Tint.rename.fg)
+                    Text("PREVIEW").font(.system(size: TS.meta, weight: .semibold)).kerning(0.6).foregroundStyle(Tint.rename.fg)
                     Text(preview).font(.system(size: TS.emphasis, weight: .medium, design: .monospaced)).foregroundStyle(Tint.rename.fg).textSelection(.enabled)
                 }
                 Spacer()
@@ -538,7 +538,7 @@ struct DuplicatesPage: View {
     var heldCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 12) {
-                Text("🪞").font(.system(size: TS.headline))
+                Text("🪞").font(.system(size: TS.emoji))
                 VStack(alignment: .leading, spacing: 1) {
                     Text(m.duplicatesBytes.bytes).font(.system(size: TS.title, weight: .semibold)).foregroundStyle(Tint.duplicate.fg)
                     Text("in Duplicates · \(held.files) \(held.files == 1 ? "file" : "files")").font(.system(size: TS.small)).foregroundStyle(Tint.duplicate.fg)
@@ -591,10 +591,10 @@ struct DuplicatesPage: View {
 /// A single big shelf emoji in a choice card preview.
 struct ShelfGlyph: View {
     var emoji: String
-    var body: some View { Text(emoji).font(.system(size: TS.hero)).frame(maxWidth: .infinity, minHeight: 86) }
+    var body: some View { Text(emoji).font(.system(size: TS.display)).frame(maxWidth: .infinity, minHeight: 86) }
 }
 
-// MARK: Tagging and Smart Eject (not designed yet: same anatomy, minimal)
+// MARK: Tagging and Smart Installer
 
 /// A Finder tag: coloured dot and name.
 struct TagChip: View {
@@ -656,43 +656,28 @@ struct TaggingPage: View {
     }
 }
 
-struct SmartEjectPage: View {
+struct SmartInstallerPage: View {
     @EnvironmentObject var m: AppModel
-    var ejected: [Action] { m.actions.filter { !$0.undone && $0.kind == .trashed && $0.details["installer"] != nil } }
 
     var body: some View {
-        Showcase(tint: .accent, icon: "eject", art: .eject, headline: "Installed? The installer cleans up after itself", demo: "Figma.dmg → ⏏ ejected → 🗑️ Trash").gated_showcase(m.settings.smartEject)
-        FeatureCard(icon: "eject", title: "Smart Eject", desc: "After an app is installed, ejects its disk image and moves the installer to the Trash.", reads: false, on: m.binding(\.smartEject))
+        Showcase(tint: .accent, icon: "arrow.down.app", art: .eject, headline: "Open a download, and the app installs itself", demo: "Figma.dmg → Applications → 🗑️ Trash").gated_showcase(m.settings.smartInstaller)
+        FeatureCard(icon: "arrow.down.app", title: "Smart Installer", desc: "Opening a disk image or zip with one app offers to install it, then moves the download to the Trash.", reads: false, on: m.binding(\.smartInstaller))
         Group {
-            PageSection(title: "How it decides", subtitle: "Only when all three are true. Otherwise the installer stays where it is.") {
+            PageSection(title: "How it works", subtitle: "A .pkg or several items: Kanso waits until you've installed, then ejects and trashes the image. Homebrew's downloads are left alone.") {
                 HStack(alignment: .top, spacing: 12) {
-                    step("opticaldisc", "You open the disk image", "It mounts, and Kanso notes the time.")
-                    step("macwindow", "The app lands in Applications", "With a newer creation time than the mount.")
-                    step("trash", "Kanso ejects and trashes it", "Journaled. ⌘Z puts it back.")
+                    step("opticaldisc", "You open the download", "One app inside: the island offers Install → Applications.")
+                    step("checkmark.seal", "Kanso installs it", "Copies the app, checks its signature, ejects the image and opens the app.")
+                    step("trash", "The download goes to the Trash", "Journaled. ⌘Z puts it back.")
                 }
             }
             PageSection(title: "Options") {
                 RowGroup {
-                    Row(icon: "bell", title: "Show a notice with Put Back", desc: "Every Smart Eject appears in the island for a few seconds.") { KToggle(on: m.binding(\.smartEjectNotice), label: "Show a notice") }
-                    Row(icon: "eject.circle", title: "Only eject, never trash", desc: "Leave the installer where it is after ejecting it.", last: true) { KToggle(on: m.binding(\.smartEjectOnlyEject), label: "Only eject") }
-                }
-            }
-            PageSection(title: "Recently ejected", subtitle: ejected.isEmpty ? "No installers yet." : "\(ejected.count) installers · \(ejected.reduce(Int64(0)) { $0 + (Int64($1.details["size"] ?? "") ?? 0) }.bytes) freed") {
-                if ejected.isEmpty {
-                    Text("Eject a disk image after installing an app and it shows up here.").font(.system(size: TS.small)).foregroundStyle(K.text2).padding(.horizontal, 4)
-                } else {
-                    let rows = Array(ejected.suffix(3).reversed())
-                    RowGroup {
-                        ForEach(Array(rows.enumerated()), id: \.element.id) { i, a in
-                            Row(icon: "shippingbox", title: a.srcName, desc: "\((Int64(a.details["size"] ?? "") ?? 0).bytes) · \(a.details["installer"] ?? "The app") is in Applications · \(a.ts.relative)", last: i == rows.count - 1) {
-                                Button("Put Back") { m.undo([a.id]) }.buttonStyle(SecondaryStyle(small: true))
-                            }
-                        }
-                    }
+                    Row(icon: "trash", title: "Trash the download after installing", desc: "Also asked on the island the first time.") { KToggle(on: m.binding(\.trashDownload), label: "Trash the download") }
+                    Row(icon: "macwindow", title: "Open the app after installing", desc: "From Applications, so macOS checks it once and remembers.", last: true) { KToggle(on: m.binding(\.openAfterInstall), label: "Open the app") }
                 }
             }
         }
-        .gated(m.settings.smartEject)
+        .gated(m.settings.smartInstaller)
     }
 
     func step(_ icon: String, _ title: String, _ sub: String) -> some View {

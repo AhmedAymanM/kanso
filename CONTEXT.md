@@ -19,7 +19,7 @@ The folder in a watched folder that belongs to the user; Kanso never moves anyth
 _Avoid_: Manual library, my folders
 
 **Tray**:
-A temporary holding place for things the user is carrying (files, links, snippets dropped onto the island) until they decide what to do with them; "Organize" files them onto shelves.
+A place on the island to collect files, links and text from across the Mac and then take them somewhere (drag out, share, upload). It never sorts them.
 _Avoid_: Shelf, basket, stash, drop zone
 
 **Provably spent**:

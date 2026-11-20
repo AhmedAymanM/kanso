@@ -50,12 +50,22 @@ final class SettingsTests: XCTestCase {
         XCTAssertFalse(fm.fileExists(atPath: dir.appendingPathComponent("settings.v0.bak").path))
     }
 
+    /// v2's islandMode: the old default (automatic) and "below" become the capsule; only a chosen "notch" stays the notch.
+    func testIslandModeMigratesToStyle() throws {
+        for (mode, style) in [("automatic", IslandStyle.capsule), ("below", .capsule), ("notch", .notch)] {
+            let s = try Store.decoder.decode(Settings.self, from: Data(#"{"version": 2, "islandMode": "\#(mode)"}"#.utf8))
+            XCTAssertEqual(s.islandStyle, style, mode)
+            XCTAssertEqual(s.islandPosition, .top)
+            XCTAssertEqual(s.version, Settings.currentVersion)
+        }
+    }
+
     /// Every stored property must be read back by `init(from:)`. The JSON of a default Settings has one key per property
     /// (plus the optional dates, added here); every value is changed to something else, decoded, and encoded again.
     /// A key that `init(from:)` forgot comes back as its default and the comparison fails with the key's name.
     func testEveryFieldSurvivesARoundTrip() throws {
         var dict = try XCTUnwrap(JSONSerialization.jsonObject(with: Store.encoder.encode(Settings())) as? [String: Any])
-        let enums: [String: String] = ["approach": "purpose", "recents": "hold", "keeper": "onShelf", "unknownFiles": "unsorted", "islandMode": "notch", "modelChoice": "rulesOnly"]
+        let enums: [String: String] = ["approach": "purpose", "recents": "hold", "keeper": "onShelf", "unknownFiles": "unsorted", "islandStyle": "notch", "islandPosition": "bottom", "modelChoice": "rulesOnly"]
         let dates: Set<String> = ["since", "sortingOffUntil", "sortingOffSince", "shortcutHintUntil"]
         for k in ["sortingOffUntil", "sortingOffSince"] { dict[k] = "2020-01-01T00:00:00Z" }
         // Lists of objects that must keep valid elements (an invalid one is skipped on load), so they get a real sample.

@@ -94,7 +94,7 @@ These are equal, and the user picks one during onboarding. They aren't "simple v
   - Sensitive-looking text (IDs, cards) never goes to cloud AI, even with cloud on.
   - The activity log shows what each decision used ("from name" or "from contents, page 1").
 - **Network:**
-  - **No analytics.** The only network calls are update checks, model downloads the user chose, and cloud AI if opted in.
+  - **No analytics.** The only network calls are update checks and previews of links the user put in the Tray.
   - Crash reports are opt-in, asked once after a crash, and stripped of paths and names.
   - Privacy settings list every possible network call.
   - Feedback goes through a prefilled GitHub issue or email that the user sees before sending.
@@ -139,7 +139,7 @@ These are equal, and the user picks one during onboarding. They aren't "simple v
 ### Smart Installer
 *Decided 2026-11-20; replaces Smart Eject.* Installing happens when the user opens the download, not after Kanso waits for them to drag the app.
 - **Opening a disk image with exactly one app** shows on the island: "Install Figma → Applications", with **Trash the download** ticked. Both answers are remembered, so after the first time it's one step.
-- Kanso copies the app, checks its signature, ejects the image, moves the `.dmg` to the Trash (journaled, ⌘Z) and **opens the app from `/Applications`** (not from a translocated copy). The island says what happened, and which step failed if one did ("Installed, but the disk image couldn't be ejected; the download was kept").
+- Kanso copies the app, checks its signature, ejects the image, moves the `.dmg` to the Trash (journaled, ⌘Z) and **opens the app from `/Applications`** (not from a translocated copy). **A successful install shows no notice**: the app opening is the confirmation, and the download's Put Back is in Activity. The island speaks only when a step fails ("Installed, but the disk image couldn't be ejected; the download was kept") (owner, 2026-11-20).
 - **Already installed:** Replace when the new version is newer and the app isn't running, otherwise Skip.
 - **A zip holding exactly one `.app`** gets the same offer.
 - **Fallback:** an image with a `.pkg`, several items or a layout Kanso can't read keeps the old behavior: when the app lands in `/Applications` (same bundle ID) or the `.pkg` finishes, Kanso ejects the volume and trashes the installer. An image from which nothing was installed is never trashed.
@@ -162,15 +162,20 @@ These are equal, and the user picks one during onboarding. They aren't "simple v
 - If Finder empties the Trash after 30 days, the Cleanup page says "Undo works for 30 days".
 
 ### The Tray
-*Decided 2026-11-19; design in `docs/design/final-direction.md`, which gets a UX redesign in Pencil before it's built.* A temporary holding place on the island for things the user is carrying until they decide where they go.
-- **Holds files, links and snippets.** Organize files them like any sort: files by type; links as `.webloc` on a new 🔗 Links shelf; snippets as `.txt`/`.md` on a new 📝 Notes shelf.
-- **Link titles are not fetched** by default; turning it on applies the SSRF rules in `docs/design/final-direction.md`.
-- **Snippets** are stored mode 0600, excluded from backup and Spotlight, wiped by "Forget everything", and never sent to a model without a user action.
-- **Refused in v1:** file promises (images dragged from a browser, Mail attachments): "Save it first."
+*Decided 2026-11-19, reshaped 2026-11-20; design in `docs/design/final-direction.md`, drawn in Pencil before it's built.* A place on the island to **collect files, links and text from across the Mac, then take them somewhere**: drag them into another folder or app, share them, or upload them.
+- **Shows previews, not a list:** Quick Look thumbnails for files, link previews for links, text cards for snippets.
+- **Share** (top right) opens the system share sheet for the selection, or for everything when nothing is selected. **Clear** empties the Tray; the files stay where they are.
+- **Selection works like Finder:** click, ⌘-click, ⇧-click, ⌘A, a dragged rectangle, arrow keys. **Space** opens Quick Look.
+- **Removing an item** (hover ×, ⌫ / Delete, or dragging it out to another place) only takes it off the Tray; Kanso never trashes a Tray item.
+- **No Organize.** The Tray never sorts or moves anything on its own.
+- **Link previews are fetched** only after a safety check (https, a public host, re-checked on redirects, size and time caps, no cookies), and only from the link's own site.
+- **Snippets** are stored mode 0600, excluded from backup and Spotlight, wiped by "Forget everything", and never sent to a model.
+- **Browser images and Mail attachments are accepted** (file promises). Kanso saves each as a **temporary copy** in its own folder (`~/Library/Application Support/Kanso/Tray/`, quarantine flag set). To keep one, the user drags it where they want it. Once it leaves the Tray (dragged out, removed or cleared, after the ⌘Z window closes), Kanso deletes its temporary copy. These copies are Kanso's own scratch files, never the user's, so this doesn't break "Kanso never deletes" (ADR 0002).
 - The drop target follows the island skin and position.
 
 ### The island and shortcuts
 *Revised in the UI/UX grilling on 2026-09-28; terms are defined in `CONTEXT.md`.*
+- **No notice repeats what the screen already shows** (owner, 2026-11-20): no "Installed" after Smart Installer (the app opens), no "Added" or "Removed" for the Tray (the tiles change).
 - **Plain sorts are silent.** A sort is what the user asked for, so it shows nothing in the moment; it appears in the popover's Done list and in Recents. Only renames, duplicates and needs-you items get a notice, which keeps notices rare enough to be read.
 - **The island replaces the toast.** Notices appear in a capsule (or, in the notch style, grow out of the notch, Dynamic-Island style) and never steal focus. It always appears on the **active screen**, the one with the focused menu bar, even if the notch is on another display. In full-screen apps notices collect quietly with the menu bar dot, as under Focus.
 - **The notice is the object changing state** (Linear's status control): the island's compact state is one icon and one line. The line swaps; the icon morphs about 300 ms to show what happened (fill, color crossfade, flip, check). No separate "Kanso did X" message. Each state has its own shape, so color is never the only signal.
@@ -209,10 +214,10 @@ These are equal, and the user picks one during onboarding. They aren't "simple v
   - **Smart Installer**: on/off. Expanded: Trash the download after installing (on), open the app after installing (on).
   - **Cleanup**: on/off (off). Expanded: one row per carrier with its days, and "Suggest moving kept files to Documents".
 - **Activity detail:** no Timeline (its one useful fact, when it happened, joins the metadata line). A visual block appears only where the picture explains the decision (rename: old name struck through over the new one, and the page preview; duplicate: the two copies side by side; batch: shelf bars); a plain sort or a waiting item has none. "How Kanso decided" stays as the heart of the screen. From 6 blocks to 3–4.
-- **Insights style references** (owner, 2026-09-29): Tomáš Sebastián's "Analytics Micro-interaction" (layers.to; one chart per tinted card, big number with a caption and delta pill, hover scrubbing with a snapping pill tooltip, count-up and rolling digits, bars growing in a stagger, round icon buttons in the card header) and a Dribbble "Insight" card set (large serif numerals on flat tinted cards, a delta top-right, a short label).
-- **Pastel theme** (decided 2026-09-29): every color keeps its meaning and becomes a pair, a pastel for surfaces, chips and button fills plus a deep ink of the same family for text, icons and lines. Starting values (to be checked for contrast): Kanso/sorted mint `#CFE8D8` / `#2E5A4B` · rename periwinkle `#D9E0FA` / `#3C509A` · duplicate butter `#F7E4B5` / `#7E531B` · rule lavender `#E5DCF7` / `#5A4687` · where aqua `#D0ECEC` / `#1E666B` · neutral stone `#ECEAE5` / `#48484D`. **Mint is the brand accent** (switches, selection, links). No white-text buttons: primary buttons are pastel with ink text. Dark mode uses the ink hue at about 25% for surfaces and a lightened pastel for text. Cards are tinted by what they measure. The island stays black or glass, with pastels only inside it. This supersedes the sage tokens in `kanso-designs/DESIGN_SYSTEM.md`.
+- **Insights style references** (owner, 2026-09-29): Tomáš Sebastián's "Analytics Micro-interaction" (layers.to; one chart per tinted card, big number with a caption and delta pill, hover scrubbing with a snapping pill tooltip, count-up and rolling digits, bars growing in a stagger, round icon buttons in the card header) and a Dribbble "Insight" card set (large numerals on flat tinted cards, a delta top-right, a short label).
+- **Pastel theme** (decided 2026-09-29): every color keeps its meaning and becomes a pair, a pastel for surfaces, chips and button fills plus a deep ink of the same family for text, icons and lines. Starting values (to be checked for contrast): Kanso/sorted mint `#CFE8D8` / `#2E5A4B` · rename periwinkle `#D9E0FA` / `#3C509A` · duplicate butter `#F7E4B5` / `#7E531B` · rule lavender `#E5DCF7` / `#5A4687` · where aqua `#D0ECEC` / `#1E666B` · neutral stone `#ECEAE5` / `#48484D`. **Mint is the brand accent** on brand surfaces; native controls (switches, focus, sidebar selection) follow the system accent. No white-text buttons: primary buttons are pastel with ink text. Dark mode uses the ink hue at about 25% for surfaces and a lightened pastel for text. Cards are tinted by what they measure. The island stays black or glass, with pastels only inside it. This supersedes the sage tokens in `kanso-designs/DESIGN_SYSTEM.md`.
 - **General** (7 controls): Open at login · Island style: Capsule / Notch · Island position: Top / Bottom (capsule only) · Show the ⌥⌘K hint (turns itself off after a few days) · During Focus and full-screen: collect notices quietly · Island shortcut ⌥⌘K (Change) · Menu bar icon Show/Hide (when hidden, Settings stays reachable through the island's gear).
-- **Privacy & AI** (mostly statements): model status (Apple Intelligence; Kanso Local when it exists) · what reads inside files, shown as facts (the switches live in Features) · every network call (update checks with a switch, model download on request, cloud AI "not available") · crash reports (off) · one "never read" sentence (Keys, vaults, Manual Shelves, iCloud placeholders) · About (version, GitHub, Buy Me a Coffee, Send feedback).
+- **Privacy & AI** (mostly statements): model status (Apple Intelligence; Kanso Local when it exists) · what reads inside files, shown as facts (the switches live in Features) · every network call (update checks with a switch, Tray link previews with a switch) · crash reports (off) · one "never read" sentence (Keys, vaults, Manual Shelves, iCloud placeholders) · About (version, GitHub, Buy Me a Coffee, Send feedback).
 - **Removed, now fixed behavior:** "only while plugged in" (content reading always pauses on battery below 20%), "low priority" (always background priority), "show toasts" (no toasts exist) and the three old shortcuts (⌥⌘K replaces them).
 - All screens use the island's design language: Liquid Glass, the same components, springs and keycaps.
 
@@ -242,7 +247,7 @@ Already built (#16, #18): plain-English rules with preview and an explicit Save,
 ## 9. Success criteria
 
 - **Launch gate (dogfood):** the owner uses the Swift v1 on their real Downloads, Desktop and Documents for **two weeks**, with an **undo rate under 5%** measured from the journal (`kanso-cli stats --undo-rate`), and **no open "moved my file wrongly" bug**. The dogfood also proves Kanso's own claims:
-  - **Network:** only update checks leave the Mac (watched with `nettop` or Little Snitch).
+  - **Network:** only update checks and Tray link previews leave the Mac (watched with `nettop` or Little Snitch).
   - **Signing:** folder permissions survive an update of the self-signed build, and a clean user account installs from the tap.
   - **Cleanup:** zero false expiries. Every archive-extraction match is logged with both name lists and checked by hand; on day 7, the files due to expire are checked for any still in use. Trashes and their undos are counted apart from sorts, and **any undo of an automatic trash stops the feature**.
 - **After launch** (no telemetry, so only signals we can observe):

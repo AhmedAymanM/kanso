@@ -764,7 +764,7 @@ public final class Engine: @unchecked Sendable {
 
     /// Write-ahead trash: the origin is journaled before the file leaves (the Trash path isn't known until it has),
     /// so a crash mid-trash leaves a record. Undo skips entries with no dst; a failed trash discards the record.
-    private func trashJournaled(_ url: URL, _ a: inout Action) -> URL? {
+    func trashJournaled(_ url: URL, _ a: inout Action) -> URL? {   // write-ahead: the journal line lands before the move
         store.append(a)
         var result: NSURL?
         guard (try? fm.trashItem(at: url, resultingItemURL: &result)) != nil, let t = result as URL? else { store.discard(a.id); return nil }

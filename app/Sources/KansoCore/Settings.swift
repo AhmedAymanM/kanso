@@ -80,12 +80,15 @@ public enum UnknownFiles: String, Codable, CaseIterable, Sendable { case askMode
 /// Which model Kanso asks about unknown file types and plain-English rules. Everything runs on this Mac; there is no cloud choice.
 /// "Kanso Local" has no model yet, so it is not a case: the picker shows it disabled.
 public enum ModelChoice: String, Codable, CaseIterable, Sendable { case appleIntelligence, rulesOnly }
-public enum IslandMode: String, Codable, CaseIterable, Sendable { case automatic, notch, below }
+/// The island's look: a floating Liquid Glass capsule (default), or black out of the notch (capsule on screens without one).
+public enum IslandStyle: String, Codable, CaseIterable, Sendable { case capsule, notch }
+/// Where the capsule floats: under the menu bar, or above the Dock. The notch style is always at the top.
+public enum IslandPosition: String, Codable, CaseIterable, Sendable { case top, bottom }
 
 public struct Settings: Codable, Equatable, Sendable {
     /// Bump when a stored value changes meaning. New fields with a default need no bump: add them to `init(from:)`
     /// (SettingsTests.testEveryFieldSurvivesARoundTrip fails if one is forgotten).
-    public static let currentVersion = 2
+    public static let currentVersion = 4
     public var version = Settings.currentVersion
     public var onboarded = false
     public var roots: [String] = ["~/Downloads", "~/Desktop", "~/Documents"]
@@ -99,9 +102,10 @@ public struct Settings: Codable, Equatable, Sendable {
     public var offReminderShown = false
     public var settleSeconds = 10
     public var graceMinutes = 0        // "Leave new files alone for"
-    public var smartEject = true
-    public var smartEjectNotice = true       // show the island notice with Put Back
-    public var smartEjectOnlyEject = false   // eject the disk image but leave the installer where it is
+    public var smartInstaller = true
+    public var trashDownload = true          // "Trash the download" after installing (remembered from the offer)
+    public var openAfterInstall = true       // open the app from /Applications once it's installed
+    public var installWithoutAsking = false  // set by the first Install: later disk images install in one step
     public var approach = Approach.kind
     public var recents = RecentsMode.links
     public var recentDays = 7
@@ -144,7 +148,8 @@ public struct Settings: Codable, Equatable, Sendable {
     public var autoTrashDays = 30
 
     // General
-    public var islandMode = IslandMode.automatic
+    public var islandStyle = IslandStyle.capsule
+    public var islandPosition = IslandPosition.top
     public var shortcutHintUntil = Date().addingTimeInterval(5 * 86400)  // the ⌥⌘K hint shows for the first days
     public var showShortcutHint = true
     public var collectDuringFocus = true
@@ -194,7 +199,7 @@ public struct Settings: Codable, Equatable, Sendable {
         d(.autoSort, &autoSort); d(.settleSeconds, &settleSeconds); d(.graceMinutes, &graceMinutes)
         sortingOffUntil = try? c.decode(Date.self, forKey: .sortingOffUntil)
         sortingOffSince = try? c.decode(Date.self, forKey: .sortingOffSince)
-        d(.offReminderShown, &offReminderShown); d(.smartEject, &smartEject); d(.smartEjectNotice, &smartEjectNotice); d(.smartEjectOnlyEject, &smartEjectOnlyEject)
+        d(.offReminderShown, &offReminderShown); d(.smartInstaller, &smartInstaller); d(.trashDownload, &trashDownload); d(.openAfterInstall, &openAfterInstall); d(.installWithoutAsking, &installWithoutAsking)
         d(.approach, &approach); d(.recents, &recents); d(.recentDays, &recentDays); d(.folderIcons, &folderIcons)
         d(.sortFolders, &sortFolders); d(.excludes, &excludes); d(.rootExcludes, &rootExcludes); d(.keepTag, &keepTag); d(.learnCorrections, &learnCorrections)
         d(.unknownFiles, &unknownFiles); d(.suggestTypes, &suggestTypes); d(.modelChoice, &modelChoice)
@@ -205,7 +210,7 @@ public struct Settings: Codable, Equatable, Sendable {
         d(.tagKind, &tagKind); d(.tagOrganization, &tagOrganization); d(.useExistingTags, &useExistingTags)
         d(.duplicates, &duplicates); d(.keeper, &keeper); d(.checkManualShelves, &checkManualShelves)
         d(.duplicatesToTrash, &duplicatesToTrash); d(.autoTrashDuplicates, &autoTrashDuplicates); d(.autoTrashDays, &autoTrashDays)
-        d(.islandMode, &islandMode); d(.shortcutHintUntil, &shortcutHintUntil); d(.showShortcutHint, &showShortcutHint)
+        d(.islandStyle, &islandStyle); d(.islandPosition, &islandPosition); d(.shortcutHintUntil, &shortcutHintUntil); d(.showShortcutHint, &showShortcutHint)
         d(.collectDuringFocus, &collectDuringFocus); d(.openAtLogin, &openAtLogin)
         d(.showMenuBarIcon, &showMenuBarIcon); d(.appearance, &appearance); d(.updateChecks, &updateChecks); d(.crashReports, &crashReports)
         d(.islandShortcut, &islandShortcut)
@@ -213,6 +218,16 @@ public struct Settings: Codable, Equatable, Sendable {
         if (try? c.decode(ModelChoice.self, forKey: .modelChoice)) == nil,
            let legacy = try? decoder.container(keyedBy: LegacyKeys.self), (try? legacy.decode(Bool.self, forKey: .appleIntelligence)) == false {
             modelChoice = .rulesOnly
+        }
+        // v2 stored islandMode (automatic / notch / below). Only an explicit "notch" keeps the notch; the capsule is the default now.
+        if (try? c.decode(IslandStyle.self, forKey: .islandStyle)) == nil, let legacy = try? decoder.container(keyedBy: LegacyKeys.self),
+           (try? legacy.decode(String.self, forKey: .islandMode)) == "notch" {
+            islandStyle = .notch
+        }
+        // v3 had Smart Eject: its switch carries over, and "only eject, never trash" means don't trash the download.
+        if (try? c.decode(Bool.self, forKey: .smartInstaller)) == nil, let legacy = try? decoder.container(keyedBy: LegacyKeys.self) {
+            if let on = try? legacy.decode(Bool.self, forKey: .smartEject) { smartInstaller = on }
+            if (try? legacy.decode(Bool.self, forKey: .smartEjectOnlyEject)) == true { trashDownload = false }
         }
         // Element by element: one malformed type or rule must not reset the whole list to defaults.
         if let x = try? c.decode(LossyArray<FileType>.self, forKey: .types) { types = x.elements }
@@ -222,7 +237,7 @@ public struct Settings: Codable, Equatable, Sendable {
         migrate()
     }
 
-    private enum LegacyKeys: String, CodingKey { case appleIntelligence }
+    private enum LegacyKeys: String, CodingKey { case appleIntelligence, islandMode, smartEject, smartEjectOnlyEject }
 
     /// The version stored in a settings.json, 0 when it has none (or isn't JSON).
     public static func storedVersion(_ data: Data) -> Int {
@@ -240,6 +255,14 @@ public struct Settings: Codable, Equatable, Sendable {
         if version < 2 {
             // v1 to v2: the appleIntelligence Bool became modelChoice (converted while decoding, see init(from:)).
             version = 2
+        }
+        if version < 3 {
+            // v2 to v3: islandMode became islandStyle + islandPosition (converted while decoding, see init(from:)).
+            version = 3
+        }
+        if version < 4 {
+            // v3 to v4: Smart Eject became Smart Installer (converted while decoding, see init(from:)).
+            version = 4
         }
     }
 }
