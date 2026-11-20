@@ -153,7 +153,7 @@ struct PrivacyPage: View {
         PageSection(title: "Network") {
             HStack(spacing: 8) {
                 Image(systemName: "network").font(.system(size: TS.small)).foregroundStyle(K.text2)
-                Text(m.settings.updateChecks ? "Your files never leave this Mac. The only network use is a daily check of GitHub Releases for a new version." : "Your files never leave this Mac. Kanso only goes online when you press Check for updates.").font(.system(size: TS.small)).foregroundStyle(K.text2)
+                Text((m.settings.updateChecks ? "Your files never leave this Mac. Kanso goes online for a daily check of GitHub Releases for a new version" : "Your files never leave this Mac. Kanso goes online when you press Check for updates") + ", and to show previews of https links you put in the Tray.").font(.system(size: TS.small)).foregroundStyle(K.text2)
                 Spacer()
             }
             .padding(.horizontal, 14).frame(minHeight: 38).background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(K.fill))

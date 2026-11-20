@@ -252,6 +252,11 @@ final class HotKeys {
 final class Services: NSObject {
     @objc func skipFiles(_ pboard: NSPasteboard, userData: String?, error: AutoreleasingUnsafeMutablePointer<NSString?>) { setKeep(true, pboard) }
     @objc func allowFiles(_ pboard: NSPasteboard, userData: String?, error: AutoreleasingUnsafeMutablePointer<NSString?>) { setKeep(false, pboard) }
+    /// "Add to Kanso Tray": the keyboard path to the Tray (no drag needed). Silent: the Tray shows it (⌥⌘K, then ⌘T).
+    @objc func addToTray(_ pboard: NSPasteboard, userData: String?, error: AutoreleasingUnsafeMutablePointer<NSString?>) {
+        let urls = pboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? []
+        DispatchQueue.main.async { MainActor.assumeIsolated { TrayModel.shared.add(files: urls) } }
+    }
 
     private func setKeep(_ keep: Bool, _ pboard: NSPasteboard) {
         let tag = Store().settings.keepTag
@@ -276,6 +281,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             HotKeys.shared.register(m.settings)
             m.startWatching()
             m.startSmartInstaller()
+            TrayDragMonitor.shared.start()
             Island.shared.relayout()
             NSApp.mainMenu = mainMenu()
             if ProcessInfo.processInfo.environment["KANSO_BACKDROP"] != nil { Self.backdrop() }
@@ -306,6 +312,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 DispatchQueue.main.asyncAfter(deadline: .now() + (Double(ProcessInfo.processInfo.environment["KANSO_DELAY"] ?? "") ?? 3)) { Self.capture(spec); NSApp.terminate(nil) }
             }
             if ProcessInfo.processInfo.arguments.contains("--island") { DispatchQueue.main.asyncAfter(deadline: .now() + 1) { Island.shared.toggleShortcut() } }
+            if ProcessInfo.processInfo.arguments.contains("--tray") { DispatchQueue.main.asyncAfter(deadline: .now() + 1) { Island.shared.toggleShortcut(); Island.shared.toggleTray() } }
         }
     }
 

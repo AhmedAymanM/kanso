@@ -73,18 +73,21 @@ struct IslandBody: View {
     @ObservedObject private var a11y = AccessibilityOptions.shared
 
     var notchSkin: Bool { island.skin == .notch }
-    var width: CGFloat { island.expanded ? 480 : (notchSkin ? max(290, island.notch.width + 140) : 320) }
-    var radius: CGFloat { island.expanded ? 30 : (notchSkin ? 20 : 22) }
+    var width: CGFloat { island.dropTarget ? 380 + (notchSkin ? 20 : 0) : island.expanded ? 480 : (notchSkin ? max(290, island.notch.width + 140) : 320) }
+    var radius: CGFloat { island.expanded || island.dropTarget ? 30 : (notchSkin ? 20 : 22) }
     /// Text never enters the lip (expanded: the hints and glass buttons; notch compact: the melt). The compact capsule is
     /// exactly its 38 pt line.
-    var lip: CGFloat { island.expanded ? 92 : (notchSkin ? 34 : 0) }
+    var lip: CGFloat { island.dropTarget ? (notchSkin ? 12 : 0) : island.expanded ? 92 : (notchSkin ? 34 : 0) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            if island.expanded { IslandExpanded() } else { compact }
+            if island.dropTarget {   // a drag dwelled here: the island is the Tray's drop target
+                if notchSkin { Color.clear.frame(height: island.notch.height) }
+                TrayDropTarget()
+            } else if island.expanded { IslandExpanded() } else { compact }
             Color.clear.frame(height: lip)
         }
-        .overlay(alignment: .bottom) { if island.expanded { IslandLip().padding(.bottom, 16).stagger(5) } }
+        .overlay(alignment: .bottom) { if island.expanded && !island.dropTarget { IslandLip().padding(.bottom, 16).stagger(5) } }
         .padding(.horizontal, notchSkin ? 10 : 0)   // room for the ears
         .frame(width: width)
         .background {
@@ -227,6 +230,7 @@ struct IslandLip: View {
     /// Only esc to close, plus the arrows when they do something in this state. Actions show their own keys.
     var hints: String {
         if island.shortcuts { return "esc back" }
+        if island.tray { return "⌘A select all · Space Quick Look · ⌫ remove · esc back" }
         var parts: [String] = []
         let rows = island.overview ? min(m.needs.count, 3) + min(m.done.count, 3) : (island.fanned || island.stacked ? 0 : island.notices.count)
         if island.overview && m.needs.count > 1 { parts.append("← → cycle cards") }
@@ -293,14 +297,15 @@ struct IslandExpanded: View {
             // The body sits below the notch.
             if island.skin == .notch { Color.clear.frame(height: island.notch.height) }
             Group {
-                if island.shortcuts { ShortcutsList() }
+                if island.tray { TrayPage() }
+                else if island.shortcuts { ShortcutsList() }
                 else if island.askState.isProposal { AskProposal().stagger(0) }
                 else if island.overview { OverviewBody() }
                 else if let n = island.current { notice(n).id(n.id) }
             }
             .padding(.horizontal, 20).padding(.top, island.skin == .notch ? 2 : 16)   // under the notch: no extra space; the capsule needs air at its top edge
             .transition(.opacity)
-            if island.askAvailable && !island.shortcuts && !island.overview {
+            if island.askAvailable && !island.shortcuts && !island.overview && !island.tray {
                 AskField().padding(.horizontal, 20).padding(.top, 10).stagger(4)
             }
         }
