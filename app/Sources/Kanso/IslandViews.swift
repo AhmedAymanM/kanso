@@ -538,6 +538,7 @@ struct SimpleBody: View {
                 }
                 Spacer(minLength: 0)
             }
+            if case .offer(.install(let o)) = n, let sum = o.checksum { ChecksumRow(sum: sum) }
             if trashToggle {
                 Toggle("Trash the download", isOn: m.binding(\.trashDownload)).toggleStyle(.checkbox)
                     .font(.system(size: TS.small)).foregroundStyle(IslandInk.text)
@@ -547,7 +548,7 @@ struct SimpleBody: View {
     }
     var title: String {
         if case .installer(let a) = n { return "Installed \(a.details["installer"] ?? "the app")" }
-        if case .offer(.install(let o)) = n, o.existing == .none { return "Install \(o.info.name)" }
+        if case .offer(.install(let o)) = n, o.existing == .none { return o.signature == .unsigned ? "\(o.info.name) isn't signed" : "Install \(o.info.name)" }
         if case .duplicate(let a) = n { return a.shelf == "Trash" ? n.line : "Copy of \(((a.details["kept"] ?? a.name) as NSString).lastPathComponent) held" }
         return n.line
     }
@@ -555,6 +556,7 @@ struct SimpleBody: View {
         switch n {
         case .installer(let a): return "\(a.srcName) (\((Int64(a.details["size"] ?? "") ?? 0).bytes)) moved to Trash. Put Back any time."
         case .offer(.install(let o)):
+            if o.signature == .unsigned, !o.isCurrent { return "Kanso can't check who made it. Install only if you trust where it came from; macOS may still refuse to open it. Compare the checksum with the one its developer publishes." }
             if o.existing == .none { return "Copies it to Applications, checks its signature, then opens it from there." }
             if case .older = o.existing { return "The old copy goes to the Trash, so you can put it back." }
             return "Nothing to do. Kanso leaves the download where it is."
@@ -566,6 +568,24 @@ struct SimpleBody: View {
         case .batch: return "Undo puts every file from this run back."
         default: return nil
         }
+    }
+}
+
+/// An unsigned download's SHA-256, to compare with the developer's published checksum.
+struct ChecksumRow: View {
+    var sum: String
+    @State private var copied = false
+    var body: some View {
+        HStack(spacing: 8) {
+            Text("SHA-256").font(.system(size: TS.meta, weight: .semibold)).foregroundStyle(IslandInk.text3)
+            Text(sum).font(.system(size: TS.meta, design: .monospaced)).foregroundStyle(IslandInk.text2).lineLimit(1).truncationMode(.middle).textSelection(.enabled)
+            Button { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(sum, forType: .string); copied = true } label: {
+                Image(systemName: copied ? "checkmark" : "doc.on.doc").font(.system(size: TS.meta)).foregroundStyle(IslandInk.text2).frame(width: 28, height: 28).contentShape(Rectangle())
+            }
+            .buttonStyle(.plain).help("Copy the checksum").accessibilityLabel(copied ? "Checksum copied" : "Copy the checksum")
+        }
+        .padding(.horizontal, 10).frame(height: 30).background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(IslandInk.ink(0.06)))
+        .accessibilityElement(children: .combine)
     }
 }
 

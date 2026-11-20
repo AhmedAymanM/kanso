@@ -545,7 +545,7 @@ final class AppModel: ObservableObject {
             let watch = SmartInstaller.inspect(volume, at: mountedAt)
             let offer = watch.flatMap { w in
                 SmartInstaller.singleApp(in: volume).flatMap { app in
-                    SmartInstaller.appInfo(app).map { InstallOffer(app: app, info: $0, download: w.image, volume: volume, existing: SmartInstaller.existing($0, in: URL(fileURLWithPath: "/Applications"))) }
+                    SmartInstaller.appInfo(app).map { InstallOffer(app: app, info: $0, download: w.image, volume: volume, existing: SmartInstaller.existing($0, in: URL(fileURLWithPath: "/Applications"))).checked() }
                 }
             }
             await MainActor.run {
@@ -559,7 +559,11 @@ final class AppModel: ObservableObject {
 
     /// After the first Install, a fresh app installs in one step; Replace and Skip always ask.
     func offerInstall(_ o: InstallOffer) {
-        if settings.installWithoutAsking, o.existing == .none { install(o); return }
+        if o.signature == .broken {   // changed after signing: never installed, not even with a warning
+            Island.shared.show(.info(icon: "exclamationmark.shield", text: "\(o.info.name) was changed after it was signed. Kanso won't install it."))
+            return
+        }
+        if settings.installWithoutAsking, o.existing == .none, o.signature == .valid { install(o); return }   // unsigned always asks
         Island.shared.show(.offer(.install(o)))
     }
 
@@ -570,7 +574,7 @@ final class AppModel: ObservableObject {
         let name = o.info.name, trashDownload = settings.trashDownload, engine = engine
         Island.shared.show(.info(icon: "arrow.down.app", text: "Installing \(name)…"))
         Task.detached(priority: .userInitiated) {
-            let r = engine.install(app: o.app, download: o.download, move: o.volume == nil, replace: replace, trashDownload: trashDownload) {
+            let r = engine.install(app: o.app, download: o.download, move: o.volume == nil, replace: replace, allowUnsigned: o.signature == .unsigned, trashDownload: trashDownload) {
                 guard let v = o.volume else { return true }
                 return (try? NSWorkspace.shared.unmountAndEjectDevice(at: v)) != nil
             }
@@ -579,7 +583,7 @@ final class AppModel: ObservableObject {
                 Island.shared.dismiss(id: "info-Installing \(name)…")
                 if let f = r.failure { Island.shared.show(.info(icon: r.installed == nil ? "exclamationmark.triangle" : "checkmark.circle", text: f)) }
                 else if let t = r.trashed { Island.shared.show(.installer(t)) }
-                else { Island.shared.show(.info(icon: "checkmark.circle", text: "Installed \(name)")) }
+                else { Island.shared.show(.info(icon: "checkmark.circle", text: "Installed \(name)" + (r.unsigned ? " (unsigned)" : ""))) }
                 if let app = r.installed, self.settings.openAfterInstall {
                     NSWorkspace.shared.openApplication(at: app, configuration: NSWorkspace.OpenConfiguration())   // from /Applications, never a translocated copy
                 }
@@ -610,7 +614,7 @@ final class AppModel: ObservableObject {
                             guard let x = Carriers.extraction(of: u) else { continue }
                             NSLog("Kanso carrier match: %@ lists %@; found %@", u.lastPathComponent, x.listing.joined(separator: ", "), x.found.joined(separator: ", "))
                             if x.sibling.pathExtension.lowercased() == "app", let info = SmartInstaller.appInfo(x.sibling) {
-                                found.append(.install(InstallOffer(app: x.sibling, info: info, download: u, volume: nil, existing: SmartInstaller.existing(info, in: URL(fileURLWithPath: "/Applications")))))
+                                found.append(.install(InstallOffer(app: x.sibling, info: info, download: u, volume: nil, existing: SmartInstaller.existing(info, in: URL(fileURLWithPath: "/Applications"))).checked()))
                             } else { found.append(.trashZip(u)) }
                         case "torrent" where Carriers.torrentOpened(u): found.append(.trashTorrent(u))
                         default: continue
@@ -684,7 +688,17 @@ struct InstallOffer: Equatable {
     var download: URL
     var volume: URL?
     var existing: SmartInstaller.Existing
+    var signature = SmartInstaller.Signature.valid
+    var checksum: String?          // the download's SHA-256, shown for an unsigned app so it can be compared with the developer's
     var isCurrent: Bool { if case .current = existing { return true }; return false }
+
+    /// Reads the signature, and for an unsigned app the download's checksum. Blocking: off the main thread.
+    func checked() -> InstallOffer {
+        var o = self
+        o.signature = SmartInstaller.signature(app)
+        if o.signature == .unsigned { o.checksum = SmartInstaller.checksum(download) }
+        return o
+    }
 }
 
 /// A "done with it?" offer on the island.

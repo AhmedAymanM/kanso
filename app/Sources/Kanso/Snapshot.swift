@@ -108,6 +108,8 @@ enum Snapshot {
             let o = Snapshot.demoOffer(existing)
             out.append((name, [.offer(.install(o))], false, false)); out.append((name + "-expanded", [.offer(.install(o))], true, false))
         }
+        var unsigned = Snapshot.demoOffer(.none); unsigned.signature = .unsigned; unsigned.checksum = "6105d6cc76af400325e94d588ce511be5bfdbb73b437dc51eca43917d7a43e3d"
+        out.append(("offer-unsigned", [.offer(.install(unsigned))], false, false)); out.append(("offer-unsigned-expanded", [.offer(.install(unsigned))], true, false))
         out.append(("offer-zip-expanded", [.offer(.trashZip(URL(fileURLWithPath: "/Downloads/My Shelves/Archives/holiday-photos.zip")))], true, false))
         out.append(("sorting-off", [.sortingOff(Date().addingTimeInterval(-90000))], false, false))
         out.append(("reading", [.reading("Scan_0044.pdf")], false, false))

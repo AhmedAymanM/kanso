@@ -27,7 +27,12 @@ final class InstallTests: XCTestCase {
         try fm.createDirectory(at: c.appendingPathComponent("MacOS"), withIntermediateDirectories: true)
         NSDictionary(dictionary: ["CFBundleIdentifier": id, "CFBundleExecutable": name, "CFBundleShortVersionString": version, "CFBundleVersion": "1"])
             .write(to: c.appendingPathComponent("Info.plist"), atomically: true)
-        try fm.copyItem(atPath: "/usr/bin/true", toPath: c.appendingPathComponent("MacOS/\(name)").path)
+        if signed { try fm.copyItem(atPath: "/usr/bin/true", toPath: c.appendingPathComponent("MacOS/\(name)").path) }
+        else {   // a script, so nothing in the bundle carries a signature
+            let exe = c.appendingPathComponent("MacOS/\(name)")
+            try Data("#!/bin/sh\nexit 0\n".utf8).write(to: exe)
+            try fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: exe.path)
+        }
         if signed { XCTAssertNotNil(SmartInstaller.run("/usr/bin/codesign", ["--force", "--sign", "-", a.path], timeout: 30), "ad hoc signing failed") }
         return a
     }
@@ -100,13 +105,49 @@ final class InstallTests: XCTestCase {
         XCTAssertEqual(try fm.contentsOfDirectory(atPath: apps.path), ["Figma.app"], "no temporary copy left behind")
     }
 
-    func testUnsignedAppIsNotInstalled() throws {
+    func testSignatureStates() throws {
+        XCTAssertEqual(SmartInstaller.signature(try app(tmp.appendingPathComponent("a"))), .valid)
+        XCTAssertEqual(SmartInstaller.signature(try app(tmp.appendingPathComponent("b"), signed: false)), .unsigned)
+        let broken = try app(tmp.appendingPathComponent("c"))
+        try Data("#!/bin/sh\n".utf8).write(to: broken.appendingPathComponent("Contents/Resources-added.txt"))
+        try Data("changed".utf8).write(to: broken.appendingPathComponent("Contents/MacOS/Figma"))
+        XCTAssertEqual(SmartInstaller.signature(broken), .broken, "changed after signing")
+    }
+
+    func testUnsignedAppNeedsTheUsersConfirmation() throws {
         let src = try app(tmp.appendingPathComponent("vol"), signed: false), dmg = download()
         let r = engine.install(app: src, download: dmg, apps: apps, trashDownload: true) { XCTFail("never ejects"); return true }
         XCTAssertNil(r.installed)
-        XCTAssertTrue(r.failure?.contains("isn't signed") == true)
+        XCTAssertEqual(r.failure, "Figma isn't signed, so Kanso didn't install it.")
         XCTAssertTrue(fm.fileExists(atPath: dmg.path), "nothing was installed, so the download stays")
         XCTAssertTrue(try fm.contentsOfDirectory(atPath: apps.path).isEmpty)
+    }
+
+    func testConfirmedUnsignedInstallIsVerifiedFileByFile() throws {
+        let src = try app(tmp.appendingPathComponent("vol"), signed: false), dmg = download()
+        let r = engine.install(app: src, download: dmg, apps: apps, allowUnsigned: true, trashDownload: true) { true }
+        XCTAssertNil(r.failure)
+        XCTAssertTrue(r.unsigned)
+        XCTAssertEqual(SmartInstaller.treeDigest(apps.appendingPathComponent("Figma.app")), SmartInstaller.treeDigest(src))
+        XCTAssertEqual(r.trashed?.details["unsigned"], "1", "the journal says it was installed without a signature")
+        if let t = r.trashed { engine.undo([t.id]) }
+    }
+
+    func testBrokenSignatureIsNeverInstalled() throws {
+        let src = try app(tmp.appendingPathComponent("vol")), dmg = download()
+        try Data("changed".utf8).write(to: src.appendingPathComponent("Contents/MacOS/Figma"))
+        let r = engine.install(app: src, download: dmg, apps: apps, allowUnsigned: true, trashDownload: true) { XCTFail("never ejects"); return true }
+        XCTAssertNil(r.installed)
+        XCTAssertEqual(r.failure, "Figma was changed after it was signed, so Kanso didn't install it.")
+        XCTAssertTrue(fm.fileExists(atPath: dmg.path))
+    }
+
+    func testTreeDigestNoticesAnyChange() throws {
+        let a = try app(tmp.appendingPathComponent("a"), signed: false)
+        let d = try XCTUnwrap(SmartInstaller.treeDigest(a))
+        try Data("x".utf8).write(to: a.appendingPathComponent("Contents/extra"))
+        XCTAssertNotEqual(SmartInstaller.treeDigest(a), d)
+        XCTAssertEqual(SmartInstaller.checksum(download("x.dmg")), "6105d6cc76af400325e94d588ce511be5bfdbb73b437dc51eca43917d7a43e3d", "SHA-256 of the bytes \"image\"")
     }
 
     func testFailedEjectKeepsTheDownload() throws {

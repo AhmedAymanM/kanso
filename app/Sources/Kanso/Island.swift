@@ -33,6 +33,7 @@ enum Notice: Identifiable, Equatable {
         case .installer, .sortingOff, .batch: return .accent
         case .reading: return .where
         case .info: return .neutral
+        case .offer(.install(let o)) where o.signature == .unsigned: return .duplicate
         case .offer(.install): return .accent
         case .offer: return .duplicate
         }
@@ -48,6 +49,7 @@ enum Notice: Identifiable, Equatable {
         case .reading: return "doc.text.viewfinder"
         case .batch: return "checkmark.circle"
         case .info(let i, _, _): return i
+        case .offer(.install(let o)) where o.signature == .unsigned: return "exclamationmark.shield"
         case .offer(.install): return "arrow.down.app"
         case .offer(.trashZip): return "doc.zipper"
         case .offer(.trashTorrent): return "arrow.down.circle"
@@ -65,6 +67,7 @@ enum Notice: Identifiable, Equatable {
         case .info(_, let t, _): return t
         case .offer(.install(let o)):
             switch o.existing {
+            case .none where o.signature == .unsigned: return "\(o.info.name) isn't signed"
             case .none: return "Install \(o.info.name) → Applications"
             case .older(let v): return "\(o.info.name) \(v) is installed · Replace with \(o.info.v.version)?"
             case .current(let v): return "\(o.info.name) \(v) is already installed"
@@ -550,6 +553,13 @@ final class Island: ObservableObject {
         switch o {
         case .install(let i):
             let skip = IslandAction(label: i.existing == .none ? "Not now" : "Skip", key: "esc", icon: "xmark") { if i.volume == nil { m.dismissCarrier(o) }; done() }
+            if i.signature == .unsigned, !i.isCurrent {
+                // No signature: Return only ever says Not now; installing takes ⌘↩ after reading the warning.
+                let notNow = IslandAction(label: "Not now", key: "↩", icon: "xmark") { if i.volume == nil { m.dismissCarrier(o) }; done() }
+                if case .older = i.existing, m.isRunning(i.info.id) { return [notNow, IslandAction(label: "Quit \(i.info.name) first", key: "", icon: "xmark.octagon") {}] }
+                let replace = { if case .older = i.existing { return true }; return false }()
+                return [notNow, IslandAction(label: replace ? "Replace anyway" : "Install anyway", key: "⌘↩", icon: "exclamationmark.shield") { done(); m.install(i, replace: replace) }]
+            }
             switch i.existing {
             case .none: return [IslandAction(label: "Install", key: "↩", icon: "arrow.down.app") { done(); m.install(i) }, skip]
             case .older:

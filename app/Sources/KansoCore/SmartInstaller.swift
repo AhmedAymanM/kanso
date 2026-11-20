@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import Security
 
@@ -124,13 +125,45 @@ public enum SmartInstaller {
         return compare(old.v, new.v) == .orderedAscending ? .older(installed: label) : .current(installed: label)
     }
 
-    /// The code signature is intact (any identity, including ad hoc and self-signed: trust is Gatekeeper's job on first
-    /// open; this catches unsigned and damaged bundles before they land in /Applications).
-    public static func signatureValid(_ app: URL) -> Bool {
+    /// What an app's code signature says. Any identity counts as `valid` (ad hoc and self-signed included): trust is
+    /// Gatekeeper's job on first open. `unsigned` has no signature at all; `broken` was changed after it was signed.
+    public enum Signature: String, Equatable, Sendable { case valid, unsigned, broken }
+
+    public static func signature(_ app: URL) -> Signature {
         var code: SecStaticCode?
-        guard SecStaticCodeCreateWithPath(app as CFURL, [], &code) == errSecSuccess, let code else { return false }
-        return SecStaticCodeCheckValidity(code, SecCSFlags(rawValue: kSecCSCheckAllArchitectures), nil) == errSecSuccess
+        guard SecStaticCodeCreateWithPath(app as CFURL, [], &code) == errSecSuccess, let code else { return .broken }
+        switch SecStaticCodeCheckValidity(code, SecCSFlags(rawValue: kSecCSCheckAllArchitectures), nil) {
+        case errSecSuccess: return .valid
+        // A bundle that was ever sealed and now fails (an executable swapped for an unsigned one reads as "unsigned")
+        // was changed after signing.
+        case errSecCSUnsigned: return Stat.exists(app.appendingPathComponent("Contents/_CodeSignature")) ? .broken : .unsigned
+        default: return .broken
+        }
     }
+
+    public static func signatureValid(_ app: URL) -> Bool { signature(app) == .valid }
+
+    /// SHA-256 over every file in a bundle (relative path, then contents), in path order. With no signature to check,
+    /// equal digests prove a copy is byte for byte the original.
+    public static func treeDigest(_ dir: URL) -> String? {
+        guard let e = FileManager.default.enumerator(at: dir, includingPropertiesForKeys: [.isRegularFileKey, .isSymbolicLinkKey]) else { return nil }
+        var paths: [String] = []
+        for case let u as URL in e { paths.append(String(u.standardizedFileURL.path.dropFirst(dir.standardizedFileURL.path.count))) }
+        var h = SHA256()
+        for p in paths.sorted() {
+            let u = dir.appendingPathComponent(p)
+            h.update(data: Data(p.utf8))
+            if Stat.isSymlink(u) { h.update(data: Data(((try? FileManager.default.destinationOfSymbolicLink(atPath: u.path)) ?? "").utf8)) }
+            else if Stat.isRegular(u) {
+                guard let d = Duplicates.digest(u) else { return nil }
+                h.update(data: Data(d))
+            }
+        }
+        return h.finalize().map { String(format: "%02x", $0) }.joined()
+    }
+
+    /// The download's SHA-256 in hex, to compare with the checksum the developer publishes.
+    public static func checksum(_ file: URL) -> String? { Duplicates.digest(file).map { $0.map { String(format: "%02x", $0) }.joined() } }
 
     // MARK: Process helper
 
@@ -239,6 +272,7 @@ public struct InstallReport: Sendable {
     public var trashed: Action?         // the download, journaled (⌘Z puts it back)
     public var replaced: Action?        // the older copy, journaled
     public var failure: String?         // one line naming the failed step; nil when everything worked
+    public var unsigned = false         // installed without a signature (the user confirmed the warning)
     public init() {}
 }
 
@@ -247,20 +281,30 @@ extension Engine {
     /// `eject` (the app layer unmounts the image; return false when it couldn't), then trash the download when asked.
     /// Replacing moves the old copy to the Trash, journaled, only after the new one is in place beside it.
     /// Blocking (ditto): call off the main thread.
+    /// `allowUnsigned`: the user confirmed the unsigned-app warning. Without a signature the copy is checked against the
+    /// original file by file instead. A broken signature (changed after signing) is never installed.
     public func install(app: URL, download: URL?, apps: URL = URL(fileURLWithPath: "/Applications"), move: Bool = false,
-                        replace: Bool = false, trashDownload: Bool, eject: () -> Bool) -> InstallReport {
+                        replace: Bool = false, allowUnsigned: Bool = false, trashDownload: Bool, eject: () -> Bool) -> InstallReport {
         var r = InstallReport()
         let name = app.deletingPathExtension().lastPathComponent
         let dest = apps.appendingPathComponent(app.lastPathComponent)
-        guard SmartInstaller.signatureValid(app) else {
-            r.failure = "\(name) isn't signed, so Kanso didn't install it. Drag it to Applications yourself if you trust it."
+        let sig = SmartInstaller.signature(app)
+        if sig == .broken {
+            r.failure = "\(name) was changed after it was signed, so Kanso didn't install it."
             return r
         }
+        if sig == .unsigned && !allowUnsigned {
+            r.failure = "\(name) isn't signed, so Kanso didn't install it."
+            return r
+        }
+        r.unsigned = sig == .unsigned
+        let original = r.unsigned ? SmartInstaller.treeDigest(app) : nil   // before a move, so it describes the download
         if Stat.exists(dest) && !replace { r.failure = "\(name) is already installed. Nothing changed."; return r }
         let temp = apps.appendingPathComponent(".kanso-\(UUID().uuidString.prefix(8))-\(app.lastPathComponent)")
         let copied = move ? (try? FileManager.default.moveItem(at: app, to: temp)) != nil
                           : SmartInstaller.run("/usr/bin/ditto", [app.path, temp.path], timeout: 600) != nil
-        guard copied, SmartInstaller.appInfo(temp)?.id == SmartInstaller.appInfo(move ? temp : app)?.id, SmartInstaller.signatureValid(temp) else {
+        let verified = r.unsigned ? (original != nil && SmartInstaller.treeDigest(temp) == original) : SmartInstaller.signatureValid(temp)
+        guard copied, SmartInstaller.appInfo(temp)?.id == SmartInstaller.appInfo(move ? temp : app)?.id, verified else {
             if move, Stat.exists(temp) { try? FileManager.default.moveItem(at: temp, to: app) } else { try? FileManager.default.removeItem(at: temp) }
             r.failure = "Couldn't copy \(name) to Applications. Nothing changed."
             return r
@@ -281,7 +325,7 @@ extension Engine {
         r.installed = dest
         guard eject() else { r.failure = "Installed, but the disk image couldn't be ejected. The download was kept."; return r }
         if trashDownload, let download {
-            r.trashed = trashInstaller(download, app: name, allowZip: true)
+            r.trashed = trashInstaller(download, app: name, allowZip: true, unsigned: r.unsigned)
             if r.trashed == nil { r.failure = "Installed, but the download couldn't be moved to the Trash. It was kept." }
         }
         return r
@@ -300,10 +344,10 @@ extension Engine {
 
     /// Moves a spent installer to the Trash and journals it (Put Back restores it).
     @discardableResult
-    public func trashInstaller(_ image: URL, app: String, allowZip: Bool = false) -> Action? {
+    public func trashInstaller(_ image: URL, app: String, allowZip: Bool = false, unsigned: Bool = false) -> Action? {
         let roots = s.roots.map { URL(fileURLWithPath: ($0 as NSString).expandingTildeInPath) }
         guard !SmartInstaller.refuses(image, roots: roots, keepTagged: Tags.read(image).contains(s.keepTag), allowZip: allowZip) else { return nil }
         guard FileManager.default.fileExists(atPath: image.path) else { return nil }
-        return trashJournaled(image, why: "installer · \(app) is installed", details: ["installer": app])
+        return trashJournaled(image, why: "installer · \(app) is installed", details: unsigned ? ["installer": app, "unsigned": "1"] : ["installer": app])
     }
 }
