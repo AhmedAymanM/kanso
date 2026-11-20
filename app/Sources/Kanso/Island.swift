@@ -143,6 +143,7 @@ final class Island: ObservableObject {
     @Published var shortcuts = false   // the keyboard shortcuts list replaces the body
     @Published var fanned = false      // several renamed files: stack (false) or fanned out (true)
     @Published var skin = Skin.capsule
+    @Published var bottom = false      // capsule above the Dock (Position: Bottom)
     @Published var notch = CGSize(width: 180, height: 32)
     @Published var hovering = false
     @Published var dismissAt = Date.distantFuture
@@ -317,21 +318,24 @@ final class Island: ObservableObject {
 
     func relayout() {
         guard let s = Island.activeScreen else { return }   // no displays attached (lid closed, headless)
-        let mode = AppModel.shared.settings.islandMode
+        let st = AppModel.shared.settings
         let n = Island.notchSize(s)
-        let wantsNotch = mode == .notch || (mode == .automatic && NotchApps.running().isEmpty)
-        let newSkin: Skin = (n != nil && wantsNotch) ? .notch : .capsule
+        // The notch style needs a notch and yields to other notch apps; everything else is the capsule.
+        let newSkin: Skin = (st.islandStyle == .notch && n != nil && NotchApps.running().isEmpty) ? .notch : .capsule
         if !visible || skin == newSkin { skin = newSkin }   // switch only between notices
+        if !visible { bottom = skin == .capsule && st.islandPosition == .bottom }
         if let n { notch = n }
         if panel == nil { makePanel() }
         let size = Island.size
-        let top = skin == .notch ? s.frame.maxY : s.visibleFrame.maxY - 6
-        panel?.setFrame(NSRect(x: s.frame.midX - size.width / 2, y: top - size.height, width: size.width, height: size.height), display: true)
+        // visibleFrame leaves out the menu bar and a showing Dock; with the Dock auto-hidden its bottom is the screen edge,
+        // so a bottom capsule follows the Dock down.
+        let y = skin == .notch ? s.frame.maxY - size.height : bottom ? s.visibleFrame.minY + 8 : s.visibleFrame.maxY - 6 - size.height
+        panel?.setFrame(NSRect(x: s.frame.midX - size.width / 2, y: y, width: size.width, height: size.height), display: true)
     }
 
     /// Where the island will be, for the yield check.
     private func targetRect() -> NSRect? {
-        guard let f = panel?.frame else { return nil }
+        guard !bottom, let f = panel?.frame else { return nil }   // notch apps live at the top
         return NSRect(x: f.midX - 190, y: f.maxY - 60, width: 380, height: 60)
     }
 

@@ -72,6 +72,13 @@ enum Snapshot {
                 }
                 island.shortcuts = false; island.fanned = false; island.askState = .idle; island.askText = ""
             }
+            // Position: Bottom (capsule above the Dock), compact and expanded.
+            island.skin = .capsule; island.bottom = true
+            for (name, notices, expanded, overview) in islandSamples(m) where ["renamed", "duplicate", "duplicate-expanded"].contains(name) {
+                island.notices = notices; island.index = max(0, notices.count - 1); island.expanded = expanded; island.overview = overview; island.selection = 0
+                shot("island-bottom-\(name)", CGSize(width: Island.size.width, height: expanded ? Island.size.height : 160), IslandBackdrop(skin: .capsule))
+            }
+            island.bottom = false
             island.notices = []; island.expanded = false; island.overview = false
             shot("icon", CGSize(width: 256, height: 256), AppIcon().padding(20))
         }
@@ -127,9 +134,11 @@ struct IslandBackdrop: View {
             LinearGradient(colors: scheme == .dark ? [Color(nsColor: NSColor(hex: 0x2B3A36)), Color(nsColor: NSColor(hex: 0x1B2220))] : [Color(nsColor: NSColor(hex: 0xC9D8CF)), Color(nsColor: NSColor(hex: 0xE9E3D6))], startPoint: .top, endPoint: .bottom)
             Rectangle().fill(scheme == .dark ? Color.black.opacity(0.35) : Color.white.opacity(0.45)).frame(height: 32)
             VStack(spacing: 0) {
-                if skin == .capsule { Spacer().frame(height: 38) }
+                if Island.shared.bottom { Spacer(minLength: 0) } else if skin == .capsule { Spacer().frame(height: 38) }
                 IslandBody()
-                Spacer(minLength: 0)
+                if Island.shared.bottom {   // the Dock, 8 pt below
+                    RoundedRectangle(cornerRadius: 16).fill(scheme == .dark ? Color.white.opacity(0.12) : Color.white.opacity(0.5)).frame(width: 420, height: 52).padding(.top, 8).padding(.bottom, 4)
+                } else { Spacer(minLength: 0) }
             }
         }
     }

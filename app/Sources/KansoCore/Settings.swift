@@ -80,12 +80,15 @@ public enum UnknownFiles: String, Codable, CaseIterable, Sendable { case askMode
 /// Which model Kanso asks about unknown file types and plain-English rules. Everything runs on this Mac; there is no cloud choice.
 /// "Kanso Local" has no model yet, so it is not a case: the picker shows it disabled.
 public enum ModelChoice: String, Codable, CaseIterable, Sendable { case appleIntelligence, rulesOnly }
-public enum IslandMode: String, Codable, CaseIterable, Sendable { case automatic, notch, below }
+/// The island's look: a floating Liquid Glass capsule (default), or black out of the notch (capsule on screens without one).
+public enum IslandStyle: String, Codable, CaseIterable, Sendable { case capsule, notch }
+/// Where the capsule floats: under the menu bar, or above the Dock. The notch style is always at the top.
+public enum IslandPosition: String, Codable, CaseIterable, Sendable { case top, bottom }
 
 public struct Settings: Codable, Equatable, Sendable {
     /// Bump when a stored value changes meaning. New fields with a default need no bump: add them to `init(from:)`
     /// (SettingsTests.testEveryFieldSurvivesARoundTrip fails if one is forgotten).
-    public static let currentVersion = 2
+    public static let currentVersion = 3
     public var version = Settings.currentVersion
     public var onboarded = false
     public var roots: [String] = ["~/Downloads", "~/Desktop", "~/Documents"]
@@ -144,7 +147,8 @@ public struct Settings: Codable, Equatable, Sendable {
     public var autoTrashDays = 30
 
     // General
-    public var islandMode = IslandMode.automatic
+    public var islandStyle = IslandStyle.capsule
+    public var islandPosition = IslandPosition.top
     public var shortcutHintUntil = Date().addingTimeInterval(5 * 86400)  // the ⌥⌘K hint shows for the first days
     public var showShortcutHint = true
     public var collectDuringFocus = true
@@ -205,7 +209,7 @@ public struct Settings: Codable, Equatable, Sendable {
         d(.tagKind, &tagKind); d(.tagOrganization, &tagOrganization); d(.useExistingTags, &useExistingTags)
         d(.duplicates, &duplicates); d(.keeper, &keeper); d(.checkManualShelves, &checkManualShelves)
         d(.duplicatesToTrash, &duplicatesToTrash); d(.autoTrashDuplicates, &autoTrashDuplicates); d(.autoTrashDays, &autoTrashDays)
-        d(.islandMode, &islandMode); d(.shortcutHintUntil, &shortcutHintUntil); d(.showShortcutHint, &showShortcutHint)
+        d(.islandStyle, &islandStyle); d(.islandPosition, &islandPosition); d(.shortcutHintUntil, &shortcutHintUntil); d(.showShortcutHint, &showShortcutHint)
         d(.collectDuringFocus, &collectDuringFocus); d(.openAtLogin, &openAtLogin)
         d(.showMenuBarIcon, &showMenuBarIcon); d(.appearance, &appearance); d(.updateChecks, &updateChecks); d(.crashReports, &crashReports)
         d(.islandShortcut, &islandShortcut)
@@ -213,6 +217,11 @@ public struct Settings: Codable, Equatable, Sendable {
         if (try? c.decode(ModelChoice.self, forKey: .modelChoice)) == nil,
            let legacy = try? decoder.container(keyedBy: LegacyKeys.self), (try? legacy.decode(Bool.self, forKey: .appleIntelligence)) == false {
             modelChoice = .rulesOnly
+        }
+        // v2 stored islandMode (automatic / notch / below). Only an explicit "notch" keeps the notch; the capsule is the default now.
+        if (try? c.decode(IslandStyle.self, forKey: .islandStyle)) == nil, let legacy = try? decoder.container(keyedBy: LegacyKeys.self),
+           (try? legacy.decode(String.self, forKey: .islandMode)) == "notch" {
+            islandStyle = .notch
         }
         // Element by element: one malformed type or rule must not reset the whole list to defaults.
         if let x = try? c.decode(LossyArray<FileType>.self, forKey: .types) { types = x.elements }
@@ -222,7 +231,7 @@ public struct Settings: Codable, Equatable, Sendable {
         migrate()
     }
 
-    private enum LegacyKeys: String, CodingKey { case appleIntelligence }
+    private enum LegacyKeys: String, CodingKey { case appleIntelligence, islandMode }
 
     /// The version stored in a settings.json, 0 when it has none (or isn't JSON).
     public static func storedVersion(_ data: Data) -> Int {
@@ -240,6 +249,10 @@ public struct Settings: Codable, Equatable, Sendable {
         if version < 2 {
             // v1 to v2: the appleIntelligence Bool became modelChoice (converted while decoding, see init(from:)).
             version = 2
+        }
+        if version < 3 {
+            // v2 to v3: islandMode became islandStyle + islandPosition (converted while decoding, see init(from:)).
+            version = 3
         }
     }
 }

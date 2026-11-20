@@ -104,20 +104,20 @@ struct AskField: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: "sparkles").font(.system(size: TS.body)).foregroundStyle(Color.white.opacity(0.55))
+            Image(systemName: "sparkles").font(.system(size: TS.body)).foregroundStyle(IslandInk.ink(0.55))
             TextField("Ask about these files…", text: $island.askText).textFieldStyle(.plain).font(.system(size: TS.body))
-                .foregroundStyle(island.askFocus ? IslandInk.text : Color.white.opacity(0.6)).focused($focused)
+                .foregroundStyle(island.askFocus ? IslandInk.text : IslandInk.ink(0.6)).focused($focused)
                 .onSubmit { island.submitAsk() }
             if island.askState == .thinking {
                 ThinkingOrb()
-                Text("Thinking…").font(.system(size: TS.small)).foregroundStyle(Color.white.opacity(0.6))
+                Text("Thinking…").font(.system(size: TS.small)).foregroundStyle(IslandInk.ink(0.6))
             } else if island.askText.isEmpty {
                 Text(island.askHistory.isEmpty ? "Tab" : "sent · ↑ recalls").font(.system(size: TS.meta)).foregroundStyle(IslandInk.text3)
             }
         }
         .padding(.horizontal, 12).frame(height: 36)
-        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.white.opacity(0.08)))
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Color.white.opacity(0.12), lineWidth: 0.75))
+        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(IslandInk.ink(0.08)))
+        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(IslandInk.ink(0.12), lineWidth: 0.75))
         .overlay { if island.askState == .thinking && !Motion.reduced { Beam().allowsHitTesting(false) } }
         .onChange(of: island.askFocus) { _, f in focused = f }
         .onChange(of: focused) { _, f in if island.askFocus != f { island.askFocus = f } }
@@ -129,7 +129,7 @@ struct AskField: View {
 struct ThinkingOrb: View {
     var body: some View {
         Circle().fill(AngularGradient(colors: [Color(nsColor: NSColor(hex: 0xCFE8D8)), Color(nsColor: NSColor(hex: 0xD9E0FA)), Color(nsColor: NSColor(hex: 0xE5DCF7)), Color(nsColor: NSColor(hex: 0xCFE8D8))], center: .center))
-            .frame(width: 18, height: 18).blur(radius: 0.6).overlay(Circle().fill(Color.white.opacity(0.5)).frame(width: 6, height: 6)).accessibilityHidden(true)
+            .frame(width: 18, height: 18).blur(radius: 0.6).overlay(Circle().fill(IslandInk.ink(0.5)).frame(width: 6, height: 6)).accessibilityHidden(true)
     }
 }
 
@@ -153,15 +153,15 @@ struct AskProposal: View {
         switch island.askState {
         case .move(let shelf, let ids):
             HStack(spacing: 8) {
-                Image(systemName: "folder.badge.plus").font(.system(size: TS.body)).foregroundStyle(Color.white.opacity(0.7))
+                Image(systemName: "folder.badge.plus").font(.system(size: TS.body)).foregroundStyle(IslandInk.ink(0.7))
                 Text("Move \(ids.count) \(ids.count == 1 ? "file" : "files") → \(m.settings.emoji(for: shelf)) \(shelf)").font(.system(size: TS.body, weight: .medium)).foregroundStyle(IslandInk.text)
                 Spacer()
                 pill("Move \(ids.count) \(ids.count == 1 ? "file" : "files")", "↩", prominent: true) { island.confirmAsk(trash: false) }
                 pill("Cancel", "esc") { island.cancelAsk() }
             }
             .padding(.horizontal, 12).frame(height: 44)
-            .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.white.opacity(0.06)))
-            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Color.white.opacity(0.14), lineWidth: 0.75))
+            .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(IslandInk.ink(0.06)))
+            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(IslandInk.ink(0.14), lineWidth: 0.75))
         case .trash(let ids):
             // Written from the journal, never from model text.
             let acts = ids.compactMap { id in m.actions.first { $0.id == id } }
@@ -213,11 +213,11 @@ struct AskProposal: View {
     func pill(_ label: String, _ key: String, icon: String? = nil, prominent: Bool = false, _ run: @escaping () -> Void) -> some View {
         Button(action: run) {
             HStack(spacing: 6) {
-                if let icon { Image(systemName: icon).font(.system(size: TS.small)).foregroundStyle(Color.white.opacity(0.7)) }
-                Text(label).font(.system(size: TS.small, weight: .medium)).foregroundStyle(Color.white.opacity(0.9))
-                Text(key).font(.system(size: TS.meta)).foregroundStyle(Color.white.opacity(0.6))
+                if let icon { Image(systemName: icon).font(.system(size: TS.small)).foregroundStyle(IslandInk.ink(0.7)) }
+                Text(label).font(.system(size: TS.small, weight: .medium)).foregroundStyle(IslandInk.ink(0.9))
+                Text(key).font(.system(size: TS.meta)).foregroundStyle(IslandInk.ink(0.6))
             }
-            .padding(.horizontal, 12).frame(height: 28).background(Capsule().fill(Color.white.opacity(prominent ? 0.16 : 0.08)))
+            .padding(.horizontal, 12).frame(height: 28).background(Capsule().fill(IslandInk.ink(prominent ? 0.16 : 0.08)))
         }
         .buttonStyle(.plain)
     }

@@ -30,24 +30,26 @@ struct Option<Trailing: View>: View {
 
 // MARK: General
 
-/// A little illustrated screen showing where the island appears (the design's visual picker).
+/// A little illustrated screen showing the island's style and where it sits (the design's visual picker).
 struct IslandPlacement: View {
-    var mode: IslandMode
+    var style: IslandStyle
+    var position: IslandPosition
     var body: some View {
-        ZStack(alignment: .top) {
+        ZStack(alignment: style == .capsule && position == .bottom ? .bottom : .top) {
             LinearGradient(colors: [Color(nsColor: NSColor(hex: 0xA9C8F5)), Color(nsColor: NSColor(hex: 0xD5BDF0))], startPoint: .top, endPoint: .bottom)
             Rectangle().fill(Color.white.opacity(0.35)).frame(height: 10).frame(maxHeight: .infinity, alignment: .top)
-            switch mode {
-            case .automatic:
-                UnevenRoundedRectangle(bottomLeadingRadius: 8, bottomTrailingRadius: 8).fill(.black).frame(width: 74, height: 22)
-                Capsule().fill(Color.black.opacity(0.55)).frame(width: 58, height: 14).padding(.top, 34)
-            case .notch:
+            if style == .notch {
                 UnevenRoundedRectangle(bottomLeadingRadius: 10, bottomTrailingRadius: 10).fill(.black).frame(width: 74, height: 26)
-            case .below:
-                Capsule().fill(.black).frame(width: 86, height: 18).padding(.top, 20)
+            } else {
+                Capsule().fill(Color.white.opacity(0.9)).overlay(Capsule().strokeBorder(Color.black.opacity(0.12), lineWidth: 0.5))
+                    .shadow(color: .black.opacity(0.15), radius: 3, y: 2).frame(width: 86, height: 16)
+                    .padding(position == .bottom ? .bottom : .top, position == .bottom ? 18 : 14)
+                if position == .bottom {   // the Dock
+                    RoundedRectangle(cornerRadius: 4).fill(Color.white.opacity(0.45)).frame(width: 110, height: 10).padding(.bottom, 4)
+                }
             }
         }
-        .frame(height: 70).clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous)).padding(0)
+        .frame(height: 70).clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         .accessibilityHidden(true)
     }
 }
@@ -84,19 +86,25 @@ struct GeneralPage: View {
                     HStack(spacing: 14) {
                         Image(systemName: "capsule.tophalf.filled").font(.system(size: TS.emphasis)).foregroundStyle(K.text2).frame(width: 20)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Where the island appears").font(.system(size: TS.body, weight: .medium)).foregroundStyle(K.text)
-                            Text("Click a preview to choose. \(islandDesc)").font(.system(size: TS.small)).foregroundStyle(K.text2)
+                            Text("Island style").font(.system(size: TS.body, weight: .medium)).foregroundStyle(K.text)
+                            Text(islandDesc).font(.system(size: TS.small)).foregroundStyle(K.text2)
                         }
                     }
                     HStack(alignment: .top, spacing: 12) {
-                        ForEach([(IslandMode.automatic, "Automatic", "Notch; moves below while another notch app runs."), (.notch, "From the notch", "Always drops from the notch."), (.below, "Below the notch", "A capsule under the menu bar.")], id: \.1) { o in
-                            ChoiceCard(title: o.1, caption: o.2, selected: m.settings.islandMode == o.0, pick: { m.set(\.islandMode, o.0) }) { IslandPlacement(mode: o.0).padding(6) }
+                        ChoiceCard(title: "Capsule", caption: "Floats on any screen, as Liquid Glass.", selected: m.settings.islandStyle == .capsule, pick: { m.set(\.islandStyle, .capsule) }) {
+                            IslandPlacement(style: .capsule, position: m.settings.islandPosition).padding(6)
+                        }
+                        ChoiceCard(title: "Notch", caption: "Grows out of the notch. Screens without one show the capsule.", selected: m.settings.islandStyle == .notch, pick: { m.set(\.islandStyle, .notch) }) {
+                            IslandPlacement(style: .notch, position: .top).padding(6)
                         }
                     }
                     .fixedSize(horizontal: false, vertical: true)   // equal card heights
                 }
                 .padding(.horizontal, 16).padding(.top, 12)
                 Rectangle().fill(K.separator).frame(height: 0.75)
+                Row(icon: "arrow.up.and.down", title: "Position", desc: m.settings.islandStyle == .notch ? "For the capsule. The notch style is always at the top." : "Top floats under the menu bar; Bottom sits above the Dock and follows it down when it hides.", dim: m.settings.islandStyle == .notch) {
+                    Segmented(options: [(IslandPosition.top, "Top"), (.bottom, "Bottom")], value: m.binding(\.islandPosition)).disabled(m.settings.islandStyle == .notch)
+                }
                 ShortcutRow(icon: "keyboard", title: "Island shortcut", desc: shortcutDesc, kp: \.islandShortcut)
                 Row(icon: "lightbulb", title: "Show the \(m.settings.islandShortcut.display) hint", desc: "On the compact island for your first days; turns itself off.", last: true) { KToggle(on: m.binding(\.showShortcutHint), label: "Show the shortcut hint") }
             }
@@ -109,8 +117,8 @@ struct GeneralPage: View {
     }
 
     var islandDesc: String {
-        let others = NotchApps.running().compactMap(\.localizedName)
-        return others.isEmpty ? "" : "\(others[0]) uses the notch."
+        if m.settings.islandStyle == .notch, !NotchApps.running().isEmpty { return "Another app is using the notch, so Kanso shows the capsule." }
+        return "Click a preview to choose. Changes apply from the next notice."
     }
 }
 

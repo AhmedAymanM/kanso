@@ -59,6 +59,7 @@ enum K {
     static let sidebarText2 = Color.dyn(0x5E5E63, 0xA1A1A6)   // secondary text on the sidebar material: 5.3:1 light, 5.9:1 dark
     static let rowSelected = Color.dyn(0x000000, 0xFFFFFF, 0.08, 0.10)   // selected sidebar row, hovered pop-up row
     static let glass = Color.dyn(0xFBFAF8, 0x2A2A2C, 0.92, 0.92)
+    static let glassSolid = Color.dyn(0xFBFAF8, 0x2A2A2C)   // Reduce Transparency
     static let card = Color.dyn(0xFFFFFF, 0x2C2C2E)
     static let cardSoft = Color.dyn(0xFFFFFF, 0x3A3A3C, 0.70, 0.55)
     static let text = Color.dyn(0x1D1D1F, 0xF5F5F7)
