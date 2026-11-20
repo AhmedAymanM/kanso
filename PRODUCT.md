@@ -25,14 +25,14 @@ Decided in the grilling session on 2026-09-25. This file is the source of truth 
 ## 2. Business
 
 - **Public, open source, free, with donations, for good.** Support comes through Buy Me a Coffee. There is no paid tier.
-- **License: MIT** (`LICENSE`, since the repo went public). MIT already allows any other build, an App Store one included, so no CLA is needed.
+- **License: MIT** (`LICENSE`, since the repo went public). No CLA is needed.
 - **Distribution without a paid Apple account** (decided 2026-11-19; the Developer Program fee waiver doesn't cover individuals):
   - Signed with a **self-signed code-signing certificate** (`build.sh` `SIGN_ID`). A stable identity keeps folder permissions across updates, which ad-hoc signing doesn't. Not notarized.
   - **GitHub Releases** plus the owner's own **Homebrew tap**. homebrew/cask doesn't take apps that fail Gatekeeper, and Homebrew 5 removed `--no-quarantine`.
   - A first-launch guide walks through **System Settings → Privacy & Security → Open Anyway**.
   - Updates use the Sparkle updater framework with **EdDSA-signed** updates from a pinned host. User-facing copy says "updates" and never names the framework.
-  - The Mac App Store and notarization come back only if a paid account ever happens.
-  - Built sandbox-compatible from day one: security-scoped folder bookmarks, no Full Disk Access, no private APIs.
+  - Notarization comes back only if a paid account ever happens. **There is no Mac App Store plan**, so no sandbox or security-scoped bookmarks.
+  - No Full Disk Access, no private APIs.
 
 ## 3. Platform and technology
 
@@ -218,7 +218,7 @@ These are equal, and the user picks one during onboarding. They aren't "simple v
 
 ### Onboarding (decided 2026-09-29)
 Three steps, learning by doing; approach, feature switches and details live in Settings (defaults: Sorting, Renaming, Duplicates and Smart Installer on; Tagging and Cleanup off). The first launch of the self-signed build starts with the Open Anyway guide.
-1. **Folders.** "Kanso needs to open three folders." An explanation (top level only, shelves inside the same folder, nothing leaves the Mac, macOS asks once per folder), the three folders pre-checked (unchecking narrows the request), and **one button, Continue**, which triggers macOS's prompt per checked folder (in the sandboxed build, the folder picker preselected on each). Per the HIG: no "Allow" wording and no close/cancel before the system prompt. Folder access is Kanso's only permission (Carbon hot keys need no Accessibility; no Full Disk Access; the island replaces notifications).
+1. **Folders.** "Kanso needs to open three folders." An explanation (top level only, shelves inside the same folder, nothing leaves the Mac, macOS asks once per folder), the three folders pre-checked (unchecking narrows the request), and **one button, Continue**, which triggers macOS's prompt per checked folder. Per the HIG: no "Allow" wording and no close/cancel before the system prompt. Folder access is Kanso's only permission (Carbon hot keys need no Accessibility; no Full Disk Access; the island replaces notifications).
    - A declined folder is skipped silently and shows in the Sorting row as "not allowed" with **Open Privacy Settings**; it turns normal once access is detected. Nothing on the island.
    - If every folder is declined, onboarding ends on one calm screen, "Kanso needs at least one folder to work", with Open Privacy Settings as its only button.
 2. **The island.** A live demo inside the window with a pretend file (real files untouched), shown in the capsule style: the rename sweep and beam, then "press ⌥⌘K", which expands the demo island. Never blocking: a Skip link, and after 10 s it expands on its own ("or click the island").
@@ -232,8 +232,8 @@ Three steps, learning by doing; approach, feature switches and details live in S
 | **v1** (launch **Tuesday 2027-01-26**) | Swift app, By kind, renaming, dimension tags, duplicates, the island (capsule default, Top/Bottom), quick settings popover, **Smart Installer**, **Cleanup** (carrier timers, kept signals, Move to Documents suggestions), **the Tray** (files, links, snippets), preview for Sort everything, onboarding, settings, local stats, Apple Intelligence. Shipping basics: self-signed build, EdDSA updates from a pinned host, the owner's Homebrew tap, the Open Anyway guide |
 | **v1.1** | **Integrations**: App Intents (Shortcuts), Raycast and Alfred, all over one surface (App Intents plus `kanso-cli`). **The ask field** (macOS 26+, ADR 0001, an evaluation set before shipping). **Rename templates as a rule action** ("Also normalize my names", "Name future IKEA receipts this way"). **Cleanup's "Still need these?" review** (content unused for 60 days, AI labels and demotes, ⌘⌫ to trash, each file also offers File in Documents) |
 | **v1.2** | **File actions** from the Tray and the island (optimize an image, Markdown → PDF, …). **Uninstall unused apps and clean their leftovers**: candidates by bundle ID and signing team, AI labels and demotes, a fixed guard, Trash only, ⌘⌫ only |
-| **By purpose release** | after the post-launch review shows an undo rate under 5%: content reading within the limits above, adopting folder names, earned trust, status and reminder tags, per-folder profiles |
-| **Later** | moving kept files to Documents automatically (once the suggestions are almost always accepted). Chat with your files (needs a stored index, so it gets its own opt-in). An optional **Finder replacement**, exploration only and not committed: a browser built on what only Kanso knows (why each file is where it is, undo), views asked for in plain English that become saved views, and views, columns and actions in a plain-text config that the AI writes and the user can edit; it starts only if v1.1 shows people search and browse through Kanso. Kanso Local, once a model earns it in `bench.py`. Mac App Store and notarization, only with a paid Apple account |
+| **By purpose release** | after the post-launch review shows no trust problems in GitHub issues: content reading within the limits above, adopting folder names, earned trust, status and reminder tags, per-folder profiles |
+| **Later** | moving kept files to Documents automatically (once the suggestions are almost always accepted). Chat with your files (needs a stored index, so it gets its own opt-in). An optional **Finder replacement**, exploration only and not committed: a browser built on what only Kanso knows (why each file is where it is, undo), views asked for in plain English that become saved views, and views, columns and actions in a plain-text config that the AI writes and the user can edit; it starts only if v1.1 shows people search and browse through Kanso. Kanso Local, once a model earns it in `bench.py`. Notarization, only with a paid Apple account |
 
 Already built (#16, #18): plain-English rules with preview and an explicit Save, the model picker (Apple Intelligence, or rules and extensions only), suggested shelves.
 
@@ -241,13 +241,12 @@ Already built (#16, #18): plain-English rules with preview and an explicit Save,
 
 ## 9. Success criteria
 
-- **Launch gate (dogfood):** the owner uses the Swift v1 on their real Downloads, Desktop and Documents for **two weeks**, with an **undo rate under 5%** measured from the journal (`kanso-cli stats --undo-rate`). The dogfood also proves Kanso's own claims:
+- **Launch gate (dogfood):** the owner uses the Swift v1 on their real Downloads, Desktop and Documents for **two weeks**, with an **undo rate under 5%** measured from the journal (`kanso-cli stats --undo-rate`), and **no open "moved my file wrongly" bug**. The dogfood also proves Kanso's own claims:
   - **Network:** only update checks leave the Mac (watched with `nettop` or Little Snitch).
   - **Signing:** folder permissions survive an update of the self-signed build, and a clean user account installs from the tap.
   - **Cleanup:** zero false expiries. Every archive-extraction match is logged with both name lists and checked by hand; on day 7, the files due to expire are checked for any still in use. Trashes and their undos are counted apart from sorts, and **any undo of an automatic trash stops the feature**.
 - **After launch** (no telemetry, so only signals we can observe):
   - **Retention:** about 60% of installs still checking for updates after 30 days (from the update-check logs).
-  - **Trust:** an undo rate under 5% of automatic actions, from opt-in shared stats. If it's higher, fix it before building By purpose.
-  - **Qualitative:** among the first 20 GitHub issues and discussions, mostly feature requests rather than "it moved my file wrongly".
-  - **Value:** Buy Me a Coffee supporters, and shared "your month with Kanso" stats.
-  - **Cleanup's v1.1 review:** what share of pre-ticked files people untick. Over 20% means start unticked, or narrow it to 90 days.
+  - **Trust:** from GitHub issues and stars. Among the first 20 issues and discussions, mostly feature requests rather than "it moved my file wrongly", and stars growing. Any "moved my file wrongly" report is fixed before building By purpose.
+  - **Value:** Buy Me a Coffee supporters and GitHub stars.
+  - **Cleanup's v1.1 review** (from the owner's own use): what share of pre-ticked files get unticked. Over 20% means start unticked, or narrow it to 90 days.
