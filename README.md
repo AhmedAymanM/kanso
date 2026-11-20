@@ -69,6 +69,18 @@ Keeps `~/Downloads`, `~/Desktop` and `~/Documents` sorted without you thinking a
 
 ## Install
 
+### The Mac app: first launch
+
+The app is signed by its maker but not notarized by Apple (that needs a paid account), so macOS asks once:
+
+1. Move **Kanso** to **Applications**, then open it. macOS says it can't check it; click **Done**.
+2. Open **System Settings → Privacy & Security**, scroll to **Security**, and click **Open Anyway** next to Kanso.
+3. Confirm with your password or Touch ID, then **Open**.
+
+Updates carry the same signature, so macOS doesn't ask again and folder permissions stay. To check a download, compare its SHA-256 with the one on the GitHub release.
+
+### The Python agent
+
 ```bash
 uv sync
 uv run kanso run --all --dry-run   # preview what it would do with what's already there
