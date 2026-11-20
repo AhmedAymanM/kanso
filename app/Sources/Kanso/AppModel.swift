@@ -55,7 +55,7 @@ enum Need: Identifiable, Equatable {
 /// The pages of the one App window (design handoff 2026-09-30): history, the five features, then app settings.
 enum Page: String, CaseIterable, Identifiable {
     case overview = "Overview", activity = "Activity"
-    case sorting = "Sorting", renaming = "Renaming", duplicates = "Duplicates", tagging = "Tagging", smartEject = "Smart Eject"
+    case sorting = "Sorting", renaming = "Renaming", duplicates = "Duplicates", tagging = "Tagging", smartInstaller = "Smart Installer"
     case general = "General", privacy = "Privacy & AI"
     var id: String { rawValue }
     var title: String { rawValue }
@@ -67,13 +67,13 @@ enum Page: String, CaseIterable, Identifiable {
         case .renaming: return "pencil"
         case .duplicates: return "doc.on.doc"
         case .tagging: return "tag"
-        case .smartEject: return "eject"
+        case .smartInstaller: return "arrow.down.app"
         case .general: return "gearshape"
         case .privacy: return "hand.raised"
         }
     }
     /// Sidebar groups, separated by space.
-    static let groups: [[Page]] = [[.overview, .activity], [.sorting, .renaming, .duplicates, .tagging, .smartEject], [.general, .privacy]]
+    static let groups: [[Page]] = [[.overview, .activity], [.sorting, .renaming, .duplicates, .tagging, .smartInstaller], [.general, .privacy]]
 }
 
 /// How long Sorting stays off (PRODUCT.md: turning Sorting off asks for how long).
@@ -129,9 +129,11 @@ final class AppModel: ObservableObject {
     private var pendingRun: DispatchWorkItem?
     private var timer: Timer?
     private var minuteTimer: Timer?
-    private var mounted: [URL: SmartEject.Watch] = [:]   // Smart Eject: volumes we watch
+    private var mounted: [URL: SmartInstaller.Watch] = [:]   // Smart Installer fallback: volumes we watch for a manual install
+    private var offered = Set<String>()                    // carrier offers shown this session (dismissed ones persist in pending)
     private var installTimer: Timer?                      // runs only while something is mounted
     private var checkingInstalls = false
+    private var checkingCarriers = false
 
     init(store: Store = Store()) {
         self.store = store
@@ -448,6 +450,7 @@ final class AppModel: ObservableObject {
     }
 
     func changed() {
+        checkCarriers()
         guard settings.autoSort, settings.onboarded else { return }
         schedule(after: TimeInterval(settings.settleSeconds) + 1)
     }
@@ -515,9 +518,9 @@ final class AppModel: ObservableObject {
         NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_FilesAndFolders")!)
     }
 
-    // MARK: Smart Eject
+    // MARK: Smart Installer
 
-    func startSmartEject() {
+    func startSmartInstaller() {
         let nc = NSWorkspace.shared.notificationCenter
         nc.addObserver(forName: NSWorkspace.didMountNotification, object: nil, queue: .main) { n in
             guard let url = n.userInfo?[NSWorkspace.volumeURLUserInfoKey] as? URL else { return }
@@ -533,18 +536,108 @@ final class AppModel: ObservableObject {
     }
 
     /// hdiutil, reading the volume and the receipts all run off the main thread; only the state lands back here.
+    /// One app and nothing else: the install offer. Anything else (or Not now): the fallback watch.
     private func volumeMounted(_ volume: URL) {
-        guard settings.smartEject else { return }
+        guard settings.smartInstaller else { return }
         let key = volume.standardizedFileURL
         let mountedAt = Date()
         Task.detached(priority: .utility) {
-            let watch = SmartEject.inspect(volume, at: mountedAt)
+            let watch = SmartInstaller.inspect(volume, at: mountedAt)
+            let offer = watch.flatMap { w in
+                SmartInstaller.singleApp(in: volume).flatMap { app in
+                    SmartInstaller.appInfo(app).map { InstallOffer(app: app, info: $0, download: w.image, volume: volume, existing: SmartInstaller.existing($0, in: URL(fileURLWithPath: "/Applications"))) }
+                }
+            }
             await MainActor.run {
-                guard let watch, self.settings.smartEject else { return }
+                guard let watch, self.settings.smartInstaller else { return }
                 self.mounted[key] = watch
                 self.updateInstallTimer()
+                if let offer { self.offerInstall(offer) }
             }
         }
+    }
+
+    /// After the first Install, a fresh app installs in one step; Replace and Skip always ask.
+    func offerInstall(_ o: InstallOffer) {
+        if settings.installWithoutAsking, o.existing == .none { install(o); return }
+        Island.shared.show(.offer(.install(o)))
+    }
+
+    /// Copy, check, eject, trash the download, open. The island shows the work, then one line with what happened.
+    func install(_ o: InstallOffer, replace: Bool = false) {
+        if !settings.installWithoutAsking { set(\.installWithoutAsking, true) }   // both answers are remembered
+        if let v = o.volume { mounted.removeValue(forKey: v.standardizedFileURL); updateInstallTimer() }   // the offer handles it, not the fallback
+        let name = o.info.name, trashDownload = settings.trashDownload, engine = engine
+        Island.shared.show(.info(icon: "arrow.down.app", text: "Installing \(name)…"))
+        Task.detached(priority: .userInitiated) {
+            let r = engine.install(app: o.app, download: o.download, move: o.volume == nil, replace: replace, trashDownload: trashDownload) {
+                guard let v = o.volume else { return true }
+                return (try? NSWorkspace.shared.unmountAndEjectDevice(at: v)) != nil
+            }
+            await MainActor.run {
+                self.refresh()
+                Island.shared.dismiss(id: "info-Installing \(name)…")
+                if let f = r.failure { Island.shared.show(.info(icon: r.installed == nil ? "exclamationmark.triangle" : "checkmark.circle", text: f)) }
+                else if let t = r.trashed { Island.shared.show(.installer(t)) }
+                else { Island.shared.show(.info(icon: "checkmark.circle", text: "Installed \(name)")) }
+                if let app = r.installed, self.settings.openAfterInstall {
+                    NSWorkspace.shared.openApplication(at: app, configuration: NSWorkspace.OpenConfiguration())   // from /Applications, never a translocated copy
+                }
+            }
+        }
+    }
+
+    /// Whether an app with this bundle id is running (Replace waits until it's quit).
+    func isRunning(_ id: String) -> Bool { !NSRunningApplication.runningApplications(withBundleIdentifier: id).isEmpty }
+
+    /// Extracted archives and opened torrents get one "done with it?" offer; a zip that extracted to one app gets the
+    /// install offer. Each file is offered once (dismissals persist). Unanswered, the Cleanup timers apply.
+    func checkCarriers() {
+        guard settings.smartInstaller, settings.onboarded, !checkingCarriers else { return }
+        checkingCarriers = true
+        let roots = settings.activeRoots, dismissed = Set(pending.dismissed), offered = offered, keep = settings.keepTag
+        Task.detached(priority: .utility) {
+            var found: [CarrierOffer] = []
+            for root in roots {
+                let shelves = root.appendingPathComponent(Library.mine)
+                let dirs = [root] + ((try? FileManager.default.contentsOfDirectory(at: shelves, includingPropertiesForKeys: nil)) ?? [])
+                for dir in dirs {
+                    for u in (try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? [] {
+                        let key = "carrier:" + u.path
+                        guard !dismissed.contains(key), !offered.contains(key), !Tags.read(u).contains(keep) else { continue }
+                        switch u.pathExtension.lowercased() {
+                        case "zip":
+                            guard let x = Carriers.extraction(of: u) else { continue }
+                            NSLog("Kanso carrier match: %@ lists %@; found %@", u.lastPathComponent, x.listing.joined(separator: ", "), x.found.joined(separator: ", "))
+                            if x.sibling.pathExtension.lowercased() == "app", let info = SmartInstaller.appInfo(x.sibling) {
+                                found.append(.install(InstallOffer(app: x.sibling, info: info, download: u, volume: nil, existing: SmartInstaller.existing(info, in: URL(fileURLWithPath: "/Applications")))))
+                            } else { found.append(.trashZip(u)) }
+                        case "torrent" where Carriers.torrentOpened(u): found.append(.trashTorrent(u))
+                        default: continue
+                        }
+                    }
+                }
+            }
+            await MainActor.run {
+                self.checkingCarriers = false
+                for o in found where !self.offered.contains(o.key) {
+                    self.offered.insert(o.key)
+                    if case .install(let i) = o { self.offerInstall(i) } else { Island.shared.show(.offer(o)) }
+                }
+            }
+        }
+    }
+
+    /// The user answered a carrier offer: never offer that file again.
+    func dismissCarrier(_ o: CarrierOffer) { engine.store.updatePending { $0.dismissed.append(o.key) }; refresh() }
+
+    /// "Trash the zip" / "Trash it": journaled, one ⌘Z away.
+    @discardableResult
+    func trashCarrier(_ o: CarrierOffer) -> Action? {
+        guard let u = o.url else { return nil }
+        let a = engine.trashCarrier(u, kind: o.kind)
+        dismissCarrier(o)
+        return a
     }
 
     /// ponytail: polls every 3 s, but only while an installer volume is mounted; switch to FSEvents if it ever matters.
@@ -559,26 +652,53 @@ final class AppModel: ObservableObject {
         }
     }
 
+    /// Fallback: the user installed by hand (a .pkg, several items, or Not now). Once it's verifiably in, eject and trash.
     private func checkInstalls() {
-        guard settings.smartEject, !mounted.isEmpty, !checkingInstalls else { return }
+        guard settings.smartInstaller, !mounted.isEmpty, !checkingInstalls else { return }
         checkingInstalls = true
         let watching = mounted
         Task.detached(priority: .utility) {
-            let spent = watching.filter { SmartEject.isSpent($0.value) }
+            let spent = watching.filter { SmartInstaller.isSpent($0.value) }
             await MainActor.run {
                 self.checkingInstalls = false
                 for (volume, entry) in spent where self.mounted[volume] != nil {
                     self.mounted.removeValue(forKey: volume)
                     try? NSWorkspace.shared.unmountAndEjectDevice(at: volume)
-                    if self.settings.smartEjectOnlyEject { continue }
-                    // trashInstaller refuses Manual Shelves, Keep-tagged and non-.dmg images.
+                    guard self.settings.trashDownload else { continue }
+                    // trashInstaller refuses Manual Shelves, Keep-tagged, Homebrew's cache and non-.dmg images.
                     if let a = self.engine.trashInstaller(entry.image, app: entry.label) {
                         self.refresh()
-                        if self.settings.smartEjectNotice { Island.shared.show(.installer(a)) }
+                        Island.shared.show(.installer(a))
                     }
                 }
                 self.updateInstallTimer()
             }
         }
     }
+}
+
+/// One app ready to install: from a mounted disk image (`volume` set) or extracted from a zip (`volume` nil, moved).
+struct InstallOffer: Equatable {
+    var app: URL
+    var info: SmartInstaller.AppInfo
+    var download: URL
+    var volume: URL?
+    var existing: SmartInstaller.Existing
+    var isCurrent: Bool { if case .current = existing { return true }; return false }
+}
+
+/// A "done with it?" offer on the island.
+enum CarrierOffer: Equatable {
+    case install(InstallOffer)
+    case trashZip(URL)
+    case trashTorrent(URL)
+
+    var url: URL? {
+        switch self {
+        case .install(let o): return o.download
+        case .trashZip(let u), .trashTorrent(let u): return u
+        }
+    }
+    var key: String { "carrier:" + (url?.path ?? "") }
+    var kind: String { if case .trashTorrent = self { return "torrent" }; return "archive" }
 }

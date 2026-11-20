@@ -88,7 +88,7 @@ public enum IslandPosition: String, Codable, CaseIterable, Sendable { case top, 
 public struct Settings: Codable, Equatable, Sendable {
     /// Bump when a stored value changes meaning. New fields with a default need no bump: add them to `init(from:)`
     /// (SettingsTests.testEveryFieldSurvivesARoundTrip fails if one is forgotten).
-    public static let currentVersion = 3
+    public static let currentVersion = 4
     public var version = Settings.currentVersion
     public var onboarded = false
     public var roots: [String] = ["~/Downloads", "~/Desktop", "~/Documents"]
@@ -102,9 +102,10 @@ public struct Settings: Codable, Equatable, Sendable {
     public var offReminderShown = false
     public var settleSeconds = 10
     public var graceMinutes = 0        // "Leave new files alone for"
-    public var smartEject = true
-    public var smartEjectNotice = true       // show the island notice with Put Back
-    public var smartEjectOnlyEject = false   // eject the disk image but leave the installer where it is
+    public var smartInstaller = true
+    public var trashDownload = true          // "Trash the download" after installing (remembered from the offer)
+    public var openAfterInstall = true       // open the app from /Applications once it's installed
+    public var installWithoutAsking = false  // set by the first Install: later disk images install in one step
     public var approach = Approach.kind
     public var recents = RecentsMode.links
     public var recentDays = 7
@@ -198,7 +199,7 @@ public struct Settings: Codable, Equatable, Sendable {
         d(.autoSort, &autoSort); d(.settleSeconds, &settleSeconds); d(.graceMinutes, &graceMinutes)
         sortingOffUntil = try? c.decode(Date.self, forKey: .sortingOffUntil)
         sortingOffSince = try? c.decode(Date.self, forKey: .sortingOffSince)
-        d(.offReminderShown, &offReminderShown); d(.smartEject, &smartEject); d(.smartEjectNotice, &smartEjectNotice); d(.smartEjectOnlyEject, &smartEjectOnlyEject)
+        d(.offReminderShown, &offReminderShown); d(.smartInstaller, &smartInstaller); d(.trashDownload, &trashDownload); d(.openAfterInstall, &openAfterInstall); d(.installWithoutAsking, &installWithoutAsking)
         d(.approach, &approach); d(.recents, &recents); d(.recentDays, &recentDays); d(.folderIcons, &folderIcons)
         d(.sortFolders, &sortFolders); d(.excludes, &excludes); d(.rootExcludes, &rootExcludes); d(.keepTag, &keepTag); d(.learnCorrections, &learnCorrections)
         d(.unknownFiles, &unknownFiles); d(.suggestTypes, &suggestTypes); d(.modelChoice, &modelChoice)
@@ -223,6 +224,11 @@ public struct Settings: Codable, Equatable, Sendable {
            (try? legacy.decode(String.self, forKey: .islandMode)) == "notch" {
             islandStyle = .notch
         }
+        // v3 had Smart Eject: its switch carries over, and "only eject, never trash" means don't trash the download.
+        if (try? c.decode(Bool.self, forKey: .smartInstaller)) == nil, let legacy = try? decoder.container(keyedBy: LegacyKeys.self) {
+            if let on = try? legacy.decode(Bool.self, forKey: .smartEject) { smartInstaller = on }
+            if (try? legacy.decode(Bool.self, forKey: .smartEjectOnlyEject)) == true { trashDownload = false }
+        }
         // Element by element: one malformed type or rule must not reset the whole list to defaults.
         if let x = try? c.decode(LossyArray<FileType>.self, forKey: .types) { types = x.elements }
         if let x = try? c.decode(LossyArray<Rule>.self, forKey: .rules) { rules = x.elements }
@@ -231,7 +237,7 @@ public struct Settings: Codable, Equatable, Sendable {
         migrate()
     }
 
-    private enum LegacyKeys: String, CodingKey { case appleIntelligence, islandMode }
+    private enum LegacyKeys: String, CodingKey { case appleIntelligence, islandMode, smartEject, smartEjectOnlyEject }
 
     /// The version stored in a settings.json, 0 when it has none (or isn't JSON).
     public static func storedVersion(_ data: Data) -> Int {
@@ -253,6 +259,10 @@ public struct Settings: Codable, Equatable, Sendable {
         if version < 3 {
             // v2 to v3: islandMode became islandStyle + islandPosition (converted while decoding, see init(from:)).
             version = 3
+        }
+        if version < 4 {
+            // v3 to v4: Smart Eject became Smart Installer (converted while decoding, see init(from:)).
+            version = 4
         }
     }
 }

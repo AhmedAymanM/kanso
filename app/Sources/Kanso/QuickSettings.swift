@@ -58,7 +58,7 @@ struct QuickSettings: View {
                 FeatureTile(icon: "pencil", name: "Renaming", on: m.binding(\.renaming))
                 FeatureTile(icon: "tag", name: "Tagging", on: m.binding(\.tagging))
                 FeatureTile(icon: "doc.on.doc", name: "Duplicates", on: m.binding(\.duplicates))
-                FeatureTile(icon: "eject", name: "Smart Eject", on: m.binding(\.smartEject))
+                FeatureTile(icon: "arrow.down.app", name: "Smart Installer", on: m.binding(\.smartInstaller))
             }
             .allowsHitTesting(!menuOpen)
         }

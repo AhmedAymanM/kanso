@@ -594,7 +594,7 @@ struct ShelfGlyph: View {
     var body: some View { Text(emoji).font(.system(size: TS.display)).frame(maxWidth: .infinity, minHeight: 86) }
 }
 
-// MARK: Tagging and Smart Eject (not designed yet: same anatomy, minimal)
+// MARK: Tagging and Smart Installer
 
 /// A Finder tag: coloured dot and name.
 struct TagChip: View {
@@ -656,43 +656,28 @@ struct TaggingPage: View {
     }
 }
 
-struct SmartEjectPage: View {
+struct SmartInstallerPage: View {
     @EnvironmentObject var m: AppModel
-    var ejected: [Action] { m.actions.filter { !$0.undone && $0.kind == .trashed && $0.details["installer"] != nil } }
 
     var body: some View {
-        Showcase(tint: .accent, icon: "eject", art: .eject, headline: "Installed? The installer cleans up after itself", demo: "Figma.dmg → ⏏ ejected → 🗑️ Trash").gated_showcase(m.settings.smartEject)
-        FeatureCard(icon: "eject", title: "Smart Eject", desc: "After an app is installed, ejects its disk image and moves the installer to the Trash.", reads: false, on: m.binding(\.smartEject))
+        Showcase(tint: .accent, icon: "arrow.down.app", art: .eject, headline: "Open a download, and the app installs itself", demo: "Figma.dmg → Applications → 🗑️ Trash").gated_showcase(m.settings.smartInstaller)
+        FeatureCard(icon: "arrow.down.app", title: "Smart Installer", desc: "Opening a disk image or zip with one app offers to install it, then moves the download to the Trash.", reads: false, on: m.binding(\.smartInstaller))
         Group {
-            PageSection(title: "How it decides", subtitle: "Only when all three are true. Otherwise the installer stays where it is.") {
+            PageSection(title: "How it works", subtitle: "A .pkg or several items: Kanso waits until you've installed, then ejects and trashes the image. Homebrew's downloads are left alone.") {
                 HStack(alignment: .top, spacing: 12) {
-                    step("opticaldisc", "You open the disk image", "It mounts, and Kanso notes the time.")
-                    step("macwindow", "The app lands in Applications", "With a newer creation time than the mount.")
-                    step("trash", "Kanso ejects and trashes it", "Journaled. ⌘Z puts it back.")
+                    step("opticaldisc", "You open the download", "One app inside: the island offers Install → Applications.")
+                    step("checkmark.seal", "Kanso installs it", "Copies the app, checks its signature, ejects the image and opens the app.")
+                    step("trash", "The download goes to the Trash", "Journaled. ⌘Z puts it back.")
                 }
             }
             PageSection(title: "Options") {
                 RowGroup {
-                    Row(icon: "bell", title: "Show a notice with Put Back", desc: "Every Smart Eject appears in the island for a few seconds.") { KToggle(on: m.binding(\.smartEjectNotice), label: "Show a notice") }
-                    Row(icon: "eject.circle", title: "Only eject, never trash", desc: "Leave the installer where it is after ejecting it.", last: true) { KToggle(on: m.binding(\.smartEjectOnlyEject), label: "Only eject") }
-                }
-            }
-            PageSection(title: "Recently ejected", subtitle: ejected.isEmpty ? "No installers yet." : "\(ejected.count) installers · \(ejected.reduce(Int64(0)) { $0 + (Int64($1.details["size"] ?? "") ?? 0) }.bytes) freed") {
-                if ejected.isEmpty {
-                    Text("Eject a disk image after installing an app and it shows up here.").font(.system(size: TS.small)).foregroundStyle(K.text2).padding(.horizontal, 4)
-                } else {
-                    let rows = Array(ejected.suffix(3).reversed())
-                    RowGroup {
-                        ForEach(Array(rows.enumerated()), id: \.element.id) { i, a in
-                            Row(icon: "shippingbox", title: a.srcName, desc: "\((Int64(a.details["size"] ?? "") ?? 0).bytes) · \(a.details["installer"] ?? "The app") is in Applications · \(a.ts.relative)", last: i == rows.count - 1) {
-                                Button("Put Back") { m.undo([a.id]) }.buttonStyle(SecondaryStyle(small: true))
-                            }
-                        }
-                    }
+                    Row(icon: "trash", title: "Trash the download after installing", desc: "Also asked on the island the first time.") { KToggle(on: m.binding(\.trashDownload), label: "Trash the download") }
+                    Row(icon: "macwindow", title: "Open the app after installing", desc: "From Applications, so macOS checks it once and remembers.", last: true) { KToggle(on: m.binding(\.openAfterInstall), label: "Open the app") }
                 }
             }
         }
-        .gated(m.settings.smartEject)
+        .gated(m.settings.smartInstaller)
     }
 
     func step(_ icon: String, _ title: String, _ sub: String) -> some View {

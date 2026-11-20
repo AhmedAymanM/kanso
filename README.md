@@ -32,7 +32,7 @@ Keeps `~/Downloads`, `~/Desktop` and `~/Documents` sorted without you thinking a
 - **Renaming.** Meaningless names (`Scan_0044.pdf`) become `Invoice-Vattenfall-2026-09.pdf`, read on this Mac from the first page. Large batches wait for your review, and the old name stays searchable.
 - **Tagging.** Adds Finder tags for the kind of document and the organization.
 - **Duplicates.** Finds copies by size and hash, keeps one, and holds the rest on a shelf or moves them to the Trash.
-- **Smart Eject.** Ejects a mounted `.dmg` and trashes it once the app is installed.
+- **Smart Installer.** Open a disk image or zip with one app and Kanso installs it to Applications, then moves the download to the Trash (⌘Z puts it back).
 - **The island.** A small panel at the top of the screen, opened with ⌥⌘K, that shows what Kanso did, what needs you, and an ask field answered on device.
 - **Activity.** Every action is listed with how Kanso decided, and every action can be undone.
 - **Your own rules.** Match by name, extension or download source and send files to the shelf you want. Kanso learns from your corrections.

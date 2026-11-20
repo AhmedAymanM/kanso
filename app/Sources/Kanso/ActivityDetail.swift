@@ -87,7 +87,7 @@ struct EntryDetail: View {
             switch a.kind {
             case .renamed: return ("pencil", a.undone ? "Rename · undone" : "Renamed", .rename)
             case .duplicate: return ("doc.on.doc", "Duplicate", .duplicate)
-            case .trashed: return ("trash", a.details["installer"] != nil ? "Smart Eject" : "Moved to Trash", a.details["installer"] != nil ? .accent : .neutral)
+            case .trashed: return ("trash", a.details["installer"] != nil ? "Smart Installer" : "Moved to Trash", a.details["installer"] != nil ? .accent : .neutral)
             case .sorted: return ("checkmark", a.undone ? "Sorted · undone" : "Sorted", .accent)
             }
         case .batch: return ("square.3.layers.3d", "Batch", .accent)
@@ -732,7 +732,7 @@ struct EntryDetail: View {
         let size = (Int64(a.details["size"] ?? "") ?? 0).bytes
         if let app = a.details["installer"] {
             return AnyView(Group {
-                GlyphHero(tint: .accent, glyph: "eject", emoji: nil, title: "Installed \(app)", sub: "\(app) is installed, so Smart Eject ejected the disk image and moved the installer to the Trash. Put Back any time.", note: nil) {
+                GlyphHero(tint: .accent, glyph: "arrow.down.app", emoji: nil, title: a.details["replaced"] != nil ? "Replaced \(app)" : "Installed \(app)", sub: a.details["replaced"] != nil ? "A newer \(app) took its place, so the old copy went to the Trash. Put Back any time." : "\(app) is in Applications, so Smart Installer ejected the disk image and moved the download to the Trash. Put Back any time.", note: nil) {
                     HStack(spacing: 10) {
                         installStep("opticaldisc", "Disk image", size)
                         Image(systemName: "arrow.right").font(.system(size: TS.small)).foregroundStyle(Tint.accent.fg)

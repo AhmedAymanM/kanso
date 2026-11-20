@@ -13,6 +13,7 @@ enum Notice: Identifiable, Equatable {
     case reading(String)
     case batch(run: String, text: String)   // after a run the user started: one line, one Undo for the whole run
     case info(icon: String, text: String, undo: UUID? = nil)
+    case offer(CarrierOffer)                // Smart Installer: install one app, or trash a carrier the user is done with
 
     var id: String {
         switch self {
@@ -22,6 +23,7 @@ enum Notice: Identifiable, Equatable {
         case .reading: return "reading"
         case .batch(let run, _): return "batch-" + run
         case .info(_, let t, _): return "info-" + t
+        case .offer(let o): return "offer-" + o.key
         }
     }
     var tint: Tint {
@@ -31,6 +33,8 @@ enum Notice: Identifiable, Equatable {
         case .installer, .sortingOff, .batch: return .accent
         case .reading: return .where
         case .info: return .neutral
+        case .offer(.install): return .accent
+        case .offer: return .duplicate
         }
     }
     /// The icon's final shape; it morphs from a plain document into this (Linear's status control).
@@ -44,18 +48,29 @@ enum Notice: Identifiable, Equatable {
         case .reading: return "doc.text.viewfinder"
         case .batch: return "checkmark.circle"
         case .info(let i, _, _): return i
+        case .offer(.install): return "arrow.down.app"
+        case .offer(.trashZip): return "doc.zipper"
+        case .offer(.trashTorrent): return "arrow.down.circle"
         }
     }
     var line: String {
         switch self {
         case .renamed(let a): return a.name
         case .duplicate(let a): return a.shelf == "Trash" ? "Copy of \(kept(a)) moved to Trash" : "Copy of \(kept(a)) held on Duplicates"
-        case .installer(let a): return "\(a.details["installer"] ?? "The app") installer moved to Trash"
+        case .installer(let a): return "Installed \(a.details["installer"] ?? "the app") · download moved to Trash"
         case .reading(let n): return "Reading page 1 of \(n)…"
         case .renameReview(let n): return "\(n) files can be renamed"
         case .sortingOff: return "Sorting off since yesterday · Turn on"
         case .batch(_, let text): return text
         case .info(_, let t, _): return t
+        case .offer(.install(let o)):
+            switch o.existing {
+            case .none: return "Install \(o.info.name) → Applications"
+            case .older(let v): return "\(o.info.name) \(v) is installed · Replace with \(o.info.v.version)?"
+            case .current(let v): return "\(o.info.name) \(v) is already installed"
+            }
+        case .offer(.trashZip(let u)): return "\(u.lastPathComponent) is extracted · Trash the zip?"
+        case .offer(.trashTorrent(let u)): return "\(u.lastPathComponent) was opened · Trash it?"
         }
     }
     /// What VoiceOver says.
@@ -65,7 +80,13 @@ enum Notice: Identifiable, Equatable {
         default: return line + "."
         }
     }
-    var needsYou: Bool { if case .duplicate(let a) = self { return a.pending }; if case .renameReview = self { return true }; return false }
+    var needsYou: Bool {
+        switch self {
+        case .duplicate(let a): return a.pending
+        case .renameReview, .offer: return true
+        default: return false
+        }
+    }
     var kindKey: String {
         switch self {
         case .renamed: return "renamed"
@@ -518,6 +539,30 @@ final class Island: ObservableObject {
             return [IslandAction(label: "Download", key: "↩", icon: "arrow.down.circle") { if let u = UpdateChecker.shared.availableURL { NSWorkspace.shared.open(u) }; done() }]
         case .info(_, _, let undo):
             return undo.map { id in [IslandAction(label: "Undo", key: "⌘Z") { m.undo([id]); done() }] } ?? []
+        case .offer(let o):
+            return offerActions(o, done: done)
+        }
+    }
+
+    /// Return installs (the user saw "Trash the download" before it ran, ADR 0002); trashing a carrier is only ⌘⌫.
+    private func offerActions(_ o: CarrierOffer, done: @escaping () -> Void) -> [IslandAction] {
+        let m = AppModel.shared
+        switch o {
+        case .install(let i):
+            let skip = IslandAction(label: i.existing == .none ? "Not now" : "Skip", key: "esc", icon: "xmark") { if i.volume == nil { m.dismissCarrier(o) }; done() }
+            switch i.existing {
+            case .none: return [IslandAction(label: "Install", key: "↩", icon: "arrow.down.app") { done(); m.install(i) }, skip]
+            case .older:
+                if m.isRunning(i.info.id) { return [IslandAction(label: "Quit \(i.info.name) first", key: "", icon: "xmark.octagon") {}, skip] }
+                return [IslandAction(label: "Replace", key: "↩", icon: "arrow.triangle.2.circlepath") { done(); m.install(i, replace: true) }, skip]
+            case .current: return [skip]
+            }
+        case .trashZip, .trashTorrent:
+            return [IslandAction(label: "Keep", key: "↩", icon: "checkmark") { m.dismissCarrier(o); done() },
+                    IslandAction(label: o.kind == "torrent" ? "Trash it" : "Trash the zip", key: "⌘⌫", icon: "trash") {
+                        done()
+                        if let a = m.trashCarrier(o) { self.show(.info(icon: "trash", text: "Moved \((a.src as NSString).lastPathComponent) to Trash", undo: a.id)) }
+                    }]
         }
     }
 

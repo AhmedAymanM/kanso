@@ -50,7 +50,7 @@ struct AppWindow: View {
         case .renaming: RenamingPage()
         case .duplicates: DuplicatesPage()
         case .tagging: TaggingPage()
-        case .smartEject: SmartEjectPage()
+        case .smartInstaller: SmartInstallerPage()
         case .general: GeneralPage()
         case .privacy: PrivacyPage()
         case .activity: EmptyView()

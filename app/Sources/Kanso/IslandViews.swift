@@ -315,6 +315,7 @@ struct IslandExpanded: View {
             switch n {
             case .renamed(let a): RenameBody(a: a)
             case .duplicate(let a) where a.pending: DuplicateBody(a: a)
+            case .offer(.install(let o)) where !o.isCurrent: SimpleBody(n: n, trashToggle: true)
             default: SimpleBody(n: n)
             }
         }
@@ -526,6 +527,7 @@ struct DuplicateBody: View {
 struct SimpleBody: View {
     @EnvironmentObject var m: AppModel
     var n: Notice
+    var trashToggle = false   // the install offer: "Trash the download", ticked, remembered
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 10) {
@@ -536,17 +538,28 @@ struct SimpleBody: View {
                 }
                 Spacer(minLength: 0)
             }
+            if trashToggle {
+                Toggle("Trash the download", isOn: m.binding(\.trashDownload)).toggleStyle(.checkbox)
+                    .font(.system(size: TS.small)).foregroundStyle(IslandInk.text)
+            }
             ActionRow()
         }
     }
     var title: String {
         if case .installer(let a) = n { return "Installed \(a.details["installer"] ?? "the app")" }
+        if case .offer(.install(let o)) = n, o.existing == .none { return "Install \(o.info.name)" }
         if case .duplicate(let a) = n { return a.shelf == "Trash" ? n.line : "Copy of \(((a.details["kept"] ?? a.name) as NSString).lastPathComponent) held" }
         return n.line
     }
     var sub: String? {
         switch n {
         case .installer(let a): return "\(a.srcName) (\((Int64(a.details["size"] ?? "") ?? 0).bytes)) moved to Trash. Put Back any time."
+        case .offer(.install(let o)):
+            if o.existing == .none { return "Copies it to Applications, checks its signature, then opens it from there." }
+            if case .older = o.existing { return "The old copy goes to the Trash, so you can put it back." }
+            return "Nothing to do. Kanso leaves the download where it is."
+        case .offer(.trashZip): return "Its contents are next to it. The zip goes to the Trash; ⌘Z puts it back."
+        case .offer(.trashTorrent): return "A torrent app opened it. It goes to the Trash; ⌘Z puts it back."
         case .duplicate: return "Identical by size + hash."
         case .renameReview: return "Nothing changes until you review."
         case .sortingOff: return "Turn it on, or leave it off."

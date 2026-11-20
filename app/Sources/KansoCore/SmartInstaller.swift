@@ -1,7 +1,12 @@
 import Foundation
+import Security
 
-/// Smart Eject: once an installer's payload has verifiably landed, the installer is provably spent (ADR 0002):
-/// the volume is ejected and the .dmg goes to the Trash, journaled and one ⌘Z away.
+/// Smart Installer (PRODUCT.md §7). Opening a disk image (or a zip) that holds exactly one app offers to install it:
+/// Kanso copies the app to /Applications, checks its signature, ejects the image, moves the download to the Trash
+/// (journaled, ⌘Z) and opens the app from /Applications. Anything else keeps the fallback below.
+///
+/// Fallback (the old Smart Eject): once an installer's payload has verifiably landed, the installer is provably spent
+/// (ADR 0002): the volume is ejected and the .dmg goes to the Trash, journaled and one ⌘Z away.
 ///
 /// - .dmg with apps: spent when EVERY app on the volume is in /Applications (same bundle id) with a ctime after the
 ///   mount and settled for 5 s. An app that was already installed at mount time (same bundle id + path) only counts if
@@ -11,7 +16,7 @@ import Foundation
 ///   (`pkg-info identifier`), extracted with `xar` (only those two members, no payload copy). Spent when
 ///   `pkgutil --pkg-info-plist <id>` reports an `install-time` after the mount for EVERY identifier.
 /// - Everything that spawns a process has a timeout and is meant to run off the main thread.
-public enum SmartEject {
+public enum SmartInstaller {
     public struct Version: Hashable, Sendable {
         public var version: String, build: String
         public init(version: String, build: String) { self.version = version; self.build = build }
@@ -40,9 +45,11 @@ public enum SmartEject {
 
     // MARK: Pure logic
 
-    /// Paths Kanso must never trash on its own: not a .dmg, inside any "Manual Shelves", or carrying the Keep tag.
-    public static func refuses(_ image: URL, roots: [URL], keepTagged: Bool) -> Bool {
-        if image.pathExtension.lowercased() != "dmg" || keepTagged { return true }
+    /// Paths Kanso must never trash on its own: not a .dmg (or a .zip it installed from), inside any "Manual Shelves",
+    /// in Homebrew's cache, or carrying the Keep tag.
+    public static func refuses(_ image: URL, roots: [URL], keepTagged: Bool, allowZip: Bool = false) -> Bool {
+        let ext = image.pathExtension.lowercased()
+        if !(ext == "dmg" || (allowZip && ext == "zip")) || keepTagged || isHomebrewCache(image) { return true }
         let path = image.standardizedFileURL.path
         if image.standardizedFileURL.pathComponents.contains(Library.manual) { return true }
         return roots.contains { path.hasPrefix($0.appendingPathComponent(Library.manual).standardizedFileURL.path + "/") }
@@ -72,6 +79,57 @@ public enum SmartEject {
             }
         }
         return out
+    }
+
+    /// Homebrew downloads casks into its own cache and installs them itself; Kanso leaves those alone.
+    public static func isHomebrewCache(_ url: URL) -> Bool {
+        let p = url.standardizedFileURL.path
+        return p.contains("/Library/Caches/Homebrew/") || p.hasPrefix("/opt/homebrew/") || p.hasPrefix("/usr/local/Homebrew/")
+    }
+
+    // MARK: Installing one app
+
+    /// The one app on a volume (or in a folder) when that's all there is: exactly one top-level .app, no packages,
+    /// and nothing else but hidden files and symlinks (the usual "Applications" alias). Anything else is nil, and the
+    /// fallback applies.
+    public static func singleApp(in dir: URL) -> URL? {
+        guard let names = try? FileManager.default.contentsOfDirectory(atPath: dir.path) else { return nil }
+        var app: URL?
+        for n in names where !n.hasPrefix(".") {
+            let u = dir.appendingPathComponent(n)
+            if Stat.isSymlink(u) { continue }
+            guard n.lowercased().hasSuffix(".app"), app == nil else { return nil }
+            app = u
+        }
+        return app
+    }
+
+    /// What an already installed copy means for the offer.
+    public enum Existing: Equatable, Sendable {
+        case none                                  // not installed: Install
+        case older(installed: String)              // the download is newer: Replace (when the app isn't running)
+        case current(installed: String)            // same or newer installed: Skip
+    }
+
+    /// Numeric comparison of the short version, then the build ("3.10" > "3.9").
+    public static func compare(_ a: Version, _ b: Version) -> ComparisonResult {
+        let v = a.version.compare(b.version, options: .numeric)
+        return v != .orderedSame ? v : a.build.compare(b.build, options: .numeric)
+    }
+
+    public static func existing(_ new: AppInfo, in apps: URL) -> Existing {
+        let dest = apps.appendingPathComponent(URL(fileURLWithPath: new.path).lastPathComponent)
+        guard let old = appInfo(dest) else { return .none }
+        let label = old.v.version.isEmpty ? old.v.build : old.v.version
+        return compare(old.v, new.v) == .orderedAscending ? .older(installed: label) : .current(installed: label)
+    }
+
+    /// The code signature is intact (any identity, including ad hoc and self-signed: trust is Gatekeeper's job on first
+    /// open; this catches unsigned and damaged bundles before they land in /Applications).
+    public static func signatureValid(_ app: URL) -> Bool {
+        var code: SecStaticCode?
+        guard SecStaticCodeCreateWithPath(app as CFURL, [], &code) == errSecSuccess, let code else { return false }
+        return SecStaticCodeCheckValidity(code, SecCSFlags(rawValue: kSecCSCheckAllArchitectures), nil) == errSecSuccess
     }
 
     // MARK: Process helper
@@ -143,11 +201,11 @@ public enum SmartEject {
 
     /// Looks at a freshly mounted volume. Nil when it holds nothing installable.
     public static func inspect(_ volume: URL, at: Date = Date()) -> Watch? {
-        let found = SmartEject.apps(in: volume)
+        let found = SmartInstaller.apps(in: volume)
         let pkgs = packageIDs(onVolume: volume)
-        guard !found.isEmpty || !pkgs.isEmpty, let image = imagePath(forVolume: volume) else { return nil }
+        guard !found.isEmpty || !pkgs.isEmpty, let image = imagePath(forVolume: volume), !isHomebrewCache(image) else { return nil }
         var before: [String: Version] = [:]
-        for a in SmartEject.apps(in: URL(fileURLWithPath: "/Applications")) { before[a.key] = a.v }
+        for a in SmartInstaller.apps(in: URL(fileURLWithPath: "/Applications")) { before[a.key] = a.v }
         return Watch(image: image, apps: found, packageIDs: pkgs, at: at, before: before)
     }
 
@@ -175,18 +233,83 @@ public enum SmartEject {
     }
 }
 
+/// How an install went, step by step, so the island can name the step that failed.
+public struct InstallReport: Sendable {
+    public var installed: URL?          // the app in /Applications
+    public var trashed: Action?         // the download, journaled (⌘Z puts it back)
+    public var replaced: Action?        // the older copy, journaled
+    public var failure: String?         // one line naming the failed step; nil when everything worked
+    public init() {}
+}
+
 extension Engine {
+    /// Installs one app: copy (or move, for an app extracted from a zip) into `apps`, check the copy's signature, then
+    /// `eject` (the app layer unmounts the image; return false when it couldn't), then trash the download when asked.
+    /// Replacing moves the old copy to the Trash, journaled, only after the new one is in place beside it.
+    /// Blocking (ditto): call off the main thread.
+    public func install(app: URL, download: URL?, apps: URL = URL(fileURLWithPath: "/Applications"), move: Bool = false,
+                        replace: Bool = false, trashDownload: Bool, eject: () -> Bool) -> InstallReport {
+        var r = InstallReport()
+        let name = app.deletingPathExtension().lastPathComponent
+        let dest = apps.appendingPathComponent(app.lastPathComponent)
+        guard SmartInstaller.signatureValid(app) else {
+            r.failure = "\(name) isn't signed, so Kanso didn't install it. Drag it to Applications yourself if you trust it."
+            return r
+        }
+        if Stat.exists(dest) && !replace { r.failure = "\(name) is already installed. Nothing changed."; return r }
+        let temp = apps.appendingPathComponent(".kanso-\(UUID().uuidString.prefix(8))-\(app.lastPathComponent)")
+        let copied = move ? (try? FileManager.default.moveItem(at: app, to: temp)) != nil
+                          : SmartInstaller.run("/usr/bin/ditto", [app.path, temp.path], timeout: 600) != nil
+        guard copied, SmartInstaller.appInfo(temp)?.id == SmartInstaller.appInfo(move ? temp : app)?.id, SmartInstaller.signatureValid(temp) else {
+            if move, Stat.exists(temp) { try? FileManager.default.moveItem(at: temp, to: app) } else { try? FileManager.default.removeItem(at: temp) }
+            r.failure = "Couldn't copy \(name) to Applications. Nothing changed."
+            return r
+        }
+        if replace, Stat.exists(dest) {
+            guard let old = trashJournaled(dest, why: "replaced by a newer \(name)", details: ["installer": name, "replaced": "1"]) else {
+                try? FileManager.default.removeItem(at: temp)
+                r.failure = "Couldn't move the old \(name) to the Trash. Nothing changed."
+                return r
+            }
+            r.replaced = old
+        }
+        guard (try? FileManager.default.moveItem(at: temp, to: dest)) != nil else {
+            try? FileManager.default.removeItem(at: temp)
+            r.failure = "Couldn't put \(name) in Applications. Nothing changed."
+            return r
+        }
+        r.installed = dest
+        guard eject() else { r.failure = "Installed, but the disk image couldn't be ejected. The download was kept."; return r }
+        if trashDownload, let download {
+            r.trashed = trashInstaller(download, app: name, allowZip: true)
+            if r.trashed == nil { r.failure = "Installed, but the download couldn't be moved to the Trash. It was kept." }
+        }
+        return r
+    }
+
+    /// Trash with a journal line (Put Back restores it). Nil when the Trash refused.
+    func trashJournaled(_ url: URL, why: String, details: [String: String]) -> Action? {
+        let size = Stat.size(url)
+        var result: NSURL?
+        guard (try? FileManager.default.trashItem(at: url, resultingItemURL: &result)) != nil, let t = result as URL? else { return nil }
+        var a = Action(run: String(UUID().uuidString.prefix(8)).lowercased(), kind: .trashed, src: url.path, dst: t.path,
+                       root: rootFor(url)?.path ?? "", shelf: "Trash", why: why, source: "Smart Installer")
+        a.details = details.merging(["size": String(size)]) { a, _ in a }
+        store.append(a)
+        return a
+    }
+
     /// Moves a spent installer to the Trash and journals it (Put Back restores it).
     @discardableResult
-    public func trashInstaller(_ image: URL, app: String) -> Action? {
+    public func trashInstaller(_ image: URL, app: String, allowZip: Bool = false) -> Action? {
         let roots = s.roots.map { URL(fileURLWithPath: ($0 as NSString).expandingTildeInPath) }
-        guard !SmartEject.refuses(image, roots: roots, keepTagged: Tags.read(image).contains(s.keepTag)) else { return nil }
+        guard !SmartInstaller.refuses(image, roots: roots, keepTagged: Tags.read(image).contains(s.keepTag), allowZip: allowZip) else { return nil }
         let size = Stat.size(image)
         var result: NSURL?
         guard FileManager.default.fileExists(atPath: image.path),
               (try? FileManager.default.trashItem(at: image, resultingItemURL: &result)) != nil, let t = result as URL? else { return nil }
         var a = Action(run: String(UUID().uuidString.prefix(8)).lowercased(), kind: .trashed, src: image.path, dst: t.path,
-                       root: rootFor(image)?.path ?? "", shelf: "Trash", why: "installer · \(app) is installed", source: "Smart Eject")
+                       root: rootFor(image)?.path ?? "", shelf: "Trash", why: "installer · \(app) is installed", source: "Smart Installer")
         a.details = ["installer": app, "size": String(size)]
         store.append(a)
         return a

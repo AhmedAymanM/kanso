@@ -29,7 +29,7 @@ enum Entry: Identifiable {
 }
 
 enum Filter: String, CaseIterable {
-    case all = "All", needs = "Needs you", handled = "Handled", renamed = "Renamed", tagged = "Tagged", duplicates = "Duplicates", ejected = "Smart Eject", undone = "Undone"
+    case all = "All", needs = "Needs you", handled = "Handled", renamed = "Renamed", tagged = "Tagged", duplicates = "Duplicates", installed = "Smart Installer", undone = "Undone"
     var icon: String {
         switch self {
         case .all: return "tray.full"
@@ -38,7 +38,7 @@ enum Filter: String, CaseIterable {
         case .renamed: return "pencil"
         case .tagged: return "tag"
         case .duplicates: return "doc.on.doc"
-        case .ejected: return "eject"
+        case .installed: return "arrow.down.app"
         case .undone: return "arrow.uturn.backward"
         }
     }
@@ -50,7 +50,7 @@ enum Filter: String, CaseIterable {
         case .renamed: return "No renamed files yet. Kanso renames only meaningless names, like Scan_0012."
         case .tagged: return "No tagged files yet. Turn on Tagging to add Finder tags from a file's first page."
         case .duplicates: return "No duplicates. Extra copies wait on the Duplicates shelf when they show up."
-        case .ejected: return "No installers ejected yet. Smart Eject waits until the app is in Applications."
+        case .installed: return "Nothing installed yet. Open a disk image with one app in it and Kanso offers to install it."
         case .undone: return "Nothing undone. Every action can be undone from here."
         }
     }
@@ -251,7 +251,7 @@ struct ActivityPage: View {
         let fine = ![.all, .needs, .handled].contains(filter)
         return Menu {
             Picker("Filter", selection: $filter) {
-                ForEach([Filter.renamed, .tagged, .duplicates, .ejected, .undone], id: \.self) { f in
+                ForEach([Filter.renamed, .tagged, .duplicates, .installed, .undone], id: \.self) { f in
                     Label(f.rawValue, systemImage: f.icon).tag(f)
                 }
             }
@@ -340,7 +340,7 @@ func title(_ e: Entry) -> String {
         switch a.kind {
         case .renamed: return "Renamed from \(a.oldName ?? "")"
         case .duplicate: return "Copy kept in Duplicates"
-        case .trashed: return a.details["installer"] != nil ? "Smart Eject · installer moved to Trash" : "Moved to Trash · \((Int64(a.details["size"] ?? "") ?? 0).bytes)"
+        case .trashed: return a.details["installer"] != nil ? "Smart Installer · download moved to Trash" : a.details["carrier"] != nil ? "Done with · moved to Trash" : "Moved to Trash · \((Int64(a.details["size"] ?? "") ?? 0).bytes)"
         case .sorted: return "Sorted → \(st.emoji(for: a.shelf)) \(a.shelf)"
         }
     case .batch(_, let a): return "Sorted into \(Set(a.map(\.shelf)).count) shelves"
