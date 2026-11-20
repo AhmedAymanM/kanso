@@ -164,6 +164,9 @@ final class Island: ObservableObject {
     @Published var fanned = false      // several renamed files: stack (false) or fanned out (true)
     @Published var skin = Skin.capsule
     @Published var bottom = false      // capsule above the Dock (Position: Bottom)
+    @Published var tray = false        // the Tray page of the expanded island (⌘T)
+    @Published var dropTarget = false  // a drag dwelled on the island: it's the Tray's drop target
+    private var dropClose: Task<Void, Never>?
     @Published var notch = CGSize(width: 180, height: 32)
     @Published var hovering = false
     @Published var dismissAt = Date.distantFuture
@@ -177,7 +180,7 @@ final class Island: ObservableObject {
     private var deferred = 0
     static let size = NSSize(width: 580, height: 560)
 
-    var visible: Bool { !notices.isEmpty || overview }
+    var visible: Bool { !notices.isEmpty || overview || tray || dropTarget }
     var current: Notice? { notices.indices.contains(index) ? notices[index] : notices.last }
 
     // MARK: Showing
@@ -258,6 +261,8 @@ final class Island: ObservableObject {
 
     func hide() {
         removeMonitors()
+        tray = false; dropTarget = false; Island.screenOverride = nil
+        TrayModel.shared.closeUndo()   // ⌘Z for the Tray ends when the island closes
         let wasNeeds = notices.contains(where: \.needsYou)
         dismissAt = .distantFuture
         armDismiss()
@@ -329,7 +334,9 @@ final class Island: ObservableObject {
 
     // MARK: Geometry
 
-    static var activeScreen: NSScreen? { NSScreen.main ?? NSScreen.screens.first }
+    /// While a drag is over the island, it follows the screen under the pointer.
+    static var screenOverride: NSScreen?
+    static var activeScreen: NSScreen? { screenOverride ?? NSScreen.main ?? NSScreen.screens.first }
 
     static func notchSize(_ s: NSScreen) -> CGSize? {
         guard s.safeAreaInsets.top > 0, let l = s.auxiliaryTopLeftArea, let r = s.auxiliaryTopRightArea else { return nil }
@@ -369,7 +376,7 @@ final class Island: ObservableObject {
         p.hidesOnDeactivate = false
         p.becomesKeyOnlyIfNeeded = false
         p.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
-        p.contentView = NSHostingView(rootView: IslandRoot().environmentObject(self).environmentObject(AppModel.shared))
+        p.contentView = IslandDropContainer(NSHostingView(rootView: IslandRoot().environmentObject(self).environmentObject(AppModel.shared)))
         p.setAccessibilityLabel("Kanso")
         panel = p
     }
@@ -407,6 +414,11 @@ final class Island: ObservableObject {
             askFocus = true
             if Int(e.keyCode) != kVK_Tab, let ch = e.characters { askText += ch }
             return true
+        }
+        if cmd, Int(e.keyCode) == kVK_ANSI_T, expanded { toggleTray(); return true }
+        if tray {   // the Tray page: esc goes back, ⌘/ and ⌘, as everywhere, everything else is the Tray's
+            if Int(e.keyCode) == kVK_Escape { withAnimation(Motion.spring()) { tray = false }; if notices.isEmpty && !overview { hide() }; return true }
+            if cmd, [kVK_ANSI_Slash, kVK_ANSI_Comma].contains(Int(e.keyCode)) { } else { return TrayModel.shared.key(e) }
         }
         switch Int(e.keyCode) {
         case kVK_Escape:
@@ -570,6 +582,46 @@ final class Island: ObservableObject {
                         done()
                         if let a = m.trashCarrier(o) { self.show(.info(icon: "trash", text: "Moved \((a.src as NSString).lastPathComponent) to Trash", undo: a.id)) }
                     }]
+        }
+    }
+
+    // MARK: The Tray
+
+    /// ⌘T in the open island: the Tray page, or back.
+    func toggleTray() {
+        if tray { withAnimation(Motion.spring()) { tray = false }; return }
+        TrayModel.shared.refresh()
+        notices = []; selection = 0
+        withAnimation(Motion.spring(0.35)) { overview = true; tray = true; expanded = true; shortcuts = false }
+        present(expand: true, fast: true)
+    }
+
+    /// A compatible drag dwelled where the island sits: it grows into the drop target. Never expands on its own.
+    func openDropTarget(on screen: NSScreen?) {
+        guard !dropTarget else { return }
+        dropClose?.cancel()
+        Island.screenOverride = screen
+        relayout()
+        panel?.alphaValue = 1
+        panel?.orderFrontRegardless()
+        withAnimation(Motion.spring(0.42)) { dropTarget = true }
+    }
+
+    func closeDropTarget() {
+        guard dropTarget else { return }
+        withAnimation(Motion.spring(0.38)) { dropTarget = false }
+        if notices.isEmpty && !overview && !tray { hide() }
+        Island.screenOverride = nil
+    }
+
+    /// After a drop on the compact target it shrinks right away: the Tray has it, no "Added" notice (owner, 2026-11-20).
+    func dropFinished() {
+        guard dropTarget else { return }
+        dropClose?.cancel()
+        dropClose = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 300_000_000)
+            guard !Task.isCancelled else { return }
+            self.closeDropTarget()
         }
     }
 

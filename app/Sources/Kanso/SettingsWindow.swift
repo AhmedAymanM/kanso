@@ -126,6 +126,7 @@ struct GeneralPage: View {
 
 struct PrivacyPage: View {
     @EnvironmentObject var m: AppModel
+    @State private var forgetTray = false
     var body: some View {
         PageSection(title: "Model") {
             RowGroup {
@@ -157,6 +158,17 @@ struct PrivacyPage: View {
                 Spacer()
             }
             .padding(.horizontal, 14).frame(minHeight: 38).background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(K.fill))
+            RowGroup {
+                Row(icon: "link", title: "Tray link previews", desc: "For https links you put in the Tray, Kanso asks that site for its title and image, after checking it's a public address. Nothing else is sent.") {
+                    KToggle(on: m.binding(\.trayLinkPreviews), label: "Tray link previews")
+                }
+                Row(icon: "tray", title: "Forget everything in the Tray", desc: "Empties the Tray and deletes the copies of saved images and attachments. Your own files stay where they are.", last: true) {
+                    Button("Forget…") { forgetTray = true }.buttonStyle(SecondaryStyle(small: true))
+                }
+            }
+            .confirmationDialog("Forget everything in the Tray?", isPresented: $forgetTray) {
+                Button("Forget", role: .destructive) { TrayModel.shared.wipe() }
+            } message: { Text("Saved images and attachments in the Tray are deleted. Files you added stay where they are.") }
         }
         PageSection(title: "About") {
             HStack(spacing: 10) {

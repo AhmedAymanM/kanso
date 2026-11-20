@@ -75,6 +75,34 @@ enum Snapshot {
                 }
                 island.shortcuts = false; island.fanned = false; island.askState = .idle; island.askText = ""
             }
+            // The Tray: filled, a selection, empty, saving an image, and the drop target, in both skins.
+            let tray = TrayModel.shared
+            tray.wipe()
+            let files = m.actions.filter { $0.kind == .sorted && FileManager.default.fileExists(atPath: $0.dst) }.prefix(4).map { URL(fileURLWithPath: $0.dst) }
+            tray.add(files: Array(files))
+            _ = tray.store.add(links: [URL(string: "https://github.com/AhmedAymanM/kanso")!, URL(string: "http://example.org/notes")!])
+            _ = tray.store.add(text: "Call Anna about the deposit before Friday. Bring the signed lease.")
+            tray.refresh()
+            if let link = tray.entries.first(where: { $0.item.path.hasPrefix("https") }) { tray.previews[link.id] = ("Kanso: a calm Mac file sorter", ImageRenderer(content: AppIcon().padding(20).frame(width: 176, height: 124).background(Color(nsColor: NSColor(hex: 0xCFE8D8)))).nsImage) }
+            for skin in [Island.Skin.capsule, .notch] {
+                island.skin = skin
+                let tag = skin == .notch ? "notch" : "capsule"
+                island.notices = []; island.overview = true; island.expanded = true; island.tray = true
+                tray.selection.clear()
+                shot("tray-\(tag)", CGSize(width: Island.size.width, height: Island.size.height), IslandBackdrop(skin: skin))
+                tray.selection.click(0); tray.selection.click(2, command: true); tray.selection.click(5, command: true)
+                shot("tray-\(tag)-selected", CGSize(width: Island.size.width, height: Island.size.height), IslandBackdrop(skin: skin))
+                tray.selection.clear(); tray.saving = [TrayModel.Saving(name: "photo.jpg")]; tray.message = "Couldn't save that image"
+                shot("tray-\(tag)-saving", CGSize(width: Island.size.width, height: Island.size.height), IslandBackdrop(skin: skin))
+                tray.saving = []; tray.message = nil
+                island.tray = false; island.expanded = false; island.overview = false; island.dropTarget = true
+                shot("tray-\(tag)-drop", CGSize(width: Island.size.width, height: 180), IslandBackdrop(skin: skin))
+                island.dropTarget = false
+            }
+            tray.wipe()
+            island.overview = true; island.expanded = true; island.tray = true; island.skin = .capsule
+            shot("tray-capsule-empty", CGSize(width: Island.size.width, height: 360), IslandBackdrop(skin: .capsule))
+            island.tray = false; island.expanded = false; island.overview = false
             // Position: Bottom (capsule above the Dock), compact and expanded.
             island.skin = .capsule; island.bottom = true
             for (name, notices, expanded, overview) in islandSamples(m) where ["renamed", "duplicate", "duplicate-expanded"].contains(name) {
