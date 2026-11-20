@@ -139,7 +139,7 @@ These are equal, and the user picks one during onboarding. They aren't "simple v
 ### Smart Installer
 *Decided 2026-11-20; replaces Smart Eject.* Installing happens when the user opens the download, not after Kanso waits for them to drag the app.
 - **Opening a disk image with exactly one app** shows on the island: "Install Figma → Applications", with **Trash the download** ticked. Both answers are remembered, so after the first time it's one step.
-- Kanso copies the app, checks its signature, ejects the image, moves the `.dmg` to the Trash (journaled, ⌘Z) and **opens the app from `/Applications`** (not from a translocated copy). The island says what happened, and which step failed if one did ("Installed, but the disk image couldn't be ejected; the download was kept").
+- Kanso copies the app, checks its signature, ejects the image, moves the `.dmg` to the Trash (journaled, ⌘Z) and **opens the app from `/Applications`** (not from a translocated copy). **A successful install shows no notice**: the app opening is the confirmation, and the download's Put Back is in Activity. The island speaks only when a step fails ("Installed, but the disk image couldn't be ejected; the download was kept") (owner, 2026-11-20).
 - **Already installed:** Replace when the new version is newer and the app isn't running, otherwise Skip.
 - **A zip holding exactly one `.app`** gets the same offer.
 - **Fallback:** an image with a `.pkg`, several items or a layout Kanso can't read keeps the old behavior: when the app lands in `/Applications` (same bundle ID) or the `.pkg` finishes, Kanso ejects the volume and trashes the installer. An image from which nothing was installed is never trashed.
@@ -175,6 +175,7 @@ These are equal, and the user picks one during onboarding. They aren't "simple v
 
 ### The island and shortcuts
 *Revised in the UI/UX grilling on 2026-09-28; terms are defined in `CONTEXT.md`.*
+- **No notice repeats what the screen already shows** (owner, 2026-11-20): no "Installed" after Smart Installer (the app opens), no "Added" or "Removed" for the Tray (the tiles change).
 - **Plain sorts are silent.** A sort is what the user asked for, so it shows nothing in the moment; it appears in the popover's Done list and in Recents. Only renames, duplicates and needs-you items get a notice, which keeps notices rare enough to be read.
 - **The island replaces the toast.** Notices appear in a capsule (or, in the notch style, grow out of the notch, Dynamic-Island style) and never steal focus. It always appears on the **active screen**, the one with the focused menu bar, even if the notch is on another display. In full-screen apps notices collect quietly with the menu bar dot, as under Focus.
 - **The notice is the object changing state** (Linear's status control): the island's compact state is one icon and one line. The line swaps; the icon morphs about 300 ms to show what happened (fill, color crossfade, flip, check). No separate "Kanso did X" message. Each state has its own shape, so color is never the only signal.

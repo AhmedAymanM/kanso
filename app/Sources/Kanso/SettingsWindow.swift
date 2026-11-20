@@ -140,7 +140,7 @@ struct PrivacyPage: View {
             RowGroup {
                 reads("Renaming", "first page, on this Mac, nothing kept", on: m.settings.renaming)
                 reads("Tagging", "first page, on this Mac, nothing kept", on: m.settings.tagging)
-                HStack { Text("Sorting · Duplicates · Smart Eject").font(.system(size: TS.body, weight: .medium)).foregroundStyle(K.text); Spacer(); Text("metadata only").font(.system(size: TS.small)).foregroundStyle(K.text2) }
+                HStack { Text("Sorting · Duplicates · Smart Installer").font(.system(size: TS.body, weight: .medium)).foregroundStyle(K.text); Spacer(); Text("metadata only").font(.system(size: TS.small)).foregroundStyle(K.text2) }
                     .padding(.horizontal, 16).frame(height: 38)
             }
             HStack(spacing: 8) {

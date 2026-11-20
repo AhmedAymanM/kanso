@@ -3,7 +3,7 @@ import Foundation
 /// The Activity filters. The raw values are the labels the filter menu shows (and what a saved view stores).
 public enum ActivityFilter: String, CaseIterable, Sendable {
     case all = "All", needs = "Needs you", handled = "Handled", renamed = "Renamed", tagged = "Tagged"
-    case duplicates = "Duplicates", ejected = "Smart Eject", undone = "Undone"
+    case duplicates = "Duplicates", installed = "Smart Installer", undone = "Undone"
 
     /// Does a journaled action belong under this filter? ("Needs you" holds pending items, never journal entries.)
     public func includes(_ a: Action) -> Bool {
@@ -12,8 +12,8 @@ public enum ActivityFilter: String, CaseIterable, Sendable {
         case .needs: return false
         case .renamed: return a.kind == .renamed && !a.undone
         case .tagged: return !a.tags.isEmpty && !a.undone
-        case .duplicates: return (a.kind == .duplicate || (a.kind == .trashed && a.details["installer"] == nil)) && !a.undone
-        case .ejected: return a.kind == .trashed && a.details["installer"] != nil
+        case .duplicates: return (a.kind == .duplicate || (a.kind == .trashed && a.details["installer"] == nil && a.details["carrier"] == nil)) && !a.undone
+        case .installed: return a.kind == .trashed && (a.details["installer"] != nil || a.details["carrier"] != nil)
         case .undone: return a.undone
         }
     }
@@ -37,6 +37,7 @@ public struct SavedView: Codable, Hashable, Identifiable, Sendable {
         name = try c.decode(String.self, forKey: .name)
         id = (try? c.decode(UUID.self, forKey: .id)) ?? UUID()
         filter = (try? c.decode(String.self, forKey: .filter)) ?? ActivityFilter.all.rawValue
+        if filter == "Smart Eject" { filter = ActivityFilter.installed.rawValue }   // renamed to Smart Installer (settings v4)
         query = (try? c.decode(String.self, forKey: .query)) ?? ""
         shelf = try? c.decode(String.self, forKey: .shelf)
         days = try? c.decode(Int.self, forKey: .days)

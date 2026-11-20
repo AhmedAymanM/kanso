@@ -17,13 +17,16 @@ enum AskState: Equatable {
 
 extension Island {
     /// macOS 26 with Apple Intelligence on; hidden otherwise (v1 reserves the slot).
-    var askAvailable: Bool { Motion.snapshot || AppModel.shared.aiReady }
+    var askAvailable: Bool {
+        if case .offer? = current { return false }   // an offer is a yes/no about one download: nothing to ask
+        return Motion.snapshot || AppModel.shared.aiReady
+    }
 
     /// The closed set of files the model may name: the shown notices, else the last few sorts.
     func askContext() -> [Action] {
         let m = AppModel.shared
         var out: [Action] = []
-        for n in notices { switch n { case .renamed(let a), .duplicate(let a), .installer(let a): out.append(a); default: break } }
+        for n in notices { switch n { case .renamed(let a), .duplicate(let a): out.append(a); default: break } }
         if out.isEmpty { out = Array(m.done.prefix(5)) }
         return out
     }

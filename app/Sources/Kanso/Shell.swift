@@ -274,7 +274,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             StatusItem.shared.install()
             HotKeys.shared.register(m.settings)
             m.startWatching()
-            m.startSmartEject()
+            m.startSmartInstaller()
             Island.shared.relayout()
             NSApp.mainMenu = mainMenu()
             if ProcessInfo.processInfo.environment["KANSO_BACKDROP"] != nil { Self.backdrop() }
@@ -283,10 +283,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     switch n {
                     case "reading": Island.shared.show(.reading("Scan_0044.pdf"))
                     case "sortingoff": Island.shared.show(.sortingOff(Date().addingTimeInterval(-90000)))
-                    case "installer":
-                        var a = Action(run: "x", kind: .trashed, src: "/Downloads/My Shelves/Apps/Figma.dmg", dst: "/.Trash/Figma.dmg", root: "/Downloads", shelf: "Trash", why: "installer", source: "Smart Eject")
-                        a.details = ["installer": "Figma", "size": "210000000"]
-                        Island.shared.show(.installer(a))
+                    case "offer": Island.shared.show(.offer(.install(Snapshot.demoOffer(.none))))
                     case "duplicate": if let a = m.actions.last(where: { $0.kind == .duplicate && $0.pending }) { Island.shared.show(.duplicate(a)) }
                     default: if let r = m.actions.last(where: { $0.kind == .renamed }) { Island.shared.show(.renamed(r)) }
                     }
@@ -295,7 +292,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if !m.settings.onboarded { Windows.shared.showOnboarding() }
             else if ProcessInfo.processInfo.arguments.contains("--show") {
                 let args = ProcessInfo.processInfo.arguments
-                let page = args.firstIndex(of: "--page").flatMap { i in args.indices.contains(i + 1) ? Page.allCases.first { $0.rawValue.lowercased().filter(\.isLetter).hasPrefix(args[i + 1].lowercased().filter(\.isLetter)) } : nil }   // letters only, so "smart-eject" finds Smart Eject
+                let page = args.firstIndex(of: "--page").flatMap { i in args.indices.contains(i + 1) ? Page.allCases.first { $0.rawValue.lowercased().filter(\.isLetter).hasPrefix(args[i + 1].lowercased().filter(\.isLetter)) } : nil }   // letters only, so "smart-installer" finds Smart Installer
                 Windows.shared.showMain(page)
             }
             if let k = ProcessInfo.processInfo.environment["KANSO_ACTIVITY"] {   // open Activity on one entry (a rule or action kind), for README shots

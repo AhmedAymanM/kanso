@@ -90,15 +90,24 @@ enum Snapshot {
         render(AppIcon().padding(50), size: CGSize(width: 512, height: 512), appearance: NSAppearance(named: .aqua)!, to: path)  // 2x → 1024 px
     }
 
+    static func demoOffer(_ existing: SmartInstaller.Existing) -> InstallOffer {
+        let info = SmartInstaller.AppInfo(id: "com.figma.Desktop", name: "Figma", path: "/Volumes/Figma/Figma.app", v: .init(version: "3.4", build: "1"))
+        return InstallOffer(app: URL(fileURLWithPath: info.path), info: info, download: URL(fileURLWithPath: "/Downloads/Figma.dmg"), volume: URL(fileURLWithPath: "/Volumes/Figma"), existing: existing)
+    }
+
     static func islandSamples(_ m: AppModel) -> [(String, [Notice], Bool, Bool)] {
         var out: [(String, [Notice], Bool, Bool)] = []
         let renamed = m.actions.filter { $0.kind == .renamed }.suffix(3).map { Notice.renamed($0) }
         if let r = renamed.last { out.append(("renamed", [r], false, false)); out.append(("renamed-expanded", [r], true, false)) }
         if renamed.count > 1 { out.append(("count-up", Array(renamed), false, false)) }
         if let d = m.actions.last(where: { $0.kind == .duplicate }) { out.append(("duplicate", [.duplicate(d)], false, false)); out.append(("duplicate-expanded", [.duplicate(d)], true, false)) }
-        var inst = Action(run: "x", kind: .trashed, src: "/Downloads/My Shelves/Apps/Figma.dmg", dst: "/.Trash/Figma.dmg", root: "/Downloads", shelf: "Trash", why: "installer", source: "Smart Eject")
-        inst.details = ["installer": "Figma", "size": "210000000"]
-        out.append(("installer", [.installer(inst)], false, false))
+        for (name, existing) in [("offer", SmartInstaller.Existing.none), ("offer-replace", .older(installed: "3.2"))] {
+            let o = Snapshot.demoOffer(existing)
+            out.append((name, [.offer(.install(o))], false, false)); out.append((name + "-expanded", [.offer(.install(o))], true, false))
+        }
+        var unsigned = Snapshot.demoOffer(.none); unsigned.signature = .unsigned; unsigned.checksum = "6105d6cc76af400325e94d588ce511be5bfdbb73b437dc51eca43917d7a43e3d"
+        out.append(("offer-unsigned", [.offer(.install(unsigned))], false, false)); out.append(("offer-unsigned-expanded", [.offer(.install(unsigned))], true, false))
+        out.append(("offer-zip-expanded", [.offer(.trashZip(URL(fileURLWithPath: "/Downloads/My Shelves/Archives/holiday-photos.zip")))], true, false))
         out.append(("sorting-off", [.sortingOff(Date().addingTimeInterval(-90000))], false, false))
         out.append(("reading", [.reading("Scan_0044.pdf")], false, false))
         out.append(("overview", [], true, true))

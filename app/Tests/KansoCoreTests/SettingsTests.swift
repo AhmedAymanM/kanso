@@ -56,7 +56,7 @@ final class SettingsTests: XCTestCase {
             let s = try Store.decoder.decode(Settings.self, from: Data(#"{"version": 2, "islandMode": "\#(mode)"}"#.utf8))
             XCTAssertEqual(s.islandStyle, style, mode)
             XCTAssertEqual(s.islandPosition, .top)
-            XCTAssertEqual(s.version, 3)
+            XCTAssertEqual(s.version, Settings.currentVersion)
         }
     }
 
