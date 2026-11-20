@@ -162,9 +162,9 @@ These are equal, and the user picks one during onboarding. They aren't "simple v
 - If Finder empties the Trash after 30 days, the Cleanup page says "Undo works for 30 days".
 
 ### The Tray
-*Decided 2026-11-19; design in `docs/design/proposals/tray.md`, which gets a UX redesign in Pencil before it's built.* A temporary holding place on the island for things the user is carrying until they decide where they go.
+*Decided 2026-11-19; design in `docs/design/final-direction.md`, which gets a UX redesign in Pencil before it's built.* A temporary holding place on the island for things the user is carrying until they decide where they go.
 - **Holds files, links and snippets.** Organize files them like any sort: files by type; links as `.webloc` on a new 🔗 Links shelf; snippets as `.txt`/`.md` on a new 📝 Notes shelf.
-- **Link titles are not fetched** by default; turning it on applies the SSRF rules in `tray.md`.
+- **Link titles are not fetched** by default; turning it on applies the SSRF rules in `docs/design/final-direction.md`.
 - **Snippets** are stored mode 0600, excluded from backup and Spotlight, wiped by "Forget everything", and never sent to a model without a user action.
 - **Refused in v1:** file promises (images dragged from a browser, Mail attachments): "Save it first."
 - The drop target follows the island skin and position.

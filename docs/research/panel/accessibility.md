@@ -1,6 +1,6 @@
 # Accessibility and first-run review
 
-Scope: `05-accessibility.md`, `04-unhappy-paths.md`, `Onboarding.swift`, proposals A/B/C tokens, `tray.md`. Ratios are WCAG 2.x, computed from the specs. Disk-full and eject handling were checked against the spec only.
+Scope: `05-accessibility.md`, `04-unhappy-paths.md`, `Onboarding.swift`, the design proposals' tokens, the Tray design. Ratios are WCAG 2.x, computed from the specs. Disk-full and eject handling were checked against the spec only.
 
 ## Contrast
 
@@ -33,7 +33,7 @@ Scope: `05-accessibility.md`, `04-unhappy-paths.md`, `Onboarding.swift`, proposa
 5. Denied folders are paused silently (`:111`). The island step never says which folder is off, and the declined screen (`:188`) has no Back and no retry. Fix: list each paused folder with "Off · Allow in Privacy & Security", and add Back. Whether `refreshAccess` picks up a later grant is unverified, so the copy "picks them up as soon as you do" is a promise nothing checks.
 6. `05-accessibility.md` specifies a rule-table window (S0–S6, rule rows, ⌘⏎ Apply) that the shipped app no longer has. There is no spec for the island, onboarding or Overview. Fix: rewrite it for the current surfaces, with the table above.
 7. Island announcements use `.high` priority (`Island.swift:537`). High interrupts speech; the Tray spec asks for polite. Fix: `.medium` for confirmations, `.high` only for failures.
-8. The Tray's "Rows reorderable" (`tray.md`, Carry) has no keyboard path, and the keyboard table lacks one. Fix: ⌥↑ / ⌥↓ moves a row, as the rule list does.
+8. The Tray's "Rows reorderable" (Tray design, Carry) has no keyboard path, and the keyboard table lacks one. Fix: ⌥↑ / ⌥↓ moves a row, as the rule list does.
 9. `K.text3` is used for text (`:133`, `Theme.swift:66`). Fix: light text3 `#6B6B70` (4.74 on window), dark `#9C9CA2` (5.10 on card). Keep the old grey for dividers and icons.
 
 ## MINOR

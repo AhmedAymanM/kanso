@@ -10,6 +10,7 @@ Owner: Suki (UX). Status: first complete pass. Specs are written to be built fro
 | [04-unhappy-paths.md](04-unhappy-paths.md) | Permission, empty, nothing matched, collisions, interrupted apply, stale plan |
 | [05-accessibility.md](05-accessibility.md) | Keyboard map, VoiceOver labels, measured contrast, text size, motion |
 | [06-plan-contract.md](06-plan-contract.md) | Engine ↔ preview types (proposal for Forge) |
+| [final-direction.md](final-direction.md) | **The current design direction**: tokens, motion, the per-screen change list, the Tray, Smart Installer and Cleanup |
 | [tokens/KansoDesignTokens.swift](tokens/KansoDesignTokens.swift), [tokens.json](tokens/tokens.json) | Color (L/D), type, spacing, size, radius, motion |
 | [prototype/preview.html](prototype/preview.html) | Open in a browser: live rule edits, collisions, skip, apply/undo. Throwaway. |
 

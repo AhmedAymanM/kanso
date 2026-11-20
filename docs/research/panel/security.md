@@ -18,7 +18,7 @@
 
 ## MINOR
 
-11. **No sandbox.** `Kanso.entitlements` is empty, so an engine bug has full user-file reach, and the "security-scoped bookmarks" in tray.md mean nothing unsandboxed. Either sandbox with folder bookmarks, or drop that wording. Warn when `SIGN_ID` is unset and never publish ad-hoc builds.
+11. **No sandbox.** `Kanso.entitlements` is empty, so an engine bug has full user-file reach, and the "security-scoped bookmarks" in the Tray design mean nothing unsandboxed. Either sandbox with folder bookmarks, or drop that wording. Warn when `SIGN_ID` is unset and never publish ad-hoc builds.
 
 ## Required invariants for v2
 
