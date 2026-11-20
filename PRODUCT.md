@@ -170,7 +170,7 @@ These are equal, and the user picks one during onboarding. They aren't "simple v
 - **No Organize.** The Tray never sorts or moves anything on its own.
 - **Link previews are fetched** only after a safety check (https, a public host, re-checked on redirects, size and time caps, no cookies), and only from the link's own site.
 - **Snippets** are stored mode 0600, excluded from backup and Spotlight, wiped by "Forget everything", and never sent to a model.
-- **Browser images and Mail attachments are accepted** (file promises): Kanso saves each into `~/Downloads` first, with the quarantine flag, then adds it to the Tray. Removing it from the Tray leaves it there like any download, so Kanso never deletes it.
+- **Browser images and Mail attachments are accepted** (file promises). Kanso saves each as a **temporary copy** in its own folder (`~/Library/Application Support/Kanso/Tray/`, quarantine flag set). To keep one, the user drags it where they want it. Once it leaves the Tray (dragged out, removed or cleared, after the ⌘Z window closes), Kanso deletes its temporary copy. These copies are Kanso's own scratch files, never the user's, so this doesn't break "Kanso never deletes" (ADR 0002).
 - The drop target follows the island skin and position.
 
 ### The island and shortcuts

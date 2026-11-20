@@ -12,6 +12,8 @@ Cleanup lets the user turn on timers that trash **carriers**: files whose purpos
 
 Smart Installer trashes the downloaded image right after the user installs from it, with "Trash the download" shown and ticked before the install starts: the image is provably spent, and the user saw the choice.
 
+Kanso's own scratch files are outside this rule. The Tray's temporary copies of browser images and Mail attachments (file promises) live in `~/Library/Application Support/Kanso/Tray/` and are deleted once they leave the Tray; the user keeps one by dragging it somewhere. Nothing the user saved is ever deleted.
+
 Where a model helps decide what leaves (the v1.1 review, the v1.2 uninstaller), it may only demote an item to Review or Keep, never promote it; Kanso's code finds the candidates and a fixed guard wins.
 
 ## Considered options

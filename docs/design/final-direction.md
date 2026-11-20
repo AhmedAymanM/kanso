@@ -139,7 +139,7 @@ A place on the island to **collect things from across the Mac and then take them
 | File / folder | A **Quick Look thumbnail** (`QLThumbnailGenerator`), falling back to the file icon. A reference (bookmark data), never copied on drop. A file moved or deleted meanwhile shows a "Missing" tile. |
 | Link | A **link preview** card (`LPLinkView`: title, site icon, image) once the link passes the safety check below; until then, or if it fails, a plain card with the host and the URL. |
 | Snippet (text) | A text card with the first lines. |
-| File promise (browser image, Mail attachment) | Saved into `~/Downloads` first (with `com.apple.quarantine`), then shown like any file. While it saves, the tile shows a progress ring; a failed save shows "Couldn't save that image" and adds nothing. Removing it from the Tray leaves the saved file in Downloads. |
+| File promise (browser image, Mail attachment) | Saved as a **temporary copy** in `~/Library/Application Support/Kanso/Tray/` (mode 0700, excluded from backup and Spotlight, `com.apple.quarantine` set), then shown like any file. While it saves, the tile shows a progress ring; a failed save shows "Couldn't save that image" and adds nothing. Dragging it out moves the copy to the destination (a copy across disks). When it leaves the Tray by any route, Kanso deletes its temporary copy once ⌘Z can no longer restore it (the next removal, closing the island, or quitting). "Forget everything" and launch clean up any leftovers. |
 
 ### Layout
 - **A grid of preview tiles, not a list**: 88 × 88 pt tiles with a 10 pt corner radius, the name under each (two lines, middle-truncated), 4 per row in the 480 pt expanded island, scrolling after 3 rows. Newest first.
