@@ -138,7 +138,7 @@ A place on the island to **collect things from across the Mac and then take them
 | File / folder | A **Quick Look thumbnail** (`QLThumbnailGenerator`), falling back to the file icon. A reference (bookmark data), never copied on drop. A file moved or deleted meanwhile shows a "Missing" tile. |
 | Link | A **link preview** card (`LPLinkView`: title, site icon, image) once the link passes the safety check below; until then, or if it fails, a plain card with the host and the URL. |
 | Snippet (text) | A text card with the first lines. |
-| File promise (browser image, Mail attachment) | Saved as a **temporary copy** in `~/Library/Application Support/Kanso/Tray/` (mode 0700, excluded from backup and Spotlight, `com.apple.quarantine` set), then shown like any file. While it saves, the tile shows a progress ring; a failed save shows "Couldn't save that image" and adds nothing. Dragging it out moves the copy to the destination (a copy across disks). When it leaves the Tray by any route, Kanso deletes its temporary copy once ⌘Z can no longer restore it (the next removal, closing the island, or quitting). "Forget everything" and launch clean up any leftovers. |
+| File promise (browser image, Mail attachment) | Saved as a **temporary copy** in `~/Library/Application Support/Kanso/Tray/` (mode 0700, excluded from backup and Spotlight, `com.apple.quarantine` set), then shown like any file. While it saves, the tile shows a progress ring; a failed save shows "Couldn't save that image" and adds nothing. Dragging it out moves the copy to the destination (a copy across disks). When it leaves the Tray by any route, Kanso deletes its temporary copy once ⌘Z can no longer restore it (the next removal, closing the island, or quitting). Launch cleans up any leftovers. |
 
 ### Layout
 - **A grid of preview tiles, not a list**: 88 × 88 pt tiles with a 10 pt corner radius, the name under each (two lines, middle-truncated), 4 per row in the 480 pt expanded island, scrolling after 3 rows. Newest first.
@@ -158,14 +158,14 @@ A place on the island to **collect things from across the Mac and then take them
 - Full-screen apps: no growing; ⌘V and the Service still work.
 
 ### Link safety check (before any preview is fetched)
-https only (http links stay plain cards); resolve the host and refuse loopback, link-local, private (RFC 1918) and `.local` addresses, re-checked on each of at most 3 redirects; 1 MB and 5 s caps; no cookies, no Referer. The fetch goes only to the link's own site, and only for links the user added. Privacy & AI lists it as a network call.
+https only (http links stay plain cards); resolve the host and refuse loopback, link-local, private (RFC 1918) and `.local` addresses, re-checked on each of at most 3 redirects; 1 MB and 5 s caps; no cookies, no Referer. The fetch goes only to the link's own site, and only for links the user added. Privacy & AI states it as a network call; there is no switch (owner, 2026-11-20).
 
 ### Keyboard
 `⌥⌘K` opens the island, `⌘T` switches to the Tray, `esc` goes back. Inside: arrows, ⇧-arrows, `⌘A`, `Space` (Quick Look), `⌫` (remove), `↩` (open the selection), `⌘C` (copy the selection), `⌘V` (add), `⌘Z` (undo the last removal or Clear), `⌘/` (shortcuts).
 
 ### Accessibility and safety
 - VoiceOver: the grid is "Tray, 6 items"; a tile reads "Lease-2026.pdf, PDF, from Downloads" with Remove, Share and Quick Look as actions, so hover and drag are never the only way. Adding announces at `.medium` priority. No auto-expand or auto-collapse under VoiceOver. The × has a 28 × 28 pt hit area.
-- Names are untrusted: control characters stripped, capped at 120 characters. Kanso never writes executable types. `tray.json` (references, links, snippets) is mode 0600, excluded from backup and Spotlight, wiped by "Forget everything", and never sent to a model.
+- Names are untrusted: control characters stripped, capped at 120 characters. Kanso never writes executable types. `tray.json` (references, links, snippets) is mode 0600, excluded from backup and Spotlight, and never sent to a model.
 - A pending Tray never counts toward Needs you.
 
 ### Later

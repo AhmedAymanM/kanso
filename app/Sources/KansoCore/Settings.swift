@@ -107,9 +107,6 @@ public struct Settings: Codable, Equatable, Sendable {
     public var openAfterInstall = true       // open the app from /Applications once it's installed
     public var installWithoutAsking = false  // set by the first Install: later disk images install in one step
 
-    // The Tray
-    public var trayLinkPreviews = true        // fetch link previews (after the safety check); a network call Privacy & AI lists
-
     // Cleanup (off by default; only carriers are ever on a timer, ADR 0002)
     public var cleanup = false
     public var cleanupDays = Settings.defaultCleanupDays   // carrier → days ("extracted": archives once their contents are next to them)
@@ -213,7 +210,7 @@ public struct Settings: Codable, Equatable, Sendable {
         sortingOffSince = try? c.decode(Date.self, forKey: .sortingOffSince)
         cleanupNoticeShown = try? c.decode(Date.self, forKey: .cleanupNoticeShown)
         cleanupLastRun = try? c.decode(Date.self, forKey: .cleanupLastRun)
-        d(.offReminderShown, &offReminderShown); d(.smartInstaller, &smartInstaller); d(.trayLinkPreviews, &trayLinkPreviews); d(.cleanup, &cleanup); d(.cleanupDays, &cleanupDays); d(.suggestDocuments, &suggestDocuments); d(.cleanupOffered, &cleanupOffered); d(.trashDownload, &trashDownload); d(.openAfterInstall, &openAfterInstall); d(.installWithoutAsking, &installWithoutAsking)
+        d(.offReminderShown, &offReminderShown); d(.smartInstaller, &smartInstaller); d(.cleanup, &cleanup); d(.cleanupDays, &cleanupDays); d(.suggestDocuments, &suggestDocuments); d(.cleanupOffered, &cleanupOffered); d(.trashDownload, &trashDownload); d(.openAfterInstall, &openAfterInstall); d(.installWithoutAsking, &installWithoutAsking)
         d(.approach, &approach); d(.recents, &recents); d(.recentDays, &recentDays); d(.folderIcons, &folderIcons)
         d(.sortFolders, &sortFolders); d(.excludes, &excludes); d(.rootExcludes, &rootExcludes); d(.keepTag, &keepTag); d(.learnCorrections, &learnCorrections)
         d(.unknownFiles, &unknownFiles); d(.suggestTypes, &suggestTypes); d(.modelChoice, &modelChoice)

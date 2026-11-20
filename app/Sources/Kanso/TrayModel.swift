@@ -166,7 +166,7 @@ final class TrayModel: ObservableObject {
     // MARK: Link previews
 
     private func loadPreviews() {
-        guard AppModel.shared.settings.trayLinkPreviews, !Motion.snapshot else { return }
+        guard !Motion.snapshot else { return }
         for e in entries where e.item.kind == .link && previews[e.id] == nil && !fetching.contains(e.id) {
             guard let u = URL(string: e.item.path), u.scheme == "https" else { continue }   // http stays a plain card
             fetching.insert(e.id)
