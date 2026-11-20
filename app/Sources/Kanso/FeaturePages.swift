@@ -689,3 +689,68 @@ struct SmartInstallerPage: View {
         .padding(14).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading).card(radius: 16)
     }
 }
+
+// MARK: Cleanup
+
+/// Downloads' two exits (PRODUCT.md §7): carriers the user is done with leave on a timer they turned on; kept content is
+/// suggested for Documents. Content is never on a timer.
+struct CleanupPage: View {
+    @EnvironmentObject var m: AppModel
+    static let rows: [(key: String, icon: String, title: String, desc: String)] = [
+        ("installer", "arrow.down.app", "Installers", "Disk images and packages never used. Installed ones leave through Smart Installer."),
+        ("archive", "doc.zipper", "Archives", "Zips and other archives nobody opened."),
+        ("extracted", "folder", "Extracted archives", "Once their contents are next to them."),
+        ("screenshot", "camera.viewfinder", "Screenshots", "Found by the screenshot flag, in any watched folder."),
+        ("torrent", "arrow.down.circle", "Torrents", "Torrent files."),
+    ]
+
+    var leaving: [CleanupItem] {
+        for c in m.cleanupNeeds { if case .week(let items, _) = c.kind { return items } }
+        return []
+    }
+
+    var body: some View {
+        Showcase(tint: .duplicate, icon: "leaf", art: nil, headline: "Downloads is an inbox, not a drawer", demo: "Figma.dmg · used → 🗑️ Trash · Lease.pdf · kept → 📄 Documents").gated_showcase(m.settings.cleanup)
+        FeatureCard(icon: "leaf", title: "Cleanup", desc: "Moves installers, archives, screenshots and torrents you're done with to the Trash, once a week. Never your documents.", reads: false, on: m.binding(\.cleanup))
+        Group {
+            PageSection(title: "When things leave", subtitle: "Days without being opened or changed. Any Finder tag, a rename, a move out of its shelf or opening it twice keeps a file. Manual Shelves and Keys never leave.") {
+                RowGroup {
+                    ForEach(Array(Self.rows.enumerated()), id: \.element.key) { i, r in
+                        Row(icon: r.icon, title: r.title, desc: r.desc, last: i == Self.rows.count - 1) {
+                            MenuPicker(options: (r.key == "extracted" ? [1, 3, 7] : [3, 7, 14, 30, 60]).map { ($0, "\($0) \($0 == 1 ? "day" : "days")") },
+                                       value: Binding(get: { m.engine.cleanupDays(r.key) }, set: { v in m.update { $0.cleanupDays[r.key] = v }; m.refreshCleanup() }))
+                        }
+                    }
+                }
+            }
+            PageSection(title: "Kept files") {
+                RowGroup {
+                    Row(icon: "folder.badge.plus", title: "Suggest moving kept files to Documents", desc: "A tagged file, or one you opened twice, can live in Documents › My Shelves. Kanso asks; it never moves them on its own.", last: true) {
+                        KToggle(on: m.binding(\.suggestDocuments), label: "Suggest moving kept files")
+                    }
+                }
+            }
+            PageSection(title: "Leaving on Sunday", subtitle: leaving.isEmpty ? "Nothing this week." : "\(CleanupNeed.summary(leaving)) · \(leaving.reduce(0) { $0 + $1.size }.bytes). Tag one Keep to keep it.") {
+                if !leaving.isEmpty {
+                    let rows = Array(leaving.prefix(8))
+                    RowGroup {
+                        ForEach(Array(rows.enumerated()), id: \.element.id) { i, item in
+                            Row(icon: Self.rows.first { $0.key == item.carrier.rawValue }?.icon ?? "doc", title: item.url.lastPathComponent, desc: "\(item.why) · \(item.size.bytes)", last: i == rows.count - 1) {
+                                Button("Keep") { m.engine.keepAll([item]); m.refreshCleanup() }.buttonStyle(SecondaryStyle(small: true))
+                            }
+                        }
+                    }
+                }
+            }
+            if CleanupPage.finderEmptiesTrash {
+                Label("Finder empties the Trash after 30 days, so Undo works for 30 days.", systemImage: "info.circle")
+                    .font(.system(size: TS.small)).foregroundStyle(K.text2).padding(.horizontal, 4)
+            }
+        }
+        .gated(m.settings.cleanup)
+        .onAppear { if !Motion.snapshot { m.refreshCleanup() } }
+    }
+
+    /// Finder's "Remove items from the Trash after 30 days".
+    static var finderEmptiesTrash: Bool { UserDefaults(suiteName: "com.apple.finder")?.bool(forKey: "FXRemoveOldTrashItems") ?? false }
+}

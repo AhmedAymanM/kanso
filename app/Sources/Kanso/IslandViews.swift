@@ -851,7 +851,7 @@ struct NeedCard: View {
         switch need {
         case .duplicate(let a): return a.dst
         case .renames(let p, _): return p.first?.path
-        case .rule, .shelf: return nil
+        case .rule, .shelf, .cleanup: return nil
         }
     }
     var kind: String {
@@ -860,6 +860,7 @@ struct NeedCard: View {
         case .renames: return "Rename suggestions"
         case .rule: return "Rule suggestion"
         case .shelf: return "Shelf suggestion"
+        case .cleanup(let c): return c.label
         }
     }
     var title: String {
@@ -868,6 +869,7 @@ struct NeedCard: View {
         case .renames(let p, _): return "\(p.count) files can be renamed"
         case .rule(let r): return "You moved \(r.files.count) files to \(r.shelf)"
         case .shelf(let s): return "\(s.files.count) files could have their own shelf"
+        case .cleanup(let c): return c.title
         }
     }
     var why: String {
@@ -876,6 +878,7 @@ struct NeedCard: View {
         case .renames: return "Names from contents, page 1. You review every name first."
         case .rule: return "Make it automatic from now on?"
         case .shelf(let s): return "\(s.emoji) \(s.name). Nothing moves until you accept."
+        case .cleanup(let c): return c.why
         }
     }
 
@@ -883,7 +886,7 @@ struct NeedCard: View {
         switch need {
         case .duplicate(let a): PreviewTile(path: a.dst, size: CGSize(width: 86, height: 112))
         case .renames(let p, _): PreviewTile(path: p.first?.path ?? "", size: CGSize(width: 86, height: 112), eye: false)
-        case .rule, .shelf: Image(systemName: need.icon).font(.system(size: TS.title)).foregroundStyle(need.tint.islandGlyph).frame(width: 86, height: 86).background(Circle().fill(need.tint.islandFill))
+        case .rule, .shelf, .cleanup: Image(systemName: need.icon).font(.system(size: TS.title)).foregroundStyle(need.tint.islandGlyph).frame(width: 86, height: 86).background(Circle().fill(need.tint.islandFill))
         }
     }
 }

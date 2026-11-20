@@ -843,8 +843,8 @@ public final class Engine: @unchecked Sendable {
             let url = URL(fileURLWithPath: a.dst)
             // ADR 0002: only while the copy is what was journaled and the keeper still has the same bytes.
             guard isHeldCopy(a), keeperStillHolds(a.details["kept"], url) else { continue }
-            let opened = (try? url.resourceValues(forKeys: [.contentAccessDateKey]).contentAccessDate) ?? .distantPast
-            guard now.timeIntervalSince(max(a.ts, opened)) >= limit else { continue }
+            // Untouched since the latest of the hold, its last open and its last change; never the access time (ADR 0002).
+            guard now.timeIntervalSince(unusedSince(url, sorted: a.ts)) >= limit else { continue }
             var tr = Action(run: run, kind: .trashed, src: a.dst, dst: "", root: a.root, shelf: "Trash", why: "held \(s.autoTrashDays) days untouched (your setting)", source: "size + hash")
             guard let t = trashJournaled(url, &tr) else { continue }
             tr.dst = t.path

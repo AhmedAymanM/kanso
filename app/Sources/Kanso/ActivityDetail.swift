@@ -167,6 +167,7 @@ struct EntryDetail: View {
         case .need(.renames(let p, _)): if expanded { renameFileView(p) } else { renameSummary(p) }
         case .need(.rule(let r)): ruleDetail(r)
         case .need(.shelf(let s)): shelfDetail(s)
+        case .need(.cleanup(let c)): cleanupDetail(c)
         case .need(.duplicate(let a)): duplicateDetail(a)
         case .batch(let run, let a): if expanded { batchFileView(a) } else { batchSummary(run, a) }
         case .waiting(let w): waitingDetail(w)
@@ -602,6 +603,27 @@ struct EntryDetail: View {
     }
 
     /// A new shelf for what piles up in Unsorted: the files it would take, and what Accept does.
+    /// Cleanup's cards: what leaves (or moves), and why, file by file.
+    func cleanupDetail(_ c: CleanupNeed) -> some View {
+        let files: [(String, String)] = {
+            switch c.kind {
+            case .week(let items, _), .offer(let items): return items.prefix(8).map { ($0.url.lastPathComponent, "\($0.why) · \($0.size.bytes)") }
+            case .documents(let a): return [(a.name, "\(a.shelf) in Downloads › My Shelves")]
+            }
+        }()
+        return VStack(alignment: .leading, spacing: 10) {
+            DecidedTitle()
+            Text(c.why).font(.system(size: TS.body)).foregroundStyle(K.text).fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(files, id: \.0) { f in
+                    HStack { Text(f.0).font(.system(size: TS.small, weight: .medium)).foregroundStyle(c.tint.fg).lineLimit(1).truncationMode(.middle); Spacer(); Text(f.1).font(.system(.footnote, design: .monospaced)).foregroundStyle(c.tint.fg) }
+                }
+            }
+            .padding(12).frame(maxWidth: .infinity, alignment: .leading).background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(c.tint.bg))
+            Text("Only installers, archives, screenshots and torrents are ever on a timer. Everything is journaled; ⌘Z puts it back.").font(.system(size: TS.small)).foregroundStyle(K.text2)
+        }
+    }
+
     func shelfDetail(_ s: ShelfSuggestion) -> some View {
         let t = Tint.rule
         return VStack(alignment: .leading, spacing: 10) {
@@ -847,6 +869,11 @@ struct EntryDetail: View {
             case .need(.shelf(let s)):
                 Button("Dismiss") { m.dismissShelf(s.id) }.buttonStyle(LinkStyle(color: K.text2))
                 Button { m.acceptShelf(s.id) } label: { HStack { Text("Create \(s.name)"); Hint(text: "↩") } }.buttonStyle(PrimaryStyle(tint: .accent)).keyboardShortcut(.defaultAction)
+            case .need(.cleanup(let c)):
+                ForEach(Array(c.buttons.enumerated().reversed()), id: \.offset) { i, b in
+                    if i == 0 { Button { b.run() } label: { HStack { Text(b.label); Hint(text: "↩") } }.buttonStyle(PrimaryStyle(tint: c.tint)).keyboardShortcut(.defaultAction) }
+                    else { Button(b.label) { b.run() }.buttonStyle(SecondaryStyle()) }
+                }
             case .need(.rule(let r)):
                 Button("No thanks") { m.dismissSuggestion(r.id) }.buttonStyle(LinkStyle(color: K.text2))
                 Button("Edit…") { m.acceptSuggestion(r.id); Windows.shared.showMain(.sorting) }.buttonStyle(SecondaryStyle())

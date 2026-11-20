@@ -51,6 +51,7 @@ struct AppWindow: View {
         case .duplicates: DuplicatesPage()
         case .tagging: TaggingPage()
         case .smartInstaller: SmartInstallerPage()
+        case .cleanup: CleanupPage()
         case .general: GeneralPage()
         case .privacy: PrivacyPage()
         case .activity: EmptyView()

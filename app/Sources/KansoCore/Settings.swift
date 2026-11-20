@@ -106,6 +106,15 @@ public struct Settings: Codable, Equatable, Sendable {
     public var trashDownload = true          // "Trash the download" after installing (remembered from the offer)
     public var openAfterInstall = true       // open the app from /Applications once it's installed
     public var installWithoutAsking = false  // set by the first Install: later disk images install in one step
+
+    // Cleanup (off by default; only carriers are ever on a timer, ADR 0002)
+    public var cleanup = false
+    public var cleanupDays = Settings.defaultCleanupDays   // carrier → days ("extracted": archives once their contents are next to them)
+    public var suggestDocuments = true        // "Move to Documents" for kept content in Downloads
+    public var cleanupOffered = false         // the one-time offer after a week of sorting was shown
+    public var cleanupNoticeShown: Date?      // the last weekly island card
+    public var cleanupLastRun: Date?          // the last weekly cleanup
+    public static let defaultCleanupDays = ["installer": 14, "archive": 30, "extracted": 3, "screenshot": 7, "torrent": 7]
     public var approach = Approach.kind
     public var recents = RecentsMode.links
     public var recentDays = 7
@@ -199,7 +208,9 @@ public struct Settings: Codable, Equatable, Sendable {
         d(.autoSort, &autoSort); d(.settleSeconds, &settleSeconds); d(.graceMinutes, &graceMinutes)
         sortingOffUntil = try? c.decode(Date.self, forKey: .sortingOffUntil)
         sortingOffSince = try? c.decode(Date.self, forKey: .sortingOffSince)
-        d(.offReminderShown, &offReminderShown); d(.smartInstaller, &smartInstaller); d(.trashDownload, &trashDownload); d(.openAfterInstall, &openAfterInstall); d(.installWithoutAsking, &installWithoutAsking)
+        cleanupNoticeShown = try? c.decode(Date.self, forKey: .cleanupNoticeShown)
+        cleanupLastRun = try? c.decode(Date.self, forKey: .cleanupLastRun)
+        d(.offReminderShown, &offReminderShown); d(.smartInstaller, &smartInstaller); d(.cleanup, &cleanup); d(.cleanupDays, &cleanupDays); d(.suggestDocuments, &suggestDocuments); d(.cleanupOffered, &cleanupOffered); d(.trashDownload, &trashDownload); d(.openAfterInstall, &openAfterInstall); d(.installWithoutAsking, &installWithoutAsking)
         d(.approach, &approach); d(.recents, &recents); d(.recentDays, &recentDays); d(.folderIcons, &folderIcons)
         d(.sortFolders, &sortFolders); d(.excludes, &excludes); d(.rootExcludes, &rootExcludes); d(.keepTag, &keepTag); d(.learnCorrections, &learnCorrections)
         d(.unknownFiles, &unknownFiles); d(.suggestTypes, &suggestTypes); d(.modelChoice, &modelChoice)
