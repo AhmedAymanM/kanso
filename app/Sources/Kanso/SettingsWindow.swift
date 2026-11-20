@@ -161,7 +161,7 @@ struct PrivacyPage: View {
         PageSection(title: "About") {
             HStack(spacing: 10) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Kanso \(Bundle.main.version)").font(.system(size: TS.heading, weight: .regular, design: .serif)).foregroundStyle(K.text)
+                    Text("Kanso \(Bundle.main.version)").font(.system(size: TS.heading, weight: .semibold)).foregroundStyle(K.text)
                     Text("Open source · MIT").font(.system(size: TS.small)).foregroundStyle(K.text2)
                 }
                 Spacer()

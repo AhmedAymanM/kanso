@@ -27,8 +27,8 @@ struct QuickSettings: View {
 
     var header: some View {
         HStack(alignment: .firstTextBaseline) {
-            Text("Kanso").font(.system(size: TS.title, weight: .regular, design: .serif)).foregroundStyle(K.text)
-            Text("簡素").font(.system(size: TS.small, design: .serif)).foregroundStyle(K.text2)
+            Text("Kanso").font(.system(size: TS.title, weight: .semibold)).foregroundStyle(K.text)
+            Text("簡素").font(.system(size: TS.small)).foregroundStyle(K.text2)
             Spacer()
             Text("v\(Bundle.main.version)").font(.system(size: TS.meta)).foregroundStyle(K.text2)
         }

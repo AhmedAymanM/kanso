@@ -220,6 +220,7 @@ final class AppModel: ObservableObject {
     private var timer: Timer?
     private var minuteTimer: Timer?
     private var mounted: [URL: SmartInstaller.Watch] = [:]   // Smart Installer fallback: volumes we watch for a manual install
+    @Published var focusSearch = false                     // ⌘F: the Activity search takes focus once
     @Published var cleanupNeeds: [CleanupNeed] = []         // Cleanup's Needs-you cards (refreshCleanup)
     private var offered = Set<String>()                    // carrier offers shown this session (dismissed ones persist in pending)
     private var installTimer: Timer?                      // runs only while something is mounted

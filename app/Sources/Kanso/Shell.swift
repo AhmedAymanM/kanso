@@ -106,7 +106,7 @@ final class Windows: NSObject, NSWindowDelegate {
         StatusItem.shared.close()
         if main == nil {
             let w = NSWindow(contentRect: NSRect(origin: .zero, size: AppWindow.size),
-                             styleMask: [.titled, .closable, .miniaturizable, .fullSizeContentView], backing: .buffered, defer: false)
+                             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
             w.title = "Kanso"
             w.isReleasedWhenClosed = false
             // NSHostingController bridges the SwiftUI toolbar and title into the window (Liquid Glass toolbar on 26).
@@ -114,9 +114,10 @@ final class Windows: NSObject, NSWindowDelegate {
             host.sceneBridgingOptions = [.toolbars, .title]
             w.contentViewController = host
             w.setContentSize(AppWindow.size)
+            w.contentMinSize = AppWindow.size
             w.toolbarStyle = .unified
             w.center()
-            w.setFrameAutosaveName("KansoAppWindow")   // position only; the size is fixed
+            w.setFrameAutosaveName("KansoAppWindow")   // position and size; the page always opens fresh
             w.delegate = self
             main = w
         }
@@ -336,25 +337,57 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     /// Standard Edit menu so ⌘C/⌘V/⌘Z work in text fields, plus ⌘, for the main window.
+    /// The menu bar while the App window is in front: App, File, Edit, View (pages on ⌘1–⌘8), Window, Help.
     func mainMenu() -> NSMenu {
         let menu = NSMenu()
-        let app = NSMenuItem(); app.submenu = NSMenu()
-        app.submenu?.addItem(withTitle: "About Kanso", action: #selector(showAbout), keyEquivalent: "").target = self
-        app.submenu?.addItem(withTitle: "Settings…", action: #selector(showSettings), keyEquivalent: ",").target = self
-        app.submenu?.addItem(.separator())
-        app.submenu?.addItem(withTitle: "Quit Kanso", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
-        menu.addItem(app)
-        let edit = NSMenuItem(); edit.submenu = NSMenu(title: "Edit")
-        for (t, s, k) in [("Undo", "undo:", "z"), ("Redo", "redo:", "Z"), ("Cut", "cut:", "x"), ("Copy", "copy:", "c"), ("Paste", "paste:", "v"), ("Select All", "selectAll:", "a")] {
-            edit.submenu?.addItem(withTitle: t, action: Selector(s), keyEquivalent: k)
+        func item(_ title: String, _ action: Selector, _ key: String = "", _ mods: NSEvent.ModifierFlags = .command, tag: Int = 0, target: AnyObject? = nil) -> NSMenuItem {
+            let i = NSMenuItem(title: title, action: action, keyEquivalent: key)
+            i.keyEquivalentModifierMask = mods; i.tag = tag; i.target = target ?? self
+            return i
         }
-        menu.addItem(edit)
-        let win = NSMenuItem(); win.submenu = NSMenu(title: "Window")
-        win.submenu?.addItem(withTitle: "Close", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
-        menu.addItem(win)
+        func sub(_ title: String, _ items: [NSMenuItem]) -> NSMenuItem {
+            let m = NSMenuItem(); m.submenu = NSMenu(title: title); items.forEach { m.submenu?.addItem($0) }; menu.addItem(m); return m
+        }
+        sub("Kanso", [item("About Kanso", #selector(showAbout)), item("Check for Updates…", #selector(checkForUpdates)), .separator(),
+                      item("Settings…", #selector(showSettings), ","), .separator(),
+                      item("Hide Kanso", #selector(NSApplication.hide(_:)), "h", target: NSApp),
+                      item("Hide Others", #selector(NSApplication.hideOtherApplications(_:)), "h", [.command, .option], target: NSApp),
+                      .separator(), item("Quit Kanso", #selector(NSApplication.terminate(_:)), "q", target: NSApp)])
+        sub("File", [item("Sort Now", #selector(sortNow)), item("Show the Island", #selector(showIsland)), .separator(),
+                     item("Close Window", #selector(NSWindow.performClose(_:)), "w", target: nil)])
+        let edit = [("Undo", "undo:", "z", NSEvent.ModifierFlags.command), ("Redo", "redo:", "z", [.command, .shift]), ("Cut", "cut:", "x", .command),
+                    ("Copy", "copy:", "c", .command), ("Paste", "paste:", "v", .command), ("Select All", "selectAll:", "a", .command)]
+            .map { item($0.0, Selector($0.1), $0.2, $0.3, target: nil) }
+        sub("Edit", edit + [.separator(), item("Find…", #selector(find), "f")])
+        let pages: [Page] = Page.groups.flatMap { $0 }.filter { $0 != .general && $0 != .privacy }
+        sub("View", pages.prefix(9).enumerated().map { i, p in item(p.title, #selector(showPage(_:)), i < 8 ? String(i + 1) : "", tag: Page.allCases.firstIndex(of: p) ?? 0) })
+        let win = sub("Window", [item("Minimize", #selector(NSWindow.performMiniaturize(_:)), "m", target: nil), item("Zoom", #selector(NSWindow.performZoom(_:)), target: nil),
+                                 .separator(), item("Bring All to Front", #selector(NSApplication.arrangeInFront(_:)), target: NSApp)])
+        NSApp.windowsMenu = win.submenu
+        let help = sub("Help", [item("Kanso Help", #selector(openHelp)), item("Report a Problem…", #selector(reportProblem))])
+        NSApp.helpMenu = help.submenu
         return menu
     }
 
+    @objc func checkForUpdates() {
+        MainActor.assumeIsolated {
+            Task { @MainActor in
+                await UpdateChecker.shared.check()
+                switch UpdateChecker.shared.state {
+                case .available(let v, _): Island.shared.show(.info(icon: "arrow.down.circle", text: "Kanso \(v) is available"))
+                case .upToDate: Island.shared.show(.info(icon: "checkmark.circle", text: "Kanso is up to date"))
+                case .failed(let msg): Island.shared.show(.info(icon: "exclamationmark.triangle", text: msg))
+                default: break
+                }
+            }
+        }
+    }
+    @objc func sortNow() { MainActor.assumeIsolated { AppModel.shared.sortNow(trigger: "menu") } }
+    @objc func showIsland() { MainActor.assumeIsolated { Island.shared.toggleShortcut() } }
+    @objc func find() { MainActor.assumeIsolated { Windows.shared.showMain(.activity); AppModel.shared.focusSearch = true } }
+    @objc func showPage(_ sender: NSMenuItem) { MainActor.assumeIsolated { Windows.shared.showMain(Page.allCases[sender.tag]) } }
+    @objc func openHelp() { MainActor.assumeIsolated { NSWorkspace.shared.open(Links.repo) } }
+    @objc func reportProblem() { MainActor.assumeIsolated { NSWorkspace.shared.open(Links.repo.appendingPathComponent("issues/new")) } }
     @objc func showAbout() { MainActor.assumeIsolated { Windows.shared.showSettings(.privacy) } }
     @objc func showSettings() { MainActor.assumeIsolated { Windows.shared.showSettings() } }
 }

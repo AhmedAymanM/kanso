@@ -63,6 +63,9 @@ struct ActivityPage: View {
     @State private var shelf: String?    // narrowing that a saved view can carry: one shelf…
     @State private var days: Int?        // …and/or the last N days
     @State private var naming = false
+    @FocusState private var searchFocused: Bool
+    @State private var typed = ""
+    @State private var typedAt = Date.distantPast
     @State private var newName = ""
 
     /// The current filters as a view (unnamed), for narrowing and for saving.
@@ -134,7 +137,7 @@ struct ActivityPage: View {
                 emptyState
             }
         }
-        .background { KeyCatcher(keys: [126: { move(-1, list, selected?.id) }, 125: { move(1, list, selected?.id) }]) }
+        .background { KeyCatcher(keys: [126: { move(-1, list, selected?.id) }, 125: { move(1, list, selected?.id) }], typed: { typeSelect($0, list) }) }
         .alert("Save this view", isPresented: $naming) {
             TextField("Name", text: $newName)
             Button("Save") { saveView() }
@@ -171,7 +174,7 @@ struct ActivityPage: View {
         return VStack(spacing: 10) {
             Image(systemName: icon).font(.system(size: TS.display, weight: .light)).foregroundStyle(K.text3).frame(width: 84, height: 84)
                 .liquid(Circle(), tint: Tint.accent.bg.opacity(0.5), interactive: false)
-            Text(searching ? "No matches for “\(query)”" : filter == .all ? "Nothing yet" : "Nothing under \(filter.rawValue)").font(.system(size: TS.title, design: .serif)).foregroundStyle(K.text)
+            Text(searching ? "No matches for “\(query)”" : filter == .all ? "Nothing yet" : "Nothing under \(filter.rawValue)").font(.system(size: TS.title, weight: .semibold)).foregroundStyle(K.text)
             Text(searching ? "Search looks at file names and shelves." : filter.emptyLine).font(.system(size: TS.body)).foregroundStyle(K.text2).multilineTextAlignment(.center).frame(maxWidth: 320)
             if searching || filter != .all || current.isNarrowed {
                 Button(searching ? "Clear search" : "Show all activity") { withAnimation(Motion.spring(0.3)) { if searching { query = "" } else { filter = .all; shelf = nil; days = nil } } }
@@ -182,6 +185,15 @@ struct ActivityPage: View {
     }
 
     /// ↑ ↓ walk the list; after an action removes the selected row the next one is picked.
+    /// Type-to-select (Mac lists): letters typed within a second build a prefix; the first entry whose name starts
+    /// with it is selected.
+    func typeSelect(_ chars: String, _ list: [Entry]) {
+        let now = Date()
+        typed = now.timeIntervalSince(typedAt) < 1 ? typed + chars.lowercased() : chars.lowercased()
+        typedAt = now
+        if let hit = list.first(where: { title($0).lowercased().hasPrefix(typed) }) { withAnimation(Motion.spring(0.25)) { m.selectedActivity = hit.id } }
+    }
+
     func move(_ d: Int, _ list: [Entry], _ current: String?) {
         guard !list.isEmpty else { return }
         let i = list.firstIndex { $0.id == current } ?? 0
@@ -204,7 +216,8 @@ struct ActivityPage: View {
                 HStack(spacing: 8) {
                     HStack(spacing: 8) {
                         Image(systemName: "magnifyingglass").font(.system(size: TS.small)).foregroundStyle(K.text2)
-                        TextField("Search files and shelves", text: $query).textFieldStyle(.plain).font(.system(size: TS.body))
+                        TextField("Search files and shelves", text: $query).textFieldStyle(.plain).font(.system(size: TS.body)).focused($searchFocused)
+                            .onChange(of: m.focusSearch, initial: true) { _, on in if on { searchFocused = true; m.focusSearch = false } }
                         if !query.isEmpty { Button { query = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(K.text3) }.buttonStyle(.plain).accessibilityLabel("Clear search") }
                     }
                     .padding(.horizontal, 12).frame(height: 32).liquid(Capsule(), tint: nil, fallback: K.fill, interactive: false)
@@ -236,7 +249,7 @@ struct ActivityPage: View {
                             Spacer()
                         }
                         .padding(.horizontal, 8).padding(.top, 8).padding(.bottom, 2)
-                        ForEach(g.1) { e in Button { withAnimation(Motion.spring(0.25)) { m.selectedActivity = e.id } } label: { ListRow(entry: e, selected: e.id == selected) }.buttonStyle(PlainRowStyle()).focusRing(9) }
+                        ForEach(g.1) { e in Button { withAnimation(Motion.spring(0.25)) { m.selectedActivity = e.id } } label: { ListRow(entry: e, selected: e.id == selected) }.buttonStyle(PlainRowStyle()).focusRing(9).contextMenu { RowMenu(entry: e) } }
                     }
                 }
                 .padding(.bottom, 16)
@@ -446,18 +459,21 @@ struct Thumb: View {
 /// (126 up, 125 down, 123 left, 124 right, 53 esc) to actions; codes without an entry pass through.
 struct KeyCatcher: NSViewRepresentable {
     var keys: [Int: () -> Void]
+    var typed: ((String) -> Void)? = nil   // plain letters and digits (type-to-select)
     func makeNSView(context: Context) -> NSView { context.coordinator.view }
-    func updateNSView(_ v: NSView, context: Context) { context.coordinator.keys = keys }
+    func updateNSView(_ v: NSView, context: Context) { context.coordinator.keys = keys; context.coordinator.typed = typed }
     func makeCoordinator() -> Coordinator { Coordinator() }
     final class Coordinator {
         let view = NSView()
         var keys: [Int: () -> Void] = [:]
+        var typed: ((String) -> Void)?
         var monitor: Any?
         init() {
             monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] e in
-                guard let self, self.view.window?.isKeyWindow == true, !(self.view.window?.firstResponder is NSText), e.modifierFlags.intersection([.command, .option, .control]).isEmpty,
-                      let act = self.keys[Int(e.keyCode)] else { return e }
-                act(); return nil
+                guard let self, self.view.window?.isKeyWindow == true, !(self.view.window?.firstResponder is NSText), e.modifierFlags.intersection([.command, .option, .control]).isEmpty else { return e }
+                if let act = self.keys[Int(e.keyCode)] { act(); return nil }
+                if let typed = self.typed, let c = e.charactersIgnoringModifiers, c.count == 1, c.first!.isLetter || c.first!.isNumber { typed(c); return nil }
+                return e
             }
         }
         deinit { if let monitor { NSEvent.removeMonitor(monitor) } }
@@ -543,4 +559,32 @@ final class QuickLook: NSObject, QLPreviewPanelDataSource {
     }
     func numberOfPreviewItems(in panel: QLPreviewPanel!) -> Int { url == nil ? 0 : 1 }
     func previewPanel(_ panel: QLPreviewPanel!, previewItemAt index: Int) -> QLPreviewItem! { url as NSURL? }
+}
+
+/// Right-click on an Activity row: the file's usual Finder actions, and Undo.
+struct RowMenu: View {
+    @EnvironmentObject var m: AppModel
+    var entry: Entry
+    var path: String? {
+        switch entry {
+        case .action(let a): return a.kind == .trashed ? nil : a.dst
+        case .need(.duplicate(let a)): return a.dst
+        case .waiting(let w): return w.url.path
+        default: return nil
+        }
+    }
+    var body: some View {
+        if let p = path, FileManager.default.fileExists(atPath: p) {
+            Button("Open") { NSWorkspace.shared.open(URL(fileURLWithPath: p)) }
+            Button("Show in Finder") { m.reveal(p) }
+            Button("Copy Name") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString((p as NSString).lastPathComponent, forType: .string) }
+        }
+        if case .action(let a) = entry, !a.undone {
+            Divider()
+            Button(a.kind == .trashed ? "Put Back" : "Undo") { m.undo([a.id]) }
+        }
+        if case .batch(let run, _) = entry {
+            Button("Undo This Run") { m.undoRun(run) }
+        }
+    }
 }

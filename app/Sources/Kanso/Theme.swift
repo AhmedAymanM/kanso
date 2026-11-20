@@ -84,7 +84,7 @@ struct FocusRing: ViewModifier {
     var radius: CGFloat
     @Environment(\.isFocused) private var focused
     func body(content: Content) -> some View {
-        content.overlay(RoundedRectangle(cornerRadius: radius + 2).stroke(K.accent, lineWidth: 2).padding(-2).opacity(focused ? 1 : 0))
+        content.overlay(RoundedRectangle(cornerRadius: radius + 2).stroke(Color.accentColor, lineWidth: 2).padding(-2).opacity(focused ? 1 : 0))
     }
 }
 
@@ -125,15 +125,18 @@ final class AccessibilityOptions: ObservableObject {
 // MARK: Text styles
 
 /// The type scale (DESIGN_SYSTEM.md §3). Every text and glyph size comes from here; icons smaller than text (8–9 pt chevrons) stay literal.
+/// SF everywhere (owner, 2026-11-20). macOS gives apps no Larger Text setting to follow (Dynamic Type can't be changed
+/// by users on the Mac), so these are fixed points.
 enum TS {
     static let meta: CGFloat = 11       // eyebrows, times, chart labels, badges, key hints (no font goes below 11)
     static let small: CGFloat = 12      // descriptions, secondary lines
-    static let body: CGFloat = 13       // rows, buttons, body text
-    static let emphasis: CGFloat = 15   // card and section titles, names, toolbar title
+    static let body: CGFloat = 14       // rows, buttons, body text
+    static let emphasis: CGFloat = 15   // card and section titles, names
     static let heading: CGFloat = 17    // file names in notices
-    static let title: CGFloat = 22      // serif statements, page headlines
-    static let display: CGFloat = 40    // serif display, big glyphs
-    static let numeral: CGFloat = 64    // Overview hero number (serif, monospaced digits)
+    static let title: CGFloat = 22      // page and card headlines, 600
+    static let display: CGFloat = 34    // statements, 700
+    static let numeral: CGFloat = 44    // big numbers: 700 SF Rounded, monospaced digits
+    static let toolbar: CGFloat = 13    // the window title, semibold (the macOS window-title size)
     static let emoji: CGFloat = 26      // folder emoji: an icon size, not a text step
 }
 
@@ -195,10 +198,39 @@ struct PrimaryStyle: ButtonStyle {
             .frame(height: small ? 26 : 30)
             .contentShape(Capsule())
             .liquid(Capsule(), tint: tint.bg.opacity(0.9))
+            .hoverHighlight(Capsule())
             .scaleEffect(configuration.isPressed && !Motion.reduced ? 0.96 : 1)
             .animation(.spring(response: 0.25, dampingFraction: 0.8), value: configuration.isPressed)
             .focusRing(13)
     }
+}
+
+/// Every button shows it's clickable when the pointer is over it: a faint wash over its shape (Mac convention).
+struct HoverHighlight<S: Shape>: ViewModifier {
+    var shape: S
+    @State private var hover = false
+    func body(content: Content) -> some View {
+        content
+            .overlay(shape.fill(K.text.opacity(hover ? 0.06 : 0)).allowsHitTesting(false))
+            .onHover { hover = $0 }
+            .animation(.easeOut(duration: 0.12), value: hover)
+    }
+}
+
+/// Rows and tiles: a slight brightness change on hover, no box.
+struct HoverBrighten: ViewModifier {
+    @State private var hover = false
+    @Environment(\.colorScheme) private var scheme
+    func body(content: Content) -> some View {
+        content.brightness(hover ? (scheme == .dark ? 0.05 : -0.025) : 0)
+            .onHover { hover = $0 }
+            .animation(.easeOut(duration: 0.12), value: hover)
+    }
+}
+
+extension View {
+    func hoverHighlight<S: Shape>(_ shape: S) -> some View { modifier(HoverHighlight(shape: shape)) }
+    func hoverBrighten() -> some View { modifier(HoverBrighten()) }
 }
 
 /// Secondary action: a clear Liquid Glass capsule.
@@ -213,6 +245,7 @@ struct SecondaryStyle: ButtonStyle {
             .frame(height: small ? 26 : 30)
             .contentShape(Capsule())
             .liquid(Capsule())
+            .hoverHighlight(Capsule())
             .scaleEffect(configuration.isPressed && !Motion.reduced ? 0.96 : 1)
             .animation(.spring(response: 0.25, dampingFraction: 0.8), value: configuration.isPressed)
             .focusRing(13)
@@ -228,6 +261,7 @@ struct PillStyle: ButtonStyle {
             .padding(.horizontal, 9)
             .frame(height: 22)
             .background(RoundedRectangle(cornerRadius: 6).fill(configuration.isPressed ? K.fillStrong.opacity(2) : K.fillStrong))
+            .hoverHighlight(RoundedRectangle(cornerRadius: 6))
             .contentShape(Rectangle())
     }
 }
@@ -235,7 +269,17 @@ struct PillStyle: ButtonStyle {
 struct LinkStyle: ButtonStyle {
     var color: Color = K.accent
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label.font(.system(size: TS.small, weight: .medium)).foregroundStyle(color.opacity(configuration.isPressed ? 0.6 : 1))
+        LinkLabel(label: configuration.label, color: color, pressed: configuration.isPressed)
+    }
+}
+
+/// A link underlines on hover.
+private struct LinkLabel<L: View>: View {
+    var label: L, color: Color, pressed: Bool
+    @State private var hover = false
+    var body: some View {
+        label.font(.system(size: TS.small, weight: .medium)).foregroundStyle(color.opacity(pressed ? 0.6 : 1))
+            .underline(hover).onHover { hover = $0 }
             .contentShape(Rectangle())
     }
 }
@@ -244,6 +288,7 @@ struct LinkStyle: ButtonStyle {
 struct PressStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label.contentShape(Rectangle())
+            .hoverBrighten()
             .scaleEffect(configuration.isPressed && !Motion.reduced ? 0.96 : 1)
             .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
     }
@@ -251,7 +296,7 @@ struct PressStyle: ButtonStyle {
 
 struct PlainRowStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label.contentShape(Rectangle()).opacity(configuration.isPressed ? 0.7 : 1)
+        configuration.label.contentShape(Rectangle()).hoverBrighten().opacity(configuration.isPressed ? 0.7 : 1)
     }
 }
 
@@ -359,7 +404,7 @@ struct Dot: View {
     }
 }
 
-/// The native macOS switch (Liquid Glass knob on macOS 26), green when on per the design.
+/// The native macOS switch (Liquid Glass knob on macOS 26), in the system accent like every native control.
 struct KToggle: View {
     @Binding var on: Bool
     var label: String = ""
@@ -369,7 +414,6 @@ struct KToggle: View {
             .toggleStyle(.switch)
             .labelsHidden()
             .controlSize(small ? .small : .regular)
-            .tint(K.switchOn)
             .accessibilityLabel(label)
     }
 }
