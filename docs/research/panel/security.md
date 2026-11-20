@@ -8,7 +8,7 @@
 
 ## MAJOR
 
-4. **Update check is unverified.** It opens `html_url` from the JSON without a host check, and the DMG is unsigned-checked. Fix: accept only `https://github.com/<pinned slug>/releases/`. Adopt Sparkle with EdDSA signatures, or verify the Developer ID signature and notarization before install. Never auto-install, and reject downgrades.
+4. **Update check is unverified.** It opens `html_url` from the JSON without a host check, and the DMG is unsigned-checked. Fix: accept only `https://github.com/<pinned slug>/releases/`. Adopt Sparkle with EdDSA signatures, or verify the Developer ID signature and notarization before install. Never auto-install, and reject downgrades. *(2026-11-20: the host check is fixed in #22; EdDSA updates are planned for v1.)*
 5. **Injection through names.** Classifier and Ask put file names and up to 20 child names into the prompt. The closed schemas limit the damage, but fix this anyway: strip control characters and newlines, cap names at 120 characters, and delimit untrusted data. Enforce `canTrash` in code, not only in the schema.
 6. **Model-created shelf names.** `cleanName` allows "Manual Shelves", "Recents" and Unicode lookalikes. Fix: reject (NFKC, case-folded) any reserved or existing name.
 7. **Cloud payload undefined.** Fix: a local "what was sent" log, switches off by default, and a typed struct per feature (name, extension, source host, and for rename/tag only, at most 2,000 characters if the user opted in). Never send Keys, vaults, Manual Shelves, iCloud placeholders, paths or the journal. A redactor (cards, IBAN, keys, long digit runs) runs first and blocks the item on a hit.
