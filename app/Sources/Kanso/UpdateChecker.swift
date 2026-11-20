@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import KansoCore
 import SwiftUI
 
 /// Asks GitHub Releases whether a newer Kanso exists. Only a User-Agent with the app version is sent.
@@ -55,7 +56,9 @@ final class UpdateChecker: ObservableObject {
             guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                   var tag = json["tag_name"] as? String else { state = .failed("Unexpected answer from GitHub."); return }
             if tag.hasPrefix("v") || tag.hasPrefix("V") { tag.removeFirst() }
-            let page = (json["html_url"] as? String).flatMap(URL.init(string:)) ?? Links.repo.appendingPathComponent("releases")
+            let fallback = URL(string: "https://github.com/\(repoSlug)/releases")!
+            let page = (json["html_url"] as? String).flatMap(URL.init(string:))
+                .flatMap { ReleaseLink.isTrusted($0, slug: repoSlug) ? $0 : nil } ?? fallback
             if tag.compare(current, options: .numeric) == .orderedDescending {
                 state = .available(version: tag, url: page)
                 if automatic, UserDefaults.standard.string(forKey: notifiedKey) != tag {
